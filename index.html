@@ -3,116 +3,282 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yuan's Website</title>
+    <title>Yuan's Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #0b0c10;
+            --surface-color: rgba(31, 40, 51, 0.6);
+            --accent-primary: #66fcf1;
+            --accent-secondary: #45a29e;
+            --text-main: #ffffff;
+            --text-muted: #c5c6c7;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(102, 252, 241, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(69, 162, 158, 0.08) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Navbar */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 20px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(11, 12, 16, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 24px;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, var(--accent-primary), #fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Hero Carousel */
+        .hero-section {
+            margin-top: 100px;
+            padding: 0 5%;
+        }
+
+        .section-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--accent-primary);
+            margin-bottom: 20px;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        .carousel-container {
+            width: 100%;
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            gap: 30px;
+            padding-bottom: 40px;
+            /* Hide scrollbar */
+            -ms-overflow-style: none;  
+            scrollbar-width: none;  
+        }
+        .carousel-container::-webkit-scrollbar { display: none; }
+
+        .carousel-item {
+            flex: 0 0 100%;
+            scroll-snap-align: center;
+            background: var(--surface-color);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 24px;
+            padding: 60px 40px;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
-            color: #333;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
         }
 
-        .card {
-            background: rgba(255, 255, 255, 0.95);
+        .carousel-item:hover {
+            transform: translateY(-5px);
+            border-color: rgba(102, 252, 241, 0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .carousel-item::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 252, 241, 0.1) 0%, transparent 100%);
+            z-index: 0;
+        }
+
+        .carousel-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .carousel-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(102, 252, 241, 0.15);
+            color: var(--accent-primary);
             border-radius: 20px;
-            padding: 50px 40px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .carousel-title {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            line-height: 1.1;
+        }
+
+        .carousel-desc {
+            font-size: 18px;
+            color: var(--text-muted);
             max-width: 500px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-            animation: fadeInUp 0.8s ease;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .avatar {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            color: white;
-        }
-
-        h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-            color: #2d3748;
-        }
-
-        .tagline {
-            font-size: 16px;
-            color: #718096;
             margin-bottom: 30px;
             line-height: 1.6;
         }
 
-        .links {
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: transparent;
+            color: var(--accent-primary);
+            text-decoration: none;
+            border: 1px solid var(--accent-primary);
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: var(--accent-primary);
+            color: #000;
+            box-shadow: 0 0 20px rgba(102, 252, 241, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* Matrix Grid */
+        .grid-section {
+            padding: 60px 5%;
+        }
+
+        .grid-header {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 40px;
+            color: #fff;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .grid-card {
+            background: var(--surface-color);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 30px;
+            text-decoration: none;
+            color: inherit;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
         }
 
-        .links a {
-            display: block;
-            padding: 14px 20px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            text-decoration: none;
-            color: #4a5568;
-            font-size: 15px;
+        .grid-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            width: 0%;
+            background: var(--accent-primary);
+            transition: width 0.3s ease;
+        }
+
+        .grid-card:hover {
+            transform: translateY(-10px);
+            background: rgba(31, 40, 51, 0.9);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+        }
+
+        .grid-card:hover::after {
+            width: 100%;
+        }
+
+        .card-icon {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title span.arrow {
+            opacity: 0;
+            transform: translateX(-10px);
             transition: all 0.3s ease;
+            color: var(--accent-primary);
         }
 
-        .links a:hover {
-            border-color: #667eea;
-            color: #667eea;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        .grid-card:hover .card-title span.arrow {
+            opacity: 1;
+            transform: translateX(0);
         }
 
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 13px;
-            color: #a0aec0;
+        .card-desc {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.6;
         }
 
-        .visitor-count {
-            margin-top: 8px;
+        /* Footer */
+        footer {
+            padding: 60px 0 40px;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            margin-top: 80px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        
+        .visitor-stats {
+            margin-top: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            opacity: 0.6;
             font-size: 12px;
-            color: #a0aec0;
+        }
+
+        @media (max-width: 768px) {
+            .carousel-title { font-size: 32px; }
+            .carousel-item { padding: 40px 20px; }
+            .grid-container { grid-template-columns: 1fr; }
         }
     </style>
-
-    <!-- 不蒜子 访问量统计 -->
+    <!-- 统计脚本 -->
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-
-    <!-- 百度统计 -->
     <script>
         var _hmt = _hmt || [];
         (function() {
@@ -124,24 +290,110 @@
     </script>
 </head>
 <body>
-    <div class="card">
-        <div class="avatar">👋</div>
-        <h1>你好，我是 Yuan</h1>
-        <p class="tagline">欢迎来到我的个人网站<br>探索 · 创造 · 分享</p>
 
-        <div class="links">
-            <a href="#">📝 我的博客</a>
-            <a href="#">🚀 我的项目</a>
-            <a href="#">📮 联系我</a>
-        </div>
+    <nav>
+        <div class="logo">y.portal</div>
+        <div style="color: var(--text-muted); font-size: 14px;">探索 · 创造 · 分享</div>
+    </nav>
 
-        <div class="footer">
-            <p>🌱 网站建设中...</p>
-            <div class="visitor-count">
-                本站总访问量 <span id="busuanzi_value_site_pv">--</span> 次 | 
-                访客数 <span id="busuanzi_value_site_uv">--</span> 人
+    <!-- 主打活动轮播 -->
+    <section class="hero-section">
+        <div class="section-title">✨ Featured Launch</div>
+        <div class="carousel-container" id="carousel">
+            <!-- Slide 1 -->
+            <div class="carousel-item" style="background: linear-gradient(135deg, rgba(31, 40, 51, 0.9), rgba(11, 12, 16, 0.9)), url('data:image/svg+xml;utf8,<svg width=\"100\" height=\"100\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"50\" r=\"40\" fill=\"none\" stroke=\"%2366fcf1\" stroke-opacity=\"0.1\" stroke-width=\"2\"/></svg>');">
+                <div class="carousel-content">
+                    <span class="carousel-badge">NEW RELEASE</span>
+                    <h2 class="carousel-title">InfiniteSkill<br>智能文档编译器</h2>
+                    <p class="carousel-desc">将任意人类知识文档，瞬间提炼为可直接被 AI 智能体调用的标准化 Skill 技能包。完全开源，免费代理通道开放中。</p>
+                    <a href="/infiniteskill/" class="btn">立即体验 / Launch App</a>
+                </div>
+            </div>
+            
+            <!-- Slide 2 -->
+            <div class="carousel-item">
+                <div class="carousel-content">
+                    <span class="carousel-badge" style="color: #c5c6c7; background: rgba(255,255,255,0.1)">COMING SOON</span>
+                    <h2 class="carousel-title">下一代生成式<br>网页引擎</h2>
+                    <p class="carousel-desc">正在研发中的自动化架构系统，敬请期待...</p>
+                    <a href="#" class="btn" style="border-color: #c5c6c7; color: #c5c6c7">研发中</a>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <!-- 分类矩阵 -->
+    <section class="grid-section">
+        <h3 class="grid-header">Projects Matrix</h3>
+        
+        <div class="grid-container">
+            <!-- AI Tools -->
+            <a href="/infiniteskill/" class="grid-card">
+                <div class="card-icon">🤖</div>
+                <div class="card-title">实用 AI 工具 <span class="arrow">→</span></div>
+                <div class="card-desc">包含 InfiniteSkill 编译器等基于大语言模型的提效杠杆工具。</div>
+            </a>
+
+            <!-- Books & Docs -->
+            <a href="#" class="grid-card">
+                <div class="card-icon">📚</div>
+                <div class="card-title">书籍与深思 <span class="arrow">→</span></div>
+                <div class="card-desc">沉淀的技术见解、架构解析与个人撰写的领域电子书。</div>
+            </a>
+
+            <!-- Games -->
+            <a href="#" class="grid-card">
+                <div class="card-icon">🎮</div>
+                <div class="card-title">实验性网页游戏 <span class="arrow">→</span></div>
+                <div class="card-desc">使用 Canvas 和 WebGL 编写的轻量级浏览器游戏原型。</div>
+            </a>
+        </div>
+    </section>
+
+    <footer>
+        <p>© 2026 Yuan's Digital Sandbox. All rights reserved.</p>
+        <div class="visitor-stats">
+            SYS_VISITS( <span id="busuanzi_value_site_pv">--</span> ) | USERS( <span id="busuanzi_value_site_uv">--</span> )
+        </div>
+    </footer>
+
+    <script>
+        // 简易的轮播图自动滑动逻辑 (可选)
+        const carousel = document.getElementById('carousel');
+        let scrollPos = 0;
+        
+        // 鼠标拖拽查看 Carousel
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        carousel.addEventListener('mousedown', (e) => {
+            isDown = true;
+            startX = e.pageX - carousel.offsetLeft;
+            scrollLeft = carousel.scrollLeft;
+            carousel.style.scrollSnapType = 'none'; // 拖拽时取消吸附
+            carousel.style.cursor = 'grabbing';
+        });
+        
+        carousel.addEventListener('mouseleave', () => {
+            isDown = false;
+            carousel.style.scrollSnapType = 'x mandatory';
+            carousel.style.cursor = 'grab';
+        });
+        
+        carousel.addEventListener('mouseup', () => {
+            isDown = false;
+            carousel.style.scrollSnapType = 'x mandatory';
+            carousel.style.cursor = 'grab';
+        });
+        
+        carousel.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - carousel.offsetLeft;
+            const walk = (x - startX) * 2; // 滑动速度
+            carousel.scrollLeft = scrollLeft - walk;
+        });
+    </script>
 </body>
 </html>
