@@ -1,4 +1,19 @@
 {
-  "buildCommand": "mkdir -p public && cp index.html public/ && cd infiniteskill && npm install && npm run build && cp -r dist ../public/infiniteskill",
-  "outputDirectory": "public"
+  "version": 2,
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
 }

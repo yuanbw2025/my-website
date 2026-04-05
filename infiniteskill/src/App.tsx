@@ -22,7 +22,8 @@ import {
   ShieldAlert,
   RefreshCw,
   Settings,
-  Save
+  Save,
+  Github
 } from "lucide-react";
 import { extractTextFromFile } from "./lib/doc-parser";
 import { SkillCompiler, CompilationResult } from "./lib/skill-compiler";
@@ -183,6 +184,18 @@ export default function App() {
         >
           把人类的专业技能书，转化为 OpenClaw 的原生 Skill 与智能体团队。
         </motion.p>
+        <motion.div
+           initial={{ opacity: 0, y: -20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.3 }}
+           className="mt-6 flex justify-center"
+        >
+          <a href="https://github.com/yuanbw2025/infiniteskill/archive/refs/heads/main.zip"
+             className="inline-flex items-center gap-2 px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-full font-medium transition-all shadow-lg hover:shadow-xl">
+             <Github className="w-5 h-5" />
+             下载完整开源代码 (ZIP)
+          </a>
+        </motion.div>
       </header>
 
       <main className="w-full max-w-5xl space-y-8">
@@ -368,7 +381,7 @@ export default function App() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold">编译成功！</h2>
-                    <p className="text-gray-400">已生成 {result.agents.length} 个智能体角色，共 {result.skills.length} 项技能</p>
+                    <p className="text-gray-600">已生成 {result.agents.length} 个智能体角色，共 {result.skills.length} 项技能</p>
                   </div>
                 </div>
                 <button
@@ -394,17 +407,17 @@ export default function App() {
                             {agent.name.charAt(0)}
                           </div>
                           <div>
-                            <h4 className="font-bold text-sm text-white">{agent.name}</h4>
+                            <h4 className="font-bold text-sm text-gray-900">{agent.name}</h4>
                             <p className="text-xs text-gray-500 font-mono">{agent.id}</p>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-300 mb-4">{agent.description}</p>
+                        <p className="text-sm text-gray-700 mb-4">{agent.description}</p>
                         <div className="space-y-2">
                           <p className="text-xs text-gray-500 font-medium mb-1">拥有技能:</p>
                           {agent.skillIds.map(skillId => {
                             const skill = result.skills.find(s => s.id === skillId);
                             return skill ? (
-                              <div key={skillId} className="text-xs bg-black/30 px-2 py-1.5 rounded border border-white/5 truncate text-gray-300">
+                              <div key={skillId} className="text-xs bg-black/5 px-2 py-1.5 rounded border border-black/10 truncate text-gray-700">
                                 <span className="text-brand-primary mr-1">✦</span> {skill.name}
                               </div>
                             ) : null;
@@ -433,17 +446,17 @@ export default function App() {
                 <Layers className="w-8 h-8 text-brand-primary" />
                 <h2 className="text-2xl font-bold">什么是 InfiniteSkill？</h2>
               </div>
-              <div className="grid md:grid-cols-2 gap-8 text-gray-300 leading-relaxed">
+              <div className="grid md:grid-cols-2 gap-8 text-gray-700 leading-relaxed">
                 <div>
                   <p className="mb-4">
-                    <strong className="text-white">InfiniteSkill</strong> 不是一个简单的“文档总结”工具，而是一个<strong className="text-brand-primary">智能文档技能编译器</strong>。
+                    <strong className="text-gray-900">InfiniteSkill</strong> 不是一个简单的“文档总结”工具，而是一个<strong className="text-brand-primary">智能文档技能编译器</strong>。
                   </p>
                   <p className="mb-4">
-                    普通的 AI 总结只能给你一段粗略的“读后感”，对话结束后知识就丢失了。而 InfiniteSkill 会深入分析文档的语义密度，将专业书籍、操作手册、行业规范中的核心概念、操作步骤和异常处理分支，提取并封装成一套<strong className="text-white">结构完整、可直接导入 OpenClaw 等 AI 助手的智能体团队（Agent Team）与技能包（Skills）</strong>。
+                    普通的 AI 总结只能给你一段粗略的“读后感”，对话结束后知识就丢失了。而 InfiniteSkill 会深入分析文档的语义密度，将专业书籍、操作手册、行业规范中的核心概念、操作步骤和异常处理分支，提取并封装成一套<strong className="text-gray-900">结构完整、可直接导入 OpenClaw 等 AI 助手的智能体团队（Agent Team）与技能包（Skills）</strong>。
                   </p>
                 </div>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-                  <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                  <h3 className="text-gray-900 font-bold mb-3 flex items-center gap-2">
                     <FileCode2 className="w-5 h-5 text-brand-primary" />
                     核心优势
                   </h3>
@@ -475,7 +488,7 @@ export default function App() {
                 <Workflow className="w-8 h-8 text-brand-primary" />
                 <h2 className="text-2xl font-bold">实战案例：从《PMBOK® 指南》到项目管理智能体团队</h2>
               </div>
-              <div className="space-y-6 text-gray-300">
+              <div className="space-y-6 text-gray-700">
                 <p>
                   假设你上传了著名的<strong>《项目管理知识体系指南 (PMBOK® 指南) 第七版》</strong>。InfiniteSkill 不会给你一个简单的摘要，而是会将其编译成一个由多个专业角色组成的虚拟项目管理办公室 (PMO)，可直接导入 <strong>OpenClaw</strong>。
                 </p>
@@ -487,11 +500,11 @@ export default function App() {
                         <Briefcase className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-white font-bold text-sm">战略与治理专家</h4>
+                        <h4 className="text-gray-900 font-bold text-sm">战略与治理专家</h4>
                         <div className="text-blue-400 text-xs font-mono">strategic_governance</div>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-400 mb-4">负责项目与组织战略对齐，制定裁剪策略，确保价值交付。</p>
+                    <p className="text-sm text-gray-600 mb-4">负责项目与组织战略对齐，制定裁剪策略，确保价值交付。</p>
                     <div className="space-y-2">
                       <div className="text-xs bg-white/5 px-2 py-1.5 rounded border border-white/10">✦ 价值交付系统分析</div>
                       <div className="text-xs bg-white/5 px-2 py-1.5 rounded border border-white/10">✦ 项目裁剪流程制定</div>
@@ -504,11 +517,11 @@ export default function App() {
                         <ShieldAlert className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-white font-bold text-sm">风险与不确定性管理者</h4>
+                        <h4 className="text-gray-900 font-bold text-sm">风险与不确定性管理者</h4>
                         <div className="text-orange-400 text-xs font-mono">risk_manager</div>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-400 mb-4">专门识别、评估并应对项目中的复杂性、模糊性与风险。</p>
+                    <p className="text-sm text-gray-600 mb-4">专门识别、评估并应对项目中的复杂性、模糊性与风险。</p>
                     <div className="space-y-2">
                       <div className="text-xs bg-white/5 px-2 py-1.5 rounded border border-white/10">✦ 风险应对策略优化</div>
                       <div className="text-xs bg-white/5 px-2 py-1.5 rounded border border-white/10">✦ 复杂性导航与降解</div>
@@ -521,11 +534,11 @@ export default function App() {
                         <RefreshCw className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-white font-bold text-sm">敏捷与交付教练</h4>
+                        <h4 className="text-gray-900 font-bold text-sm">敏捷与交付教练</h4>
                         <div className="text-green-400 text-xs font-mono">agile_coach</div>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-400 mb-4">指导团队选择开发方法，管理交付节奏与质量，提升团队韧性。</p>
+                    <p className="text-sm text-gray-600 mb-4">指导团队选择开发方法，管理交付节奏与质量，提升团队韧性。</p>
                     <div className="space-y-2">
                       <div className="text-xs bg-white/5 px-2 py-1.5 rounded border border-white/10">✦ 适应型生命周期规划</div>
                       <div className="text-xs bg-white/5 px-2 py-1.5 rounded border border-white/10">✦ 质量与过程融合</div>
