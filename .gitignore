@@ -1,0 +1,10 @@
+# 子应用独立仓库目录（各自有独立 .git，主仓库不跟踪其内容）
+infiniteskill/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
