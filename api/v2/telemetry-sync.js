@@ -15,46 +15,48 @@ export default async function handler(req, res) {
     });
   }
 
-  // 2. 安全解构参数，设置默认值防崩溃
-  const { system = "", user = "", proxy = "" } = req.body || {};
-  const model = proxy === 'pro' ? 'gemini-1.5-pro-latest' : 'gemini-1.5-flash-latest';
+  // 2. 建立级联降级模型队列 (优先考虑 3.1 Flash Live Preview，不行的话用 1.5 Pro)
+  const { system = "", user = "" } = req.body || {};
+  const modelQueue = ['gemini-3.1-flash-live-preview', 'gemini-1.5-pro'];
+  
+  let lastErrorText = "";
 
-  try {
-    // 3. 执行原生 Gemini 规范的调用
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: user }] }]
-      })
-    });
+  // 3. 循环尝试每一个模型直到成功
+  for (const model of modelQueue) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: user }] }]
+        })
+      });
 
-    // 4. 原样透传报错，方便 Vercel 控制台排查
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({ error: `Gemini API Error: ${errorText}` });
+      if (response.ok) {
+        const data = await response.json();
+        const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "No valid response generated.";
+
+        // 原样透传 OpenAI 结构格式返回
+        return res.status(200).json({
+          choices: [{ message: { content: textContent } }]
+        });
+      } else {
+        lastErrorText = await response.text();
+        console.warn(`Model ${model} failed: ${lastErrorText}. Retrying next model...`);
+        // 继续循环尝试下一个
+      }
+    } catch (err) {
+      lastErrorText = err.message;
+      console.error(`Fetch error for model ${model}: ${err.message}`);
     }
-
-    const data = await response.json();
-
-    // 5. 安全提取本文（加入兜底字符防截断崩溃）
-    const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "No valid response generated.";
-
-    // 6. 伪装回 OpenAI 结构格式返回给前端解析器
-    return res.status(200).json({
-      choices: [
-        {
-          message: {
-            content: textContent
-          }
-        }
-      ]
-    });
-  } catch (err) {
-    return res.status(500).json({ error: `Internal Server Error: ${err.message}` });
   }
+
+  // 如果所有模型都失败了
+  return res.status(500).json({ 
+    error: `All models in fallback queue failed. Last error: ${lastErrorText}` 
+  });
 }

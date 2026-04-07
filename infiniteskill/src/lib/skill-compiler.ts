@@ -45,7 +45,7 @@ export class SkillCompiler {
   }
 
   private async _callLLM(systemPrompt: string, userPrompt: string, usePro: boolean = false): Promise<string> {
-    const modelStr = usePro ? "gemini-1.5-pro-latest" : "gemini-1.5-flash-latest";
+    const modelStr = usePro ? "gemini-1.5-pro" : "gemini-3.1-flash-live-preview";
 
     if (this.userApiKey && this.ai) {
       const response = await this.ai.chat.completions.create({
