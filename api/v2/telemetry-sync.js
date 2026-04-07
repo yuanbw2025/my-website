@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   // 2. 安全解构参数，设置默认值防崩溃
   const { system = "", user = "", proxy = "" } = req.body || {};
-  const model = proxy === 'pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
+  const model = proxy === 'pro' ? 'gemini-1.5-pro-latest' : 'gemini-1.5-flash-latest';
 
   try {
     // 3. 执行原生 Gemini 规范的调用
