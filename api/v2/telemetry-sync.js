@@ -21,10 +21,11 @@ export default async function handler(req, res) {
 
   try {
     // 3. 执行原生 Gemini 规范的调用
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
