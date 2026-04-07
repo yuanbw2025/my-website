@@ -10,8 +10,8 @@ export default async function handler(req, res) {
   // 1. 严格检查环境变量，从根源斩断硬编码泄露风险
   const apiKey = process.env.SECRET_GEMINI_KEY;
   if (!apiKey) {
-    return res.status(500).json({ 
-      error: 'Configuration Error: SECRET_GEMINI_KEY is missing in Vercel. Please add it in project settings.' 
+    return res.status(500).json({
+      error: 'Configuration Error: SECRET_GEMINI_KEY is missing in Vercel. Please add it in project settings.'
     });
   }
 
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    
+
     // 5. 安全提取本文（加入兜底字符防截断崩溃）
     const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "No valid response generated.";
 

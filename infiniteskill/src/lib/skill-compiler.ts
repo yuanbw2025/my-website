@@ -36,10 +36,10 @@ export class SkillCompiler {
   constructor(apiKey: string) {
     this.userApiKey = apiKey;
     if (apiKey) {
-      this.ai = new OpenAI({ 
-        apiKey: apiKey, 
+      this.ai = new OpenAI({
+        apiKey: apiKey,
         baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-        dangerouslyAllowBrowser: true 
+        dangerouslyAllowBrowser: true
       });
     }
   }
@@ -69,13 +69,13 @@ export class SkillCompiler {
           proxy: usePro ? 'pro' : 'flash'
         })
       });
-      
+
       if (!response.ok) {
         let errText = "网络错误：后台伪装端点调用失败，请检查 Vercel 部署。";
-        try { errText = await response.text(); } catch(e) {}
+        try { errText = await response.text(); } catch (e) { }
         throw new Error(errText);
       }
-      
+
       const data = await response.json();
       return data.choices?.[0]?.message?.content || "";
     }
@@ -87,20 +87,20 @@ export class SkillCompiler {
   async compile(pdfText: string, onProgress: (stage: string, percent: number) => void): Promise<CompilationResult> {
     onProgress("语义拆解中...", 10);
     const chunks = this.semanticChunking(pdfText);
-    
+
     onProgress("技能提取中...", 30);
     const rawSkills = await this.extractSkillsFromChunks(chunks);
-    
+
     onProgress("逻辑建模中...", 60);
     const synthesizedSkills = await this.synthesizeSkills(rawSkills);
-    
+
     onProgress("团队建模中...", 75);
     const agents = await this.designAgentTeam(synthesizedSkills);
 
     onProgress("技能封装中...", 85);
     const mainSkill = await this.generateMainSkill(synthesizedSkills);
     const readme = this.generateReadme(synthesizedSkills);
-    
+
     onProgress("编译完成", 100);
     return {
       mainSkill,
@@ -122,19 +122,19 @@ export class SkillCompiler {
 
   private async extractSkillsFromChunks(chunks: string[]): Promise<Skill[]> {
     const allSkills: Skill[] = [];
-    
+
     // Process chunks sequentially to avoid rate limits
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       const result = await this.extractFromChunk(chunk);
       allSkills.push(...result);
-      
+
       // Small delay between requests
       if (i < chunks.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
-    
+
     return allSkills;
   }
 
@@ -157,7 +157,7 @@ ${chunk}
     "dependencies": ["string"]
   }
 ]`;
-    
+
     try {
       let text = await this._callLLM(systemContent, userContent, false);
       // Remove markdown code blocks if present
@@ -260,11 +260,11 @@ ${skills.map(s => `- **${s.name}**: ${s.trigger}`).join("\n")}
    */
   async generateZip(result: CompilationResult): Promise<Blob> {
     const zip = new JSZip();
-    
+
     // Add main files
     zip.file("SKILL.md", result.mainSkill);
     zip.file("README.md", result.readme);
-    
+
     // Add Agents definition
     zip.file("agents.json", JSON.stringify(result.agents, null, 2));
 
@@ -297,7 +297,7 @@ ${skill.outputs}
         skillsFolder.file(`${skill.id}.md`, content);
       });
     }
-    
+
     return await zip.generateAsync({ type: "blob" });
   }
 }
