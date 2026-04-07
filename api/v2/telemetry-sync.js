@@ -15,16 +15,21 @@ export default async function handler(req, res) {
     });
   }
 
-  // 2. 建立级联降级模型队列 (优先考虑 3.1 Flash Live Preview，不行的话用 1.5 Pro)
+  // 2. 建立级联降级策略 (模型名 + 对应接口版本)
   const { system = "", user = "" } = req.body || {};
-  const modelQueue = ['gemini-3.1-flash-live-preview', 'gemini-1.5-pro'];
+  const fallbackPlan = [
+    { version: 'v1beta', model: 'gemini-3.1-flash-live-preview' }, // 冲锋：最新预览版
+    { version: 'v1',     model: 'gemini-1.5-pro' },               // 稳健：正式版 1.5 Pro (v1)
+    { version: 'v1beta', model: 'gemini-1.5-pro' },               // 兜底：1.5 Pro (v1beta)
+    { version: 'v1',     model: 'gemini-1.5-flash' }              // 最终兜底：1.5 Flash (v1)
+  ];
   
   let lastErrorText = "";
 
-  // 3. 循环尝试每一个模型直到成功
-  for (const model of modelQueue) {
+  // 3. 循环尝试每一个方案直到成功
+  for (const plan of fallbackPlan) {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/${plan.version}/models/${plan.model}:generateContent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,23 +45,21 @@ export default async function handler(req, res) {
         const data = await response.json();
         const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "No valid response generated.";
 
-        // 原样透传 OpenAI 结构格式返回
         return res.status(200).json({
           choices: [{ message: { content: textContent } }]
         });
       } else {
         lastErrorText = await response.text();
-        console.warn(`Model ${model} failed: ${lastErrorText}. Retrying next model...`);
-        // 继续循环尝试下一个
+        console.warn(`Plan [${plan.version}/${plan.model}] failed: ${lastErrorText}. Trying next fallback...`);
       }
     } catch (err) {
       lastErrorText = err.message;
-      console.error(`Fetch error for model ${model}: ${err.message}`);
+      console.error(`Fetch error for model ${plan.model}: ${err.message}`);
     }
   }
 
-  // 如果所有模型都失败了
+  // 如果所有方案都彻底歇菜了
   return res.status(500).json({ 
-    error: `All models in fallback queue failed. Last error: ${lastErrorText}` 
+    error: `Total integration failure. Exhausted all fallback plans. Last error: ${lastErrorText}` 
   });
 }
