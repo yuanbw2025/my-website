@@ -18,12 +18,12 @@ export default async function handler(req, res) {
   // 2. 建立级联降级策略 (模型名 + 对应接口版本)
   const { system = "", user = "" } = req.body || {};
   const fallbackPlan = [
-    { version: 'v1beta', model: 'gemini-3.1-flash-live-preview' }, // 冲锋：最新预览版
-    { version: 'v1',     model: 'gemini-1.5-pro' },               // 稳健：正式版 1.5 Pro (v1)
-    { version: 'v1beta', model: 'gemini-1.5-pro' },               // 兜底：1.5 Pro (v1beta)
-    { version: 'v1',     model: 'gemini-1.5-flash' }              // 最终兜底：1.5 Flash (v1)
+    { version: 'v1beta', model: 'gemini-2.5-flash' },   // 冲锋：最新 Flash
+    { version: 'v1beta', model: 'gemini-2.5-pro' },     // 稳健：最新 Pro
+    { version: 'v1beta', model: 'gemini-2.0-flash' },   // 兜底：上一代 Flash
+    { version: 'v1beta', model: 'gemini-1.5-flash' }    // 最终兜底：1.5 Flash
   ];
-  
+
   let lastErrorText = "";
 
   // 3. 循环尝试每一个方案直到成功
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
   }
 
   // 如果所有方案都彻底歇菜了
-  return res.status(500).json({ 
-    error: `Total integration failure. Exhausted all fallback plans. Last error: ${lastErrorText}` 
+  return res.status(500).json({
+    error: `Total integration failure. Exhausted all fallback plans. Last error: ${lastErrorText}`
   });
 }

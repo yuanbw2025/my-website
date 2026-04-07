@@ -45,7 +45,7 @@ export class SkillCompiler {
   }
 
   private async _callLLM(systemPrompt: string, userPrompt: string, usePro: boolean = false): Promise<string> {
-    const modelStr = usePro ? "gemini-1.5-pro" : "gemini-3.1-flash-live-preview";
+    const modelStr = usePro ? "gemini-2.5-pro" : "gemini-2.5-flash";
 
     if (this.userApiKey && this.ai) {
       const response = await this.ai.chat.completions.create({
@@ -139,7 +139,7 @@ export class SkillCompiler {
   }
 
   private async extractFromChunk(chunk: string): Promise<Skill[]> {
-    const systemContent = `你是一个专业的技能编译器。请从以下文本中提取出可执行的“技能”。
+    const systemContent = `你是一个专业的技能编译器。请从以下文本中提取出可执行的"技能"。
 每个技能应包含：唯一ID、名称、触发条件、输入参数、执行逻辑（步骤）、输出格式、依赖关系。`;
     const userContent = `文本内容：
 ${chunk}
