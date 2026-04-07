@@ -31,7 +31,8 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const text = await response.text();
-      return res.status(response.status).json({ error: text });
+      const debugKey = apiKey ? `${apiKey.substring(0, 5)}***${apiKey.substring(apiKey.length - 4)}` : 'undefined';
+      return res.status(response.status).json({ error: text, debug_key_used: debugKey });
     }
 
     const data = await response.json();
