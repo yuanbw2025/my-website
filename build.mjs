@@ -30,6 +30,10 @@ mkdirSync(join(ROOT, 'public', 'infiniteskill'), { recursive: true });
 copyFileSync(join(ROOT, 'index.html'), join(ROOT, 'public', 'index.html'));
 console.log('  ✓ Copied index.html → public/index.html');
 
+// Copy game page
+copyFileSync(join(ROOT, 'game.html'), join(ROOT, 'public', 'game.html'));
+console.log('  ✓ Copied game.html → public/game.html');
+
 // Copy InfiniteSkill build output
 cpSync(
   join(ROOT, 'infiniteskill', 'dist'),
