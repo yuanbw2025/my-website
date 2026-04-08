@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>悬象 — 九套配色方案对比</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=ZCOOL+XiaoWei&family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;color:#eee;font-family:'Noto Serif SC',serif;padding:30px 20px}
+h1{text-align:center;font-size:36px;margin-bottom:8px;letter-spacing:8px;font-weight:900}
+.subtitle{text-align:center;color:#888;font-size:14px;margin-bottom:40px;letter-spacing:2px}
+.section-title{font-size:24px;font-weight:700;margin:50px 0 24px;padding-left:16px;border-left:4px solid;letter-spacing:4px}
+.section-title.light{border-color:#7FB89E;color:#7FB89E}
+.section-title.medium{border-color:#C9A84C;color:#C9A84C}
+.section-title.dark{border-color:#6ECFAD;color:#6ECFAD}
+.schemes-row{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:40px}
+@media(max-width:1100px){.schemes-row{grid-template-columns:1fr}}
+
+/* Each scheme card is a full mini-preview */
+.scheme{border-radius:16px;overflow:hidden;position:relative;min-height:620px}
+.scheme-label{position:absolute;top:12px;left:12px;z-index:10;font-size:11px;font-weight:700;letter-spacing:2px;padding:4px 12px;border-radius:6px}
+
+/* Inner layout mimicking the real site */
+.s-nav{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom-width:1px;border-bottom-style:solid}
+.s-brand{font-weight:900;letter-spacing:5px}
+.s-motto{font-size:11px;letter-spacing:2px;opacity:0.5}
+.s-body{padding:20px}
+.s-banner{border-radius:10px;padding:10px 16px;margin-bottom:20px;font-size:12px;display:flex;align-items:center;justify-content:space-between;border:1px solid}
+.s-tabs{display:flex;margin-bottom:20px;border-bottom:2px solid}
+.s-tab{flex:1;text-align:center;padding:10px 0;font-size:13px;font-weight:700;letter-spacing:3px;position:relative}
+.s-tab.active::after{content:'';position:absolute;bottom:-2px;left:25%;width:50%;height:3px;border-radius:2px}
+.s-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.s-card{border-radius:12px;overflow:hidden;border:1px solid}
+.s-card-cover{height:90px;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative}
+.s-card-body{padding:12px}
+.s-card-tag{font-size:9px;letter-spacing:2px;padding:2px 8px;border-radius:12px;display:inline-block;margin-bottom:6px;font-weight:700}
+.s-card-title{font-size:16px;font-weight:800;margin-bottom:4px;letter-spacing:2px}
+.s-card-desc{font-size:11px;line-height:1.5;opacity:0.7}
+.s-footer{text-align:center;padding:16px 0 12px;font-size:10px;opacity:0.4;letter-spacing:2px;border-top:1px solid;margin-top:20px}
+
+/* Background texture overlay */
+.s-texture{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.12}
+.s-texture svg{width:100%;height:100%}
+.scheme>*:not(.s-texture):not(.scheme-label){position:relative;z-index:1}
+
+/* Spec table */
+.spec-table{width:100%;border-collapse:collapse;margin:30px 0 60px;font-size:13px}
+.spec-table th,.spec-table td{padding:10px 14px;text-align:left;border:1px solid #333}
+.spec-table th{background:#1a1a1a;font-weight:700;letter-spacing:2px;color:#aaa}
+.spec-table td{background:#0d0d0d}
+.spec-table .swatch{display:inline-block;width:22px;height:22px;border-radius:4px;vertical-align:middle;margin-right:8px;border:1px solid rgba(255,255,255,0.15)}
+.spec-table tr:nth-child(even) td{background:#141414}
+</style>
+</head>
+<body>
+
+<h1>悬 象</h1>
+<p class="subtitle">九套配色方案 · 字体对比 · 请挑选您满意的组合元素</p>
+
+<!-- ════════════════ LIGHT SCHEMES ════════════════ -->
+<div class="section-title light">🌄 浅色方案 × 3</div>
+<div class="schemes-row">
+
+<!-- L1: 千里江山 (青绿山水) -->
+<div class="scheme" style="background:#F0EBE0;color:#1A1A1A;font-family:'Noto Serif SC',serif">
+  <span class="scheme-label" style="background:rgba(58,112,92,0.15);color:#3A705C">L1 · 千里江山</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><path d="M0,700 L0,520 Q50,440 120,480 Q180,380 250,430 Q320,350 400,410 Q460,360 500,390 L500,700Z" fill="#3A705C" opacity="0.25"/><path d="M0,700 L0,580 Q80,520 160,560 Q250,480 340,530 Q420,470 500,510 L500,700Z" fill="#3A705C" opacity="0.4"/><path d="M0,700 L0,640 Q100,600 200,630 Q300,590 400,620 Q460,600 500,610 L500,700Z" fill="#3A705C" opacity="0.55"/><path d="M0,350 Q60,310 100,340 Q130,290 170,320" fill="none" stroke="#3A705C" stroke-width="0.8" opacity="0.2"/><circle cx="420" cy="80" r="30" fill="#C17240" opacity="0.15"/></svg></div>
+  <div class="s-nav" style="background:rgba(240,235,224,0.9);border-color:rgba(0,0,0,0.1)">
+    <span class="s-brand" style="color:#2D5A47;font-size:20px">悬 象</span>
+    <span class="s-motto" style="color:#8A8070">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(58,112,92,0.08);border-color:rgba(58,112,92,0.15)">
+      <span><strong style="color:#2D5A47">✨ InfiniteSkill v2.0</strong> <span style="color:#6B6050">已上线</span></span>
+      <span style="color:#C17240;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(0,0,0,0.08)">
+      <div class="s-tab active" style="color:#2D5A47">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#3A705C;border-radius:2px;box-shadow:0 0 10px rgba(58,112,92,0.4)"></div></div>
+      <div class="s-tab" style="color:#999">📜 卷</div>
+      <div class="s-tab" style="color:#999">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,255,255,0.7);border-color:rgba(0,0,0,0.06)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#3A705C,#5B9C7A)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(58,112,92,0.12);color:#2D5A47">AI TOOL</span>
+          <div class="s-card-title" style="color:#1A1A1A">InfiniteSkill</div>
+          <div class="s-card-desc" style="color:#5A5040">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,255,255,0.7);border-color:rgba(0,0,0,0.06)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#4A3D7A,#3A705C)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(193,114,64,0.12);color:#C17240">GAME</span>
+          <div class="s-card-title" style="color:#1A1A1A">飞剑弹珠</div>
+          <div class="s-card-desc" style="color:#5A5040">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(0,0,0,0.06);color:#8A8070">© 2026 悬象 · Xuán Xiàng</div>
+  </div>
+</div>
+
+<!-- L2: 暖阳绢本 (仿古金绢) -->
+<div class="scheme" style="background:#EDE4D0;color:#2B1E10;font-family:'ZCOOL XiaoWei','Noto Serif SC',serif">
+  <span class="scheme-label" style="background:rgba(140,80,30,0.12);color:#8C501E">L2 · 暖阳绢本</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><rect width="500" height="700" fill="url(#silk2)"/><defs><pattern id="silk2" width="8" height="8" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="8" y2="8" stroke="#8C501E" stroke-width="0.3" opacity="0.15"/><line x1="8" y1="0" x2="0" y2="8" stroke="#8C501E" stroke-width="0.3" opacity="0.1"/></pattern></defs><path d="M0,700 L0,500 Q70,420 160,470 Q250,370 350,430 Q430,370 500,400 L500,700Z" fill="#6B8F50" opacity="0.15"/><path d="M0,700 L0,600 Q120,550 250,580 Q380,540 500,570 L500,700Z" fill="#8C501E" opacity="0.1"/></svg></div>
+  <div class="s-nav" style="background:rgba(237,228,208,0.92);border-color:rgba(43,30,16,0.1)">
+    <span class="s-brand" style="color:#6B3410;font-size:22px">悬 象</span>
+    <span class="s-motto" style="color:#9A8A70">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(140,80,30,0.06);border-color:rgba(140,80,30,0.12)">
+      <span><strong style="color:#6B3410">✨ InfiniteSkill</strong> <span style="color:#7A6A50">已上线</span></span>
+      <span style="color:#B8622A;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(43,30,16,0.08)">
+      <div class="s-tab active" style="color:#6B3410">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#8C501E;border-radius:2px;box-shadow:0 0 10px rgba(140,80,30,0.3)"></div></div>
+      <div class="s-tab" style="color:#A0907A">📜 卷</div>
+      <div class="s-tab" style="color:#A0907A">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,250,240,0.7);border-color:rgba(43,30,16,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#8C501E,#B87830)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(140,80,30,0.1);color:#6B3410">AI TOOL</span>
+          <div class="s-card-title" style="color:#2B1E10">InfiniteSkill</div>
+          <div class="s-card-desc" style="color:#6A5A40">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,250,240,0.7);border-color:rgba(43,30,16,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#6B8F50,#8C501E)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(107,143,80,0.12);color:#4A6A30">GAME</span>
+          <div class="s-card-title" style="color:#2B1E10">飞剑弹珠</div>
+          <div class="s-card-desc" style="color:#6A5A40">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(43,30,16,0.06);color:#A0907A">© 2026 悬象</div>
+  </div>
+</div>
+
+<!-- L3: 水墨晴岚 (高对比水墨) -->
+<div class="scheme" style="background:#F2F0ED;color:#0A0A0A;font-family:'Ma Shan Zheng','Noto Serif SC',cursive">
+  <span class="scheme-label" style="background:rgba(0,0,0,0.06);color:#444">L3 · 水墨晴岚</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><path d="M0,700 L0,480 Q40,380 100,440 Q160,330 230,400 Q300,310 370,380 Q440,320 500,360 L500,700Z" fill="#1A1A1A" opacity="0.07"/><path d="M0,700 L0,560 Q80,490 180,540 Q280,450 380,510 Q450,460 500,490 L500,700Z" fill="#1A1A1A" opacity="0.12"/><path d="M0,700 L0,630 Q130,590 260,620 Q380,580 500,610 L500,700Z" fill="#1A1A1A" opacity="0.18"/><circle cx="400" cy="60" r="25" fill="#C44B3F" opacity="0.08"/></svg></div>
+  <div class="s-nav" style="background:rgba(242,240,237,0.93);border-color:rgba(0,0,0,0.1)">
+    <span class="s-brand" style="color:#111;font-size:24px;font-weight:900">悬 象</span>
+    <span class="s-motto" style="color:#888">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(0,0,0,0.03);border-color:rgba(0,0,0,0.08)">
+      <span><strong style="color:#111">✨ InfiniteSkill</strong> <span style="color:#555">已上线</span></span>
+      <span style="color:#C44B3F;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(0,0,0,0.1)">
+      <div class="s-tab active" style="color:#111">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#111;border-radius:2px"></div></div>
+      <div class="s-tab" style="color:#aaa">📜 卷</div>
+      <div class="s-tab" style="color:#aaa">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,255,255,0.8);border-color:rgba(0,0,0,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#2A2A2A,#555)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(0,0,0,0.06);color:#333">AI TOOL</span>
+          <div class="s-card-title" style="color:#0A0A0A;font-family:'Noto Serif SC',serif;font-weight:900">InfiniteSkill</div>
+          <div class="s-card-desc" style="color:#555">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,255,255,0.8);border-color:rgba(0,0,0,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#444,#222)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(196,75,63,0.08);color:#C44B3F">GAME</span>
+          <div class="s-card-title" style="color:#0A0A0A;font-family:'Noto Serif SC',serif;font-weight:900">飞剑弹珠</div>
+          <div class="s-card-desc" style="color:#555">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(0,0,0,0.06);color:#999">© 2026 悬象</div>
+  </div>
+</div>
+
+</div>
+
+<!-- ════════════════ MEDIUM SCHEMES ════════════════ -->
+<div class="section-title medium">🌤 中色方案 × 3</div>
+<div class="schemes-row">
+
+<!-- M1: 翠微暮色 -->
+<div class="scheme" style="background:#1E2A28;color:#E8E4D8;font-family:'Noto Serif SC',serif">
+  <span class="scheme-label" style="background:rgba(110,200,160,0.15);color:#6EC8A0">M1 · 翠微暮色</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><path d="M0,700 L0,500 Q60,410 140,460 Q220,360 310,420 Q390,340 470,400 L500,380 L500,700Z" fill="#6EC8A0" opacity="0.06"/><path d="M0,700 L0,580 Q100,520 200,560 Q310,480 420,540 L500,510 L500,700Z" fill="#6EC8A0" opacity="0.1"/><path d="M0,700 L0,650 Q150,610 300,640 Q420,610 500,630 L500,700Z" fill="#6EC8A0" opacity="0.14"/></svg></div>
+  <div class="s-nav" style="background:rgba(30,42,40,0.92);border-color:rgba(110,200,160,0.1)">
+    <span class="s-brand" style="color:#6EC8A0;font-size:20px">悬 象</span>
+    <span class="s-motto" style="color:rgba(232,228,216,0.3)">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(110,200,160,0.06);border-color:rgba(110,200,160,0.12)">
+      <span><strong style="color:#6EC8A0">✨ InfiniteSkill</strong> <span style="color:rgba(232,228,216,0.5)">已上线</span></span>
+      <span style="color:#D4A843;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(255,255,255,0.06)">
+      <div class="s-tab active" style="color:#6EC8A0">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#6EC8A0;border-radius:2px;box-shadow:0 0 12px rgba(110,200,160,0.4)"></div></div>
+      <div class="s-tab" style="color:rgba(232,228,216,0.35)">📜 卷</div>
+      <div class="s-tab" style="color:rgba(232,228,216,0.35)">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,255,255,0.05);border-color:rgba(110,200,160,0.1)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#2D5A47,#6EC8A0)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(110,200,160,0.12);color:#6EC8A0">AI TOOL</span>
+          <div class="s-card-title">InfiniteSkill</div>
+          <div class="s-card-desc">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,255,255,0.05);border-color:rgba(110,200,160,0.1)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#4A3068,#6EC8A0)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(212,168,67,0.12);color:#D4A843">GAME</span>
+          <div class="s-card-title">飞剑弹珠</div>
+          <div class="s-card-desc">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(255,255,255,0.04)">© 2026 悬象</div>
+  </div>
+</div>
+
+<!-- M2: 丹霞赤壁 -->
+<div class="scheme" style="background:#2A1F1F;color:#F0E8E0;font-family:'ZCOOL XiaoWei','Noto Serif SC',serif">
+  <span class="scheme-label" style="background:rgba(200,80,60,0.15);color:#E8624A">M2 · 丹霞赤壁</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><path d="M0,700 L0,480 Q70,380 160,440 Q260,340 360,410 Q440,350 500,380 L500,700Z" fill="#8B2020" opacity="0.12"/><path d="M0,700 L0,570 Q100,500 220,550 Q340,470 460,530 L500,510 L500,700Z" fill="#8B2020" opacity="0.18"/><path d="M0,700 L0,640 Q180,600 350,635 Q450,610 500,625 L500,700Z" fill="#3A5A4A" opacity="0.1"/></svg></div>
+  <div class="s-nav" style="background:rgba(42,31,31,0.93);border-color:rgba(200,80,60,0.12)">
+    <span class="s-brand" style="color:#E8624A;font-size:22px">悬 象</span>
+    <span class="s-motto" style="color:rgba(240,232,224,0.3)">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(200,80,60,0.06);border-color:rgba(200,80,60,0.12)">
+      <span><strong style="color:#E8624A">✨ InfiniteSkill</strong> <span style="color:rgba(240,232,224,0.5)">已上线</span></span>
+      <span style="color:#D4A843;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(255,255,255,0.06)">
+      <div class="s-tab active" style="color:#E8624A">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#E8624A;border-radius:2px;box-shadow:0 0 12px rgba(200,80,60,0.4)"></div></div>
+      <div class="s-tab" style="color:rgba(240,232,224,0.3)">📜 卷</div>
+      <div class="s-tab" style="color:rgba(240,232,224,0.3)">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,255,255,0.04);border-color:rgba(200,80,60,0.1)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#8B2020,#C85040)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(232,98,74,0.12);color:#E8624A">AI TOOL</span>
+          <div class="s-card-title">InfiniteSkill</div>
+          <div class="s-card-desc">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,255,255,0.04);border-color:rgba(200,80,60,0.1)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#3A5A4A,#8B2020)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(58,90,74,0.15);color:#6EB89E">GAME</span>
+          <div class="s-card-title">飞剑弹珠</div>
+          <div class="s-card-desc">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(255,255,255,0.04)">© 2026 悬象</div>
+  </div>
+</div>
+
+<!-- M3: 青铜鼎彝 -->
+<div class="scheme" style="background:#222820;color:#E0DCC8;font-family:'ZCOOL QingKe HuangYou','Noto Serif SC',sans-serif">
+  <span class="scheme-label" style="background:rgba(180,160,80,0.15);color:#C8B850">M3 · 青铜鼎彝</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><rect width="500" height="700" fill="url(#bronze3)"/><defs><pattern id="bronze3" width="20" height="20" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="10" height="10" fill="#C8B850" opacity="0.03"/><rect x="10" y="10" width="10" height="10" fill="#C8B850" opacity="0.03"/></pattern></defs><path d="M0,700 L0,520 Q80,440 180,490 Q280,390 380,450 Q450,400 500,420 L500,700Z" fill="#4A6030" opacity="0.12"/><path d="M0,700 L0,620 Q130,570 280,610 Q410,570 500,600 L500,700Z" fill="#C8B850" opacity="0.06"/></svg></div>
+  <div class="s-nav" style="background:rgba(34,40,32,0.93);border-color:rgba(200,184,80,0.1)">
+    <span class="s-brand" style="color:#C8B850;font-size:20px">悬 象</span>
+    <span class="s-motto" style="color:rgba(224,220,200,0.3)">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(200,184,80,0.05);border-color:rgba(200,184,80,0.1)">
+      <span><strong style="color:#C8B850">✨ InfiniteSkill</strong> <span style="color:rgba(224,220,200,0.5)">已上线</span></span>
+      <span style="color:#8ABB70;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(255,255,255,0.06)">
+      <div class="s-tab active" style="color:#C8B850">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#C8B850;border-radius:2px;box-shadow:0 0 10px rgba(200,184,80,0.3)"></div></div>
+      <div class="s-tab" style="color:rgba(224,220,200,0.3)">📜 卷</div>
+      <div class="s-tab" style="color:rgba(224,220,200,0.3)">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,255,255,0.04);border-color:rgba(200,184,80,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#4A6030,#8ABB70)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(200,184,80,0.1);color:#C8B850">AI TOOL</span>
+          <div class="s-card-title">InfiniteSkill</div>
+          <div class="s-card-desc">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,255,255,0.04);border-color:rgba(200,184,80,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#6A5020,#C8B850)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(138,187,112,0.12);color:#8ABB70">GAME</span>
+          <div class="s-card-title">飞剑弹珠</div>
+          <div class="s-card-desc">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(255,255,255,0.04)">© 2026 悬象</div>
+  </div>
+</div>
+
+</div>
+
+<!-- ════════════════ DARK SCHEMES ════════════════ -->
+<div class="section-title dark">🌙 深色方案 × 3</div>
+<div class="schemes-row">
+
+<!-- D1: 墨夜苍穹 -->
+<div class="scheme" style="background:#08090E;color:#F0ECE2;font-family:'Noto Serif SC',serif">
+  <span class="scheme-label" style="background:rgba(80,220,180,0.12);color:#50DCB4">D1 · 墨夜苍穹</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><path d="M0,700 L0,500 Q60,400 140,460 Q230,350 330,420 Q420,340 500,380 L500,700Z" fill="#50DCB4" opacity="0.03"/><path d="M0,700 L0,580 Q90,510 200,560 Q320,470 440,530 L500,500 L500,700Z" fill="#50DCB4" opacity="0.05"/><path d="M0,700 L0,650 Q160,610 320,640 Q440,620 500,635 L500,700Z" fill="#50DCB4" opacity="0.08"/><circle cx="80" cy="60" r="2" fill="#fff" opacity="0.3"/><circle cx="200" cy="30" r="1.5" fill="#fff" opacity="0.2"/><circle cx="350" cy="50" r="1" fill="#fff" opacity="0.25"/><circle cx="420" cy="90" r="1.5" fill="#fff" opacity="0.15"/></svg></div>
+  <div class="s-nav" style="background:rgba(8,9,14,0.95);border-color:rgba(80,220,180,0.08)">
+    <span class="s-brand" style="color:#50DCB4;font-size:22px;font-weight:900">悬 象</span>
+    <span class="s-motto" style="color:rgba(240,236,226,0.2)">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(80,220,180,0.04);border-color:rgba(80,220,180,0.08)">
+      <span><strong style="color:#50DCB4">✨ InfiniteSkill</strong> <span style="color:rgba(240,236,226,0.4)">已上线</span></span>
+      <span style="color:#E8B44C;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(255,255,255,0.05)">
+      <div class="s-tab active" style="color:#50DCB4">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#50DCB4;border-radius:2px;box-shadow:0 0 14px rgba(80,220,180,0.5)"></div></div>
+      <div class="s-tab" style="color:rgba(240,236,226,0.25)">📜 卷</div>
+      <div class="s-tab" style="color:rgba(240,236,226,0.25)">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,255,255,0.03);border-color:rgba(80,220,180,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#0A2A20,#50DCB4)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(80,220,180,0.1);color:#50DCB4">AI TOOL</span>
+          <div class="s-card-title" style="font-weight:900">InfiniteSkill</div>
+          <div class="s-card-desc">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,255,255,0.03);border-color:rgba(80,220,180,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#2A1550,#50DCB4)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(232,180,76,0.1);color:#E8B44C">GAME</span>
+          <div class="s-card-title" style="font-weight:900">飞剑弹珠</div>
+          <div class="s-card-desc">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(255,255,255,0.03)">© 2026 悬象</div>
+  </div>
+</div>
+
+<!-- D2: 玄铁重岩 -->
+<div class="scheme" style="background:#0C0E12;color:#E8E0D0;font-family:'Playfair Display','Noto Serif SC',serif">
+  <span class="scheme-label" style="background:rgba(70,160,220,0.12);color:#46A0DC">D2 · 玄铁重岩</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><path d="M0,700 L0,460 Q50,360 120,430 Q200,320 290,400 Q370,300 450,370 L500,350 L500,700Z" fill="#46A0DC" opacity="0.03"/><path d="M0,700 L0,560 Q100,490 220,540 Q340,460 460,520 L500,500 L500,700Z" fill="#46A0DC" opacity="0.06"/><path d="M0,700 L0,640 Q120,600 260,630 Q400,600 500,620 L500,700Z" fill="#46A0DC" opacity="0.09"/></svg></div>
+  <div class="s-nav" style="background:rgba(12,14,18,0.95);border-color:rgba(70,160,220,0.08)">
+    <span class="s-brand" style="color:#46A0DC;font-size:22px;font-weight:900">悬 象</span>
+    <span class="s-motto" style="color:rgba(232,224,208,0.2)">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(70,160,220,0.04);border-color:rgba(70,160,220,0.08)">
+      <span><strong style="color:#46A0DC">✨ InfiniteSkill</strong> <span style="color:rgba(232,224,208,0.4)">已上线</span></span>
+      <span style="color:#D4A040;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(255,255,255,0.05)">
+      <div class="s-tab active" style="color:#46A0DC">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#46A0DC;border-radius:2px;box-shadow:0 0 14px rgba(70,160,220,0.4)"></div></div>
+      <div class="s-tab" style="color:rgba(232,224,208,0.25)">📜 卷</div>
+      <div class="s-tab" style="color:rgba(232,224,208,0.25)">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,255,255,0.03);border-color:rgba(70,160,220,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#0A2040,#46A0DC)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(70,160,220,0.1);color:#46A0DC">AI TOOL</span>
+          <div class="s-card-title" style="font-weight:900;font-family:'Noto Serif SC',serif">InfiniteSkill</div>
+          <div class="s-card-desc">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,255,255,0.03);border-color:rgba(70,160,220,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#3A1040,#46A0DC)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(212,160,64,0.1);color:#D4A040">GAME</span>
+          <div class="s-card-title" style="font-weight:900;font-family:'Noto Serif SC',serif">飞剑弹珠</div>
+          <div class="s-card-desc">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(255,255,255,0.03)">© 2026 悬象</div>
+  </div>
+</div>
+
+<!-- D3: 紫气东来 -->
+<div class="scheme" style="background:#0E0A14;color:#EAE4F0;font-family:'Ma Shan Zheng','Noto Serif SC',cursive">
+  <span class="scheme-label" style="background:rgba(180,120,220,0.12);color:#B478DC">D3 · 紫气东来</span>
+  <div class="s-texture"><svg viewBox="0 0 500 700" preserveAspectRatio="xMidYMax slice"><path d="M0,700 L0,490 Q70,390 150,450 Q240,340 340,410 Q430,340 500,380 L500,700Z" fill="#6A3090" opacity="0.08"/><path d="M0,700 L0,580 Q80,510 190,550 Q310,470 430,530 L500,500 L500,700Z" fill="#B478DC" opacity="0.05"/><path d="M0,700 L0,650 Q140,610 290,640 Q430,610 500,630 L500,700Z" fill="#B478DC" opacity="0.07"/><circle cx="440" cy="70" r="28" fill="#D44040" opacity="0.06"/></svg></div>
+  <div class="s-nav" style="background:rgba(14,10,20,0.95);border-color:rgba(180,120,220,0.08)">
+    <span class="s-brand" style="color:#B478DC;font-size:24px;font-weight:900;font-family:'Noto Serif SC',serif">悬 象</span>
+    <span class="s-motto" style="color:rgba(234,228,240,0.2)">却顾所来径，苍苍横翠微</span>
+  </div>
+  <div class="s-body">
+    <div class="s-banner" style="background:rgba(180,120,220,0.04);border-color:rgba(180,120,220,0.08)">
+      <span><strong style="color:#B478DC">✨ InfiniteSkill</strong> <span style="color:rgba(234,228,240,0.4)">已上线</span></span>
+      <span style="color:#E8A040;font-weight:700;font-size:11px">立即体验 →</span>
+    </div>
+    <div class="s-tabs" style="border-color:rgba(255,255,255,0.05)">
+      <div class="s-tab active" style="color:#B478DC">🏺 器 · 工具<div style="position:absolute;bottom:-2px;left:25%;width:50%;height:3px;background:#B478DC;border-radius:2px;box-shadow:0 0 14px rgba(180,120,220,0.5)"></div></div>
+      <div class="s-tab" style="color:rgba(234,228,240,0.25)">📜 卷</div>
+      <div class="s-tab" style="color:rgba(234,228,240,0.25)">🎯 弈</div>
+    </div>
+    <div class="s-cards">
+      <div class="s-card" style="background:rgba(255,255,255,0.03);border-color:rgba(180,120,220,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#2A1040,#B478DC)">🔮</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(180,120,220,0.1);color:#B478DC">AI TOOL</span>
+          <div class="s-card-title" style="font-weight:900;font-family:'Noto Serif SC',serif">InfiniteSkill</div>
+          <div class="s-card-desc">智能文档技能编译器</div>
+        </div>
+      </div>
+      <div class="s-card" style="background:rgba(255,255,255,0.03);border-color:rgba(180,120,220,0.08)">
+        <div class="s-card-cover" style="background:linear-gradient(135deg,#0A2A20,#6A3090)">⚔️</div>
+        <div class="s-card-body">
+          <span class="s-card-tag" style="background:rgba(232,160,64,0.1);color:#E8A040">GAME</span>
+          <div class="s-card-title" style="font-weight:900;font-family:'Noto Serif SC',serif">飞剑弹珠</div>
+          <div class="s-card-desc">Canvas 弹珠游戏</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer" style="border-color:rgba(255,255,255,0.03)">© 2026 悬象</div>
+  </div>
+</div>
+
+</div>
+
+<!-- ════════════════ SPEC TABLE ════════════════ -->
+<h2 style="text-align:center;margin:60px 0 10px;font-size:28px;letter-spacing:6px;color:#ddd">📋 方案规格一览表</h2>
+<p style="text-align:center;color:#666;font-size:13px;margin-bottom:30px">请从每一行挑选您满意的元素，我会进行自由组合</p>
+
+<table class="spec-table">
+<thead>
+<tr><th>方案</th><th>背景色</th><th>主色</th><th>辅色</th><th>文字色</th><th>字体方案</th><th>风格关键词</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong style="color:#3A705C">L1 千里江山</strong></td>
+  <td><span class="swatch" style="background:#F0EBE0"></span>#F0EBE0</td>
+  <td><span class="swatch" style="background:#2D5A47"></span>#2D5A47 深翠</td>
+  <td><span class="swatch" style="background:#C17240"></span>#C17240 赭石</td>
+  <td><span class="swatch" style="background:#1A1A1A"></span>#1A1A1A</td>
+  <td>Noto Serif SC 700/900</td>
+  <td>青绿山水 · 典雅 · 国博感</td>
+</tr>
+<tr>
+  <td><strong style="color:#8C501E">L2 暖阳绢本</strong></td>
+  <td><span class="swatch" style="background:#EDE4D0"></span>#EDE4D0</td>
+  <td><span class="swatch" style="background:#6B3410"></span>#6B3410 焦茶</td>
+  <td><span class="swatch" style="background:#6B8F50"></span>#6B8F50 草绿</td>
+  <td><span class="swatch" style="background:#2B1E10"></span>#2B1E10</td>
+  <td>ZCOOL XiaoWei 600</td>
+  <td>绢本暖调 · 古籍 · 书斋</td>
+</tr>
+<tr>
+  <td><strong style="color:#444">L3 水墨晴岚</strong></td>
+  <td><span class="swatch" style="background:#F2F0ED"></span>#F2F0ED</td>
+  <td><span class="swatch" style="background:#111111"></span>#111111 重墨</td>
+  <td><span class="swatch" style="background:#C44B3F"></span>#C44B3F 朱砂</td>
+  <td><span class="swatch" style="background:#0A0A0A"></span>#0A0A0A</td>
+  <td>Ma Shan Zheng + Noto Serif SC 900</td>
+  <td>极简水墨 · 高对比 · 禅意</td>
+</tr>
+<tr>
+  <td><strong style="color:#6EC8A0">M1 翠微暮色</strong></td>
+  <td><span class="swatch" style="background:#1E2A28"></span>#1E2A28</td>
+  <td><span class="swatch" style="background:#6EC8A0"></span>#6EC8A0 翡翠</td>
+  <td><span class="swatch" style="background:#D4A843"></span>#D4A843 金箔</td>
+  <td><span class="swatch" style="background:#E8E4D8"></span>#E8E4D8</td>
+  <td>Noto Serif SC 700/900</td>
+  <td>翠竹幽径 · 沉稳 · 林间</td>
+</tr>
+<tr>
+  <td><strong style="color:#E8624A">M2 丹霞赤壁</strong></td>
+  <td><span class="swatch" style="background:#2A1F1F"></span>#2A1F1F</td>
+  <td><span class="swatch" style="background:#E8624A"></span>#E8624A 丹霞</td>
+  <td><span class="swatch" style="background:#6EB89E"></span>#6EB89E 青松</td>
+  <td><span class="swatch" style="background:#F0E8E0"></span>#F0E8E0</td>
+  <td>ZCOOL XiaoWei 700</td>
+  <td>赤壁残阳 · 热烈 · 秋林</td>
+</tr>
+<tr>
+  <td><strong style="color:#C8B850">M3 青铜鼎彝</strong></td>
+  <td><span class="swatch" style="background:#222820"></span>#222820</td>
+  <td><span class="swatch" style="background:#C8B850"></span>#C8B850 青铜</td>
+  <td><span class="swatch" style="background:#8ABB70"></span>#8ABB70 嫩绿</td>
+  <td><span class="swatch" style="background:#E0DCC8"></span>#E0DCC8</td>
+  <td>ZCOOL QingKe HuangYou</td>
+  <td>青铜器纹 · 庄重 · 先秦</td>
+</tr>
+<tr>
+  <td><strong style="color:#50DCB4">D1 墨夜苍穹</strong></td>
+  <td><span class="swatch" style="background:#08090E"></span>#08090E</td>
+  <td><span class="swatch" style="background:#50DCB4"></span>#50DCB4 碧玉</td>
+  <td><span class="swatch" style="background:#E8B44C"></span>#E8B44C 金焰</td>
+  <td><span class="swatch" style="background:#F0ECE2"></span>#F0ECE2</td>
+  <td>Noto Serif SC 900</td>
+  <td>星河夜空 · 科技 · 仙侠</td>
+</tr>
+<tr>
+  <td><strong style="color:#46A0DC">D2 玄铁重岩</strong></td>
+  <td><span class="swatch" style="background:#0C0E12"></span>#0C0E12</td>
+  <td><span class="swatch" style="background:#46A0DC"></span>#46A0DC 钴蓝</td>
+  <td><span class="swatch" style="background:#D4A040"></span>#D4A040 琥珀</td>
+  <td><span class="swatch" style="background:#E8E0D0"></span>#E8E0D0</td>
+  <td>Playfair Display + Noto Serif SC 900</td>
+  <td>千里江山蓝 · 沉稳 · 大气</td>
+</tr>
+<tr>
+  <td><strong style="color:#B478DC">D3 紫气东来</strong></td>
+  <td><span class="swatch" style="background:#0E0A14"></span>#0E0A14</td>
+  <td><span class="swatch" style="background:#B478DC"></span>#B478DC 紫烟</td>
+  <td><span class="swatch" style="background:#E8A040"></span>#E8A040 丹金</td>
+  <td><span class="swatch" style="background:#EAE4F0"></span>#EAE4F0</td>
+  <td>Ma Shan Zheng + Noto Serif SC 900</td>
+  <td>紫气仙山 · 神秘 · 瑰丽</td>
+</tr>
+</tbody>
+</table>
+
+<div style="text-align:center;padding:40px 0 60px;color:#555;font-size:13px;letter-spacing:2px">
+  请告诉我：您喜欢哪些方案的哪些元素？<br>
+  例如："L1 的背景 + M1 的主色 + D2 的字体 + L3 的对比度"<br>
+  我会为您组合出最终方案 🎨
+</div>
+
+</body>
+</html>
