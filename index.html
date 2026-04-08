@@ -1,399 +1,220 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="juanben" data-lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yuan's Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #0b0c10;
-            --surface-color: rgba(31, 40, 51, 0.6);
-            --accent-primary: #66fcf1;
-            --accent-secondary: #45a29e;
-            --text-main: #ffffff;
-            --text-muted: #c5c6c7;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>悬象 · Xuán Xiàng</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=ZCOOL+XiaoWei&family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════
+   9 THEMES — CSS Custom Properties
+   ══════════════════════════════════════════════════ */
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
+/* --- Custom Combo 1: 暖阳绢本 + 江山字体 (Light default) --- */
+[data-theme="juanben"]{--bg:#EDE4D0;--card:rgba(255,250,240,0.72);--card-h:rgba(255,250,240,0.92);--pri:#6B3410;--pri-l:rgba(107,52,16,0.1);--acc:#6B8F50;--acc-l:rgba(107,143,80,0.1);--txt:#2B1E10;--txt2:#6A5A40;--txt3:#9A8A70;--bdr:rgba(43,30,16,0.1);--nav:rgba(237,228,208,0.92);--ban:linear-gradient(90deg,rgba(107,52,16,0.06),rgba(107,143,80,0.05));--mtn:rgba(107,52,16,0.06);--mtn2:rgba(107,143,80,0.08);--ink:rgba(107,52,16,0.2);--shd:rgba(0,0,0,0.08);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#8C501E,#B87830);--cover-g:linear-gradient(135deg,#6B8F50,#8C501E)}
+/* --- Custom Combo 2: 翠微暮色 + 江山字体 (Medium default) --- */
+[data-theme="muse"]{--bg:#1E2A28;--card:rgba(40,55,52,0.6);--card-h:rgba(50,68,64,0.85);--pri:#6EC8A0;--pri-l:rgba(110,200,160,0.12);--acc:#D4A843;--acc-l:rgba(212,168,67,0.1);--txt:#E8E4D8;--txt2:rgba(232,228,216,0.6);--txt3:rgba(232,228,216,0.35);--bdr:rgba(110,200,160,0.1);--nav:rgba(30,42,40,0.93);--ban:linear-gradient(90deg,rgba(110,200,160,0.06),rgba(212,168,67,0.04));--mtn:rgba(110,200,160,0.06);--mtn2:rgba(110,200,160,0.1);--ink:rgba(110,200,160,0.3);--shd:rgba(0,0,0,0.25);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#2D5A47,#6EC8A0);--cover-g:linear-gradient(135deg,#4A3068,#6EC8A0)}
+/* --- Custom Combo 3: 玄铁重岩 + 江山字体 (Dark default) --- */
+[data-theme="chongyan"]{--bg:#0C0E12;--card:rgba(20,25,35,0.65);--card-h:rgba(30,38,55,0.88);--pri:#46A0DC;--pri-l:rgba(70,160,220,0.1);--acc:#D4A040;--acc-l:rgba(212,160,64,0.1);--txt:#E8E0D0;--txt2:rgba(232,224,208,0.5);--txt3:rgba(232,224,208,0.25);--bdr:rgba(70,160,220,0.08);--nav:rgba(12,14,18,0.95);--ban:linear-gradient(90deg,rgba(70,160,220,0.04),rgba(212,160,64,0.03));--mtn:rgba(70,160,220,0.04);--mtn2:rgba(70,160,220,0.07);--ink:rgba(70,160,220,0.35);--shd:rgba(0,0,0,0.4);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#0A2040,#46A0DC);--cover-g:linear-gradient(135deg,#3A1040,#46A0DC)}
+/* --- L1 千里江山 --- */
+[data-theme="jiangshan"]{--bg:#F0EBE0;--card:rgba(255,255,255,0.72);--card-h:rgba(255,255,255,0.9);--pri:#2D5A47;--pri-l:rgba(58,112,92,0.1);--acc:#C17240;--acc-l:rgba(193,114,64,0.1);--txt:#1A1A1A;--txt2:#5A5040;--txt3:#8A8070;--bdr:rgba(0,0,0,0.08);--nav:rgba(240,235,224,0.92);--ban:linear-gradient(90deg,rgba(58,112,92,0.06),rgba(193,114,64,0.04));--mtn:rgba(58,112,92,0.08);--mtn2:rgba(58,112,92,0.14);--ink:rgba(58,112,92,0.25);--shd:rgba(0,0,0,0.08);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#3A705C,#5B9C7A);--cover-g:linear-gradient(135deg,#4A3D7A,#3A705C)}
+/* --- L3 水墨晴岚 --- */
+[data-theme="shuimo"]{--bg:#F2F0ED;--card:rgba(255,255,255,0.82);--card-h:rgba(255,255,255,0.95);--pri:#111;--pri-l:rgba(0,0,0,0.06);--acc:#C44B3F;--acc-l:rgba(196,75,63,0.08);--txt:#0A0A0A;--txt2:#555;--txt3:#888;--bdr:rgba(0,0,0,0.1);--nav:rgba(242,240,237,0.94);--ban:linear-gradient(90deg,rgba(0,0,0,0.03),rgba(196,75,63,0.03));--mtn:rgba(0,0,0,0.06);--mtn2:rgba(0,0,0,0.12);--ink:rgba(0,0,0,0.15);--shd:rgba(0,0,0,0.08);--ff:'Ma Shan Zheng','Noto Serif SC',cursive;--cover-t:linear-gradient(135deg,#2A2A2A,#555);--cover-g:linear-gradient(135deg,#444,#222)}
+/* --- M2 丹霞赤壁 --- */
+[data-theme="danxia"]{--bg:#2A1F1F;--card:rgba(50,38,38,0.6);--card-h:rgba(65,48,48,0.85);--pri:#E8624A;--pri-l:rgba(232,98,74,0.12);--acc:#6EB89E;--acc-l:rgba(110,184,158,0.1);--txt:#F0E8E0;--txt2:rgba(240,232,224,0.55);--txt3:rgba(240,232,224,0.3);--bdr:rgba(200,80,60,0.1);--nav:rgba(42,31,31,0.94);--ban:linear-gradient(90deg,rgba(200,80,60,0.05),rgba(110,184,158,0.03));--mtn:rgba(139,32,32,0.1);--mtn2:rgba(139,32,32,0.16);--ink:rgba(232,98,74,0.3);--shd:rgba(0,0,0,0.3);--ff:'ZCOOL XiaoWei','Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#8B2020,#C85040);--cover-g:linear-gradient(135deg,#3A5A4A,#8B2020)}
+/* --- M3 青铜鼎彝 --- */
+[data-theme="qingtong"]{--bg:#222820;--card:rgba(40,50,36,0.6);--card-h:rgba(55,65,48,0.85);--pri:#C8B850;--pri-l:rgba(200,184,80,0.1);--acc:#8ABB70;--acc-l:rgba(138,187,112,0.12);--txt:#E0DCC8;--txt2:rgba(224,220,200,0.55);--txt3:rgba(224,220,200,0.3);--bdr:rgba(200,184,80,0.08);--nav:rgba(34,40,32,0.94);--ban:linear-gradient(90deg,rgba(200,184,80,0.04),rgba(138,187,112,0.03));--mtn:rgba(74,96,48,0.1);--mtn2:rgba(200,184,80,0.06);--ink:rgba(200,184,80,0.25);--shd:rgba(0,0,0,0.3);--ff:'ZCOOL QingKe HuangYou','Noto Serif SC',sans-serif;--cover-t:linear-gradient(135deg,#4A6030,#8ABB70);--cover-g:linear-gradient(135deg,#6A5020,#C8B850)}
+/* --- D1 墨夜苍穹 --- */
+[data-theme="moye"]{--bg:#08090E;--card:rgba(16,20,30,0.65);--card-h:rgba(25,32,48,0.88);--pri:#50DCB4;--pri-l:rgba(80,220,180,0.1);--acc:#E8B44C;--acc-l:rgba(232,180,76,0.1);--txt:#F0ECE2;--txt2:rgba(240,236,226,0.45);--txt3:rgba(240,236,226,0.22);--bdr:rgba(80,220,180,0.08);--nav:rgba(8,9,14,0.96);--ban:linear-gradient(90deg,rgba(80,220,180,0.04),rgba(232,180,76,0.03));--mtn:rgba(80,220,180,0.03);--mtn2:rgba(80,220,180,0.06);--ink:rgba(80,220,180,0.4);--shd:rgba(0,0,0,0.45);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#0A2A20,#50DCB4);--cover-g:linear-gradient(135deg,#2A1550,#50DCB4)}
+/* --- D3 紫气东来 --- */
+[data-theme="ziqi"]{--bg:#0E0A14;--card:rgba(22,16,35,0.65);--card-h:rgba(35,25,55,0.88);--pri:#B478DC;--pri-l:rgba(180,120,220,0.1);--acc:#E8A040;--acc-l:rgba(232,160,64,0.1);--txt:#EAE4F0;--txt2:rgba(234,228,240,0.45);--txt3:rgba(234,228,240,0.22);--bdr:rgba(180,120,220,0.08);--nav:rgba(14,10,20,0.96);--ban:linear-gradient(90deg,rgba(180,120,220,0.04),rgba(232,160,64,0.03));--mtn:rgba(106,48,144,0.06);--mtn2:rgba(180,120,220,0.05);--ink:rgba(180,120,220,0.4);--shd:rgba(0,0,0,0.45);--ff:'Ma Shan Zheng','Noto Serif SC',cursive;--cover-t:linear-gradient(135deg,#2A1040,#B478DC);--cover-g:linear-gradient(135deg,#0A2A20,#6A3090)}
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            overflow-x: hidden;
-            background-image: 
-                radial-gradient(circle at 15% 50%, rgba(102, 252, 241, 0.08) 0%, transparent 50%),
-                radial-gradient(circle at 85% 30%, rgba(69, 162, 158, 0.08) 0%, transparent 50%);
-            background-attachment: fixed;
-        }
+/* ══════════ RESET & BASE ══════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--ff);background:var(--bg);color:var(--txt);overflow-x:hidden;transition:background .5s,color .4s;-webkit-font-smoothing:antialiased}
 
-        /* Navbar */
-        nav {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            padding: 20px 5%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(11, 12, 16, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            z-index: 1000;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
+/* ══════════ MOUNTAIN BG ══════════ */
+.mtn-bg{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden}
+.mtn-bg svg{width:100%;height:100%}
 
-        .logo {
-            font-weight: 800;
-            font-size: 24px;
-            letter-spacing: 1px;
-            background: linear-gradient(90deg, var(--accent-primary), #fff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+/* ══════════ NAVBAR ══════════ */
+nav{position:fixed;top:0;width:100%;z-index:100;padding:0 4%;height:56px;display:flex;align-items:center;justify-content:space-between;background:var(--nav);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--bdr);transition:background .5s}
+.n-brand{font-size:24px;font-weight:900;color:var(--pri);letter-spacing:6px;cursor:default}
+.n-motto{font-size:12px;color:var(--txt2);letter-spacing:3px}
+.n-ctrls{display:flex;align-items:center;gap:10px}
+.n-btn{background:var(--pri-l);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;color:var(--pri);font-size:12px;font-family:inherit;cursor:pointer;transition:all .3s;letter-spacing:1px}
+.n-btn:hover{background:var(--pri);color:var(--bg)}
+select.n-btn{appearance:none;-webkit-appearance:none;padding-right:24px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:10px}
 
-        /* Hero Carousel */
-        .hero-section {
-            margin-top: 100px;
-            padding: 0 5%;
-        }
+/* ══════════ MAIN ══════════ */
+main{position:relative;z-index:1;max-width:940px;margin:0 auto;padding:74px 20px 30px}
 
-        .section-title {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            color: var(--accent-primary);
-            margin-bottom: 20px;
-            font-weight: 600;
-            opacity: 0.9;
-        }
+/* ══════════ BANNER ══════════ */
+.ban{background:var(--ban);border:1px solid var(--bdr);border-radius:12px;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:36px;transition:all .4s;font-size:13px}
+.ban strong{color:var(--pri)}.ban-t{color:var(--txt2)}
+.ban-l{color:var(--acc);text-decoration:none;font-weight:700;font-size:12px;white-space:nowrap;transition:opacity .3s}
+.ban-l:hover{opacity:.7}
+.ban-x{background:none;border:none;color:var(--txt3);font-size:15px;cursor:pointer;margin-left:12px;padding:2px}
 
-        .carousel-container {
-            width: 100%;
-            display: flex;
-            overflow-x: auto;
-            scroll-snap-type: x mandatory;
-            gap: 30px;
-            padding-bottom: 40px;
-            /* Hide scrollbar */
-            -ms-overflow-style: none;  
-            scrollbar-width: none;  
-        }
-        .carousel-container::-webkit-scrollbar { display: none; }
+/* ══════════ TABS ══════════ */
+.tabs{display:flex;border-bottom:2px solid var(--bdr);margin-bottom:32px}
+.tab{flex:1;padding:14px 0;text-align:center;font-size:15px;font-weight:700;letter-spacing:4px;color:var(--txt3);background:none;border:none;cursor:pointer;position:relative;font-family:inherit;transition:color .3s}
+.tab:hover{color:var(--pri)}
+.tab.on{color:var(--pri)}
+.tab::after{content:'';position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:0;height:3px;background:var(--pri);border-radius:2px;transition:width .4s cubic-bezier(.22,.61,.36,1);box-shadow:0 0 10px var(--ink)}
+.tab.on::after{width:55%}
 
-        .carousel-item {
-            flex: 0 0 100%;
-            scroll-snap-align: center;
-            background: var(--surface-color);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 24px;
-            padding: 60px 40px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.3s ease;
-        }
+/* ══════════ PANELS ══════════ */
+.pan{display:none;animation:fi .4s ease}.pan.on{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px}
 
-        .carousel-item:hover {
-            transform: translateY(-5px);
-            border-color: rgba(102, 252, 241, 0.2);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-        }
+/* ══════════ PROJECT CARDS ══════════ */
+.pc{background:var(--card);border:1px solid var(--bdr);border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;transition:all .4s cubic-bezier(.175,.885,.32,1.275);backdrop-filter:blur(8px);display:flex;flex-direction:column}
+.pc:hover{transform:translateY(-6px);background:var(--card-h);box-shadow:0 16px 40px var(--shd);border-color:var(--pri)}
+.pc-cv{height:140px;display:flex;align-items:center;justify-content:center;font-size:48px;position:relative;overflow:hidden}
+.pc-cv-bg{position:absolute;top:0;left:0;width:100%;height:100%;opacity:.85}
+.pc-bd{padding:18px;flex:1;display:flex;flex-direction:column}
+.pc-tag{display:inline-block;font-size:10px;letter-spacing:2px;color:var(--pri);background:var(--pri-l);padding:3px 10px;border-radius:20px;margin-bottom:8px;width:fit-content;font-weight:700}
+.pc-ti{font-size:19px;font-weight:900;margin-bottom:6px;letter-spacing:2px}
+.pc-de{font-size:13px;color:var(--txt2);line-height:1.65;flex:1}
+.pc-go{margin-top:14px;font-size:12px;color:var(--acc);font-weight:700;letter-spacing:1px;opacity:0;transform:translateX(-8px);transition:all .3s}
+.pc:hover .pc-go{opacity:1;transform:translateX(0)}
 
-        .carousel-item::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(135deg, rgba(102, 252, 241, 0.1) 0%, transparent 100%);
-            z-index: 0;
-        }
+/* Placeholder */
+.ph{background:var(--card);border:2px dashed var(--bdr);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:240px;color:var(--txt3);font-size:13px;letter-spacing:2px}
+.ph-i{font-size:32px;margin-bottom:10px;opacity:.4}
 
-        .carousel-content {
-            position: relative;
-            z-index: 1;
-        }
+/* ══════════ FOOTER ══════════ */
+footer{text-align:center;padding:36px 0 24px;border-top:1px solid var(--bdr);margin-top:50px;color:var(--txt3);font-size:12px;letter-spacing:2px}
+.f-stats{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:6px;opacity:.6}
 
-        .carousel-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            background: rgba(102, 252, 241, 0.15);
-            color: var(--accent-primary);
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            margin-bottom: 20px;
-        }
-
-        .carousel-title {
-            font-size: 48px;
-            font-weight: 800;
-            margin-bottom: 16px;
-            line-height: 1.1;
-        }
-
-        .carousel-desc {
-            font-size: 18px;
-            color: var(--text-muted);
-            max-width: 500px;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 14px 32px;
-            background: transparent;
-            color: var(--accent-primary);
-            text-decoration: none;
-            border: 1px solid var(--accent-primary);
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .btn:hover {
-            background: var(--accent-primary);
-            color: #000;
-            box-shadow: 0 0 20px rgba(102, 252, 241, 0.4);
-            transform: translateY(-2px);
-        }
-
-        /* Matrix Grid */
-        .grid-section {
-            padding: 60px 5%;
-        }
-
-        .grid-header {
-            font-size: 32px;
-            font-weight: 800;
-            margin-bottom: 40px;
-            color: #fff;
-        }
-
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-        }
-
-        .grid-card {
-            background: var(--surface-color);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 30px;
-            text-decoration: none;
-            color: inherit;
-            display: flex;
-            flex-direction: column;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .grid-card::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            width: 0%;
-            background: var(--accent-primary);
-            transition: width 0.3s ease;
-        }
-
-        .grid-card:hover {
-            transform: translateY(-10px);
-            background: rgba(31, 40, 51, 0.9);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
-        }
-
-        .grid-card:hover::after {
-            width: 100%;
-        }
-
-        .card-icon {
-            font-size: 36px;
-            margin-bottom: 20px;
-        }
-
-        .card-title {
-            font-size: 22px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .card-title span.arrow {
-            opacity: 0;
-            transform: translateX(-10px);
-            transition: all 0.3s ease;
-            color: var(--accent-primary);
-        }
-
-        .grid-card:hover .card-title span.arrow {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .card-desc {
-            color: var(--text-muted);
-            font-size: 15px;
-            line-height: 1.6;
-        }
-
-        /* Footer */
-        footer {
-            padding: 60px 0 40px;
-            text-align: center;
-            border-top: 1px solid rgba(255,255,255,0.05);
-            margin-top: 80px;
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-        
-        .visitor-stats {
-            margin-top: 15px;
-            font-family: 'JetBrains Mono', monospace;
-            opacity: 0.6;
-            font-size: 12px;
-        }
-
-        @media (max-width: 768px) {
-            .carousel-title { font-size: 32px; }
-            .carousel-item { padding: 40px 20px; }
-            .grid-container { grid-template-columns: 1fr; }
-        }
-    </style>
-    <!-- 统计脚本 -->
-    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-    <script>
-        var _hmt = _hmt || [];
-        (function() {
-            var hm = document.createElement("script");
-            hm.src = "https://hm.baidu.com/hm.js?bd20cb072169d13aec6393a5328314f6";
-            var s = document.getElementsByTagName("script")[0];
-            s.parentNode.insertBefore(hm, s);
-        })();
-    </script>
+/* ══════════ RESPONSIVE ══════════ */
+@media(max-width:768px){.n-motto{display:none}.n-brand{font-size:20px;letter-spacing:4px}.tab{font-size:13px;letter-spacing:2px}.cards{grid-template-columns:1fr}}
+</style>
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<script>var _hmt=_hmt||[];(function(){var h=document.createElement("script");h.src="https://hm.baidu.com/hm.js?bd20cb072169d13aec6393a5328314f6";var s=document.getElementsByTagName("script")[0];s.parentNode.insertBefore(h,s)})();</script>
 </head>
 <body>
 
-    <nav>
-        <div class="logo">y.portal</div>
-        <div style="color: var(--text-muted); font-size: 14px;">探索 · 创造 · 分享</div>
-    </nav>
+<!-- Mountain Background -->
+<div class="mtn-bg">
+<svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+<path d="M0,900 L0,600 Q80,460 180,530 Q280,380 400,480 Q520,340 650,440 Q780,320 900,420 Q1020,300 1150,390 Q1280,310 1440,370 L1440,900Z" fill="var(--mtn)" opacity=".7"/>
+<path d="M0,900 L0,680 Q120,560 260,640 Q400,520 560,610 Q720,490 880,590 Q1040,480 1200,560 Q1340,500 1440,540 L1440,900Z" fill="var(--mtn)" opacity="1"/>
+<path d="M0,900 L0,760 Q180,700 380,740 Q580,680 780,730 Q980,670 1180,720 Q1340,690 1440,710 L1440,900Z" fill="var(--mtn2)" opacity="1"/>
+<!-- Trees / Pine silhouettes -->
+<path d="M150,740 L155,700 L160,740Z M155,710 L160,680 L165,710Z" fill="var(--mtn2)" opacity=".6"/>
+<path d="M350,720 L356,670 L362,720Z M356,685 L362,650 L368,685Z" fill="var(--mtn2)" opacity=".5"/>
+<path d="M900,700 L907,645 L914,700Z M907,660 L914,620 L921,660Z" fill="var(--mtn)" opacity=".5"/>
+<path d="M1100,680 L1108,625 L1116,680Z" fill="var(--mtn)" opacity=".4"/>
+<!-- Sun/Moon circle -->
+<circle cx="1300" cy="120" r="35" fill="var(--acc)" opacity=".06"/>
+</svg>
+</div>
 
-    <!-- 主打活动轮播 -->
-    <section class="hero-section">
-        <div class="section-title">✨ Featured Launch</div>
-        <div class="carousel-container" id="carousel">
-            <!-- Slide 1 -->
-            <div class="carousel-item" style="background: linear-gradient(135deg, rgba(31, 40, 51, 0.9), rgba(11, 12, 16, 0.9)), url('data:image/svg+xml;utf8,<svg width=\"100\" height=\"100\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"50\" r=\"40\" fill=\"none\" stroke=\"%2366fcf1\" stroke-opacity=\"0.1\" stroke-width=\"2\"/></svg>');">
-                <div class="carousel-content">
-                    <span class="carousel-badge">NEW RELEASE</span>
-                    <h2 class="carousel-title">InfiniteSkill<br>智能文档编译器</h2>
-                    <p class="carousel-desc">将任意人类知识文档，瞬间提炼为可直接被 AI 智能体调用的标准化 Skill 技能包。完全开源，免费代理通道开放中。</p>
-                    <a href="/infiniteskill/" class="btn">立即体验 / Launch App</a>
-                </div>
-            </div>
-            
-            <!-- Slide 2 -->
-            <div class="carousel-item">
-                <div class="carousel-content">
-                    <span class="carousel-badge" style="color: #c5c6c7; background: rgba(255,255,255,0.1)">COMING SOON</span>
-                    <h2 class="carousel-title">下一代生成式<br>网页引擎</h2>
-                    <p class="carousel-desc">正在研发中的自动化架构系统，敬请期待...</p>
-                    <a href="#" class="btn" style="border-color: #c5c6c7; color: #c5c6c7">研发中</a>
-                </div>
-            </div>
-        </div>
-    </section>
+<!-- Navbar -->
+<nav>
+<div class="n-brand" data-i="brand">悬 象</div>
+<div class="n-motto" data-i="motto">却顾所来径，苍苍横翠微</div>
+<div class="n-ctrls">
+  <select class="n-btn" id="thm">
+    <optgroup label="✦ 精选" data-i="optFeatured">
+      <option value="juanben">🌄 绢本</option>
+      <option value="muse">🌤 暮色</option>
+      <option value="chongyan">🌙 重岩</option>
+    </optgroup>
+    <optgroup label="☀ 浅色" data-i="optLight">
+      <option value="jiangshan">千里江山</option>
+      <option value="shuimo">水墨晴岚</option>
+    </optgroup>
+    <optgroup label="◑ 中色" data-i="optMedium">
+      <option value="danxia">丹霞赤壁</option>
+      <option value="qingtong">青铜鼎彝</option>
+    </optgroup>
+    <optgroup label="● 深色" data-i="optDark">
+      <option value="moye">墨夜苍穹</option>
+      <option value="ziqi">紫气东来</option>
+    </optgroup>
+  </select>
+  <button class="n-btn" id="lng" data-i="langBtn">中 / EN</button>
+</div>
+</nav>
 
-    <!-- 分类矩阵 -->
-    <section class="grid-section">
-        <h3 class="grid-header">Projects Matrix</h3>
-        
-        <div class="grid-container">
-            <!-- AI Tools -->
-            <a href="/infiniteskill/" class="grid-card">
-                <div class="card-icon">🤖</div>
-                <div class="card-title">实用 AI 工具 <span class="arrow">→</span></div>
-                <div class="card-desc">包含 InfiniteSkill 编译器等基于大语言模型的提效杠杆工具。</div>
-            </a>
+<main>
+<!-- Banner -->
+<div class="ban" id="ban">
+  <span><strong>✨ InfiniteSkill v2.0</strong> <span class="ban-t" data-i="banTxt">— 智能文档 Skill 编译器已上线</span></span>
+  <a href="/infiniteskill/" class="ban-l" data-i="banCta">立即体验 →</a>
+  <button class="ban-x" onclick="this.parentElement.style.display='none'">✕</button>
+</div>
 
-            <!-- Books & Docs -->
-            <a href="#" class="grid-card">
-                <div class="card-icon">📚</div>
-                <div class="card-title">书籍与深思 <span class="arrow">→</span></div>
-                <div class="card-desc">沉淀的技术见解、架构解析与个人撰写的领域电子书。</div>
-            </a>
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab on" data-t="tools" data-i="tTools">🏺 器 · 工具</button>
+  <button class="tab" data-t="books" data-i="tBooks">📜 卷 · 书籍</button>
+  <button class="tab" data-t="games" data-i="tGames">🎯 弈 · 游戏</button>
+</div>
 
-            <!-- Games -->
-            <a href="/game.html" class="grid-card">
-                <div class="card-icon">🎮</div>
-                <div class="card-title">实验性网页游戏 <span class="arrow">→</span></div>
-                <div class="card-desc">使用 Canvas 和 WebGL 编写的轻量级浏览器游戏原型。</div>
-            </a>
-        </div>
-    </section>
+<!-- Tools Panel -->
+<div class="pan on" id="p-tools"><div class="cards">
+  <a href="/infiniteskill/" class="pc">
+    <div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-t)"></div><span style="position:relative;z-index:1">🔮</span></div>
+    <div class="pc-bd">
+      <span class="pc-tag">AI SKILL COMPILER</span>
+      <h3 class="pc-ti">InfiniteSkill</h3>
+      <p class="pc-de" data-i="dIS">将任何专业书籍一键编译为大模型可直接调用的结构化 Skill 技能包，让 AI 智能体获得真正的专业能力。</p>
+      <div class="pc-go" data-i="go">进入 →</div>
+    </div>
+  </a>
+  <div class="ph"><span class="ph-i">🏺</span><span data-i="phTool">更多工具，敬请期待</span></div>
+</div></div>
 
-    <footer>
-        <p>© 2026 Yuan's Digital Sandbox. All rights reserved.</p>
-        <div class="visitor-stats">
-            SYS_VISITS( <span id="busuanzi_value_site_pv">--</span> ) | USERS( <span id="busuanzi_value_site_uv">--</span> )
-        </div>
-    </footer>
+<!-- Books Panel -->
+<div class="pan" id="p-books"><div class="cards">
+  <div class="ph"><span class="ph-i">📜</span><span data-i="phBook">书卷未展，静候墨香</span></div>
+</div></div>
 
-    <script>
-        // 简易的轮播图自动滑动逻辑 (可选)
-        const carousel = document.getElementById('carousel');
-        let scrollPos = 0;
-        
-        // 鼠标拖拽查看 Carousel
-        let isDown = false;
-        let startX;
-        let scrollLeft;
+<!-- Games Panel -->
+<div class="pan" id="p-games"><div class="cards">
+  <a href="/game.html" class="pc">
+    <div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-g)"></div><span style="position:relative;z-index:1">⚔️</span></div>
+    <div class="pc-bd">
+      <span class="pc-tag" style="background:var(--acc-l);color:var(--acc)">CANVAS GAME</span>
+      <h3 class="pc-ti" data-i="gFSB">飞剑弹珠</h3>
+      <p class="pc-de" data-i="dFSB">用飞剑击碎弹珠，摧毁核心！8 个关卡、连击系统、瞬移技能，纯 Canvas 零依赖。</p>
+      <div class="pc-go" data-i="go">进入 →</div>
+    </div>
+  </a>
+  <div class="ph"><span class="ph-i">🎯</span><span data-i="phGame">更多游戏，敬请期待</span></div>
+</div></div>
 
-        carousel.addEventListener('mousedown', (e) => {
-            isDown = true;
-            startX = e.pageX - carousel.offsetLeft;
-            scrollLeft = carousel.scrollLeft;
-            carousel.style.scrollSnapType = 'none'; // 拖拽时取消吸附
-            carousel.style.cursor = 'grabbing';
-        });
-        
-        carousel.addEventListener('mouseleave', () => {
-            isDown = false;
-            carousel.style.scrollSnapType = 'x mandatory';
-            carousel.style.cursor = 'grab';
-        });
-        
-        carousel.addEventListener('mouseup', () => {
-            isDown = false;
-            carousel.style.scrollSnapType = 'x mandatory';
-            carousel.style.cursor = 'grab';
-        });
-        
-        carousel.addEventListener('mousemove', (e) => {
-            if (!isDown) return;
-            e.preventDefault();
-            const x = e.pageX - carousel.offsetLeft;
-            const walk = (x - startX) * 2; // 滑动速度
-            carousel.scrollLeft = scrollLeft - walk;
-        });
-    </script>
+<!-- Footer -->
+<footer>
+  <p>© 2026 <span data-i="fBrand">悬象 · Xuán Xiàng</span></p>
+  <div class="f-stats">SYS_VISITS( <span id="busuanzi_value_site_pv">--</span> ) | USERS( <span id="busuanzi_value_site_uv">--</span> )</div>
+</footer>
+</main>
+
+<script>
+/* ══════════ THEME ══════════ */
+const thmSel=document.getElementById('thm');
+const saved=localStorage.getItem('xx-thm');
+if(saved){document.documentElement.setAttribute('data-theme',saved);thmSel.value=saved}
+thmSel.addEventListener('change',()=>{document.documentElement.setAttribute('data-theme',thmSel.value);localStorage.setItem('xx-thm',thmSel.value)});
+
+/* ══════════ TABS ══════════ */
+document.querySelectorAll('.tab').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.pan').forEach(p=>p.classList.remove('on'));b.classList.add('on');document.getElementById('p-'+b.dataset.t).classList.add('on')})});
+
+/* ══════════ I18N ══════════ */
+const L={
+zh:{brand:'悬 象',motto:'却顾所来径，苍苍横翠微',langBtn:'中 / EN',banTxt:'— 智能文档 Skill 编译器已上线',banCta:'立即体验 →',tTools:'🏺 器 · 工具',tBooks:'📜 卷 · 书籍',tGames:'🎯 弈 · 游戏',dIS:'将任何专业书籍一键编译为大模型可直接调用的结构化 Skill 技能包，让 AI 智能体获得真正的专业能力。',gFSB:'飞剑弹珠',dFSB:'用飞剑击碎弹珠，摧毁核心！8 个关卡、连击系统、瞬移技能，纯 Canvas 零依赖。',go:'进入 →',phTool:'更多工具，敬请期待',phBook:'书卷未展，静候墨香',phGame:'更多游戏，敬请期待',fBrand:'悬象 · Xuán Xiàng'},
+en:{brand:'Xuán Xiàng',motto:'Looking back upon the path I came, the blue-green haze stretches far.',langBtn:'EN / 中',banTxt:'— AI Document Skill Compiler is Live',banCta:'Try Now →',tTools:'🏺 Tools',tBooks:'📜 Books',tGames:'🎯 Games',dIS:'Compile any professional book into structured Skill packs that LLM agents can directly invoke — giving AI true domain expertise.',gFSB:'Flying Sword Breakout',dFSB:'Smash bricks with your flying sword! 8 levels, combo system, dash skill. Pure Canvas, zero dependencies.',go:'Enter →',phTool:'More tools coming soon...',phBook:'The scrolls await, stay tuned.',phGame:'More games coming soon...',fBrand:'Xuán Xiàng · 悬象'}
+};
+let cl=localStorage.getItem('xx-lang')||'zh';
+function setLang(l){cl=l;document.documentElement.lang=l==='zh'?'zh-CN':'en';document.documentElement.setAttribute('data-lang',l);const t=L[l];document.querySelectorAll('[data-i]').forEach(e=>{const k=e.getAttribute('data-i');if(t[k])e.textContent=t[k]});localStorage.setItem('xx-lang',l)}
+document.getElementById('lng').addEventListener('click',()=>setLang(cl==='zh'?'en':'zh'));
+setLang(cl);
+</script>
 </body>
 </html>
