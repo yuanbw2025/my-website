@@ -47,4 +47,17 @@
 **执行状态**：✅ 已完成
 
 ---
+
+## [2026-04-08 17:14] — InfiniteSkill 独立仓库文档 + 推广文章
+
+> 把mywebsite里已经做好的工具代码同步到infiniteskill仓库里，同时做一份完善全面的readme文件，让git上的开发者一看就知道这个东西有价值。我不是在其中加入了项目管理那本书的示例了，你结合那个示例，再帮我写一份知乎文和腾讯公众号文，知乎文不支持那些复杂的排版格式，做几张类似于科研的那种图就行。腾讯公众号文的话需要你调用一些排版能力，做得精美一些。我想把这个东西发到公众号上去。不过腾讯公众号的编辑器支持的格式有些特殊，你自己搜索一下，把排版做得能让我直接复制粘贴。
+
+**产出物**：
+- `infiniteskill/README.md` — 完整项目 README（含架构图、PMBOK 实战案例、路线图）
+- `infiniteskill/docs/zhihu-article.md` — 知乎文章（纯 Markdown + ASCII 架构图）
+- `infiniteskill/docs/wechat-article.html` — 微信公众号文章（内联 CSS 富排版，可直接粘贴）
+
+**执行状态**：✅ 已完成
+
+---
 *End of Prompt Log*
