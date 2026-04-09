@@ -22,8 +22,19 @@
 
 在动手前，你必须透彻理解这个巨无霸生态系统的构造：
 
+### 0. 多仓库架构总览
+本项目由 **3 个 GitHub 仓库** 构成：
+
+| 仓库 | 类型 | 地址 | 用途 |
+|------|------|------|------|
+| **my-website** | 🔒 私有主库 | `yuanbw2025/my-website` | Vercel 部署唯一入口，所有源码 + 构建脚本 + 后端 API |
+| **infiniteskill** | 🌐 公开镜像 | `yuanbw2025/infiniteskill` | 智能编译器开源镜像，供外部下载 |
+| **flying-sword-pinball** | 🌐 公开镜像 | `yuanbw2025/flying-sword-pinball` | 飞剑弹珠游戏开源镜像，零依赖单文件 |
+
+**⚠️ 重要**：只有 `my-website` 连接 Vercel 部署。另外两个公开库是代码镜像，不参与部署。当主库代码更新后，需要手动同步镜像到对应公开库。
+
 ### 1. 这是一个 Monobuild (主单体构建) 体系
-它绝不仅仅是一个简单的单页静态网站，它是**“主网站 + 子系统工具集”**的聚合体。
+它绝不仅仅是一个简单的单页静态网站，它是**"主网站 + 子系统工具集"**的聚合体。
 项目的宿主在 Vercel（核心项目名通常是 `my-website`），其部署靠的是根目录自己手写的 `build.mjs`。
 - **构建工作流**：Vercel 跑 `node build.mjs` 时，脚本会**层层潜入**子文件夹（如 `infiniteskill/`），使用 `npm run build` 进行编译，最后再把编译产物复制并聚合到统一的 `public/` 目录下。
 - **冲突防范要求**：不要瞎改根目录的内容想把它变成 Vite 项目，它不是。不要为了修改静态网页而去触碰 `build.mjs` 内的核心编译流。
@@ -32,8 +43,16 @@
 这是挂载在主站下的关键应用，路径位于根目录的 `infiniteskill/` 文件夹下。
 - **技术栈**：严格采用 `Vite 6` + `React 19` + `TypeScript` + `TailwindCSS v4`。
 - **部署表现**：在 Vercel 上通过 `vercel.json` 将访问 `/infiniteskill/(.*)` 的用户正确导向给这个 React SPA，确保客户端路由不挂。
+- **公开镜像**：`yuanbw2025/infiniteskill`，含 README + 知乎/微信推广文章。
 
-### 3. API 安全与鉴权设计 (生命线：绝不能泄露明文)
+### 3. 子项目 飞剑弹珠 (Flying Sword Breakout) 游戏
+这是一个零依赖的 HTML5 Canvas 弹珠消砖游戏，源文件位于根目录的 `game.html`。
+- **技术栈**：纯原生 HTML5 Canvas + JavaScript + Web Audio API，单文件 ~43KB。
+- **部署表现**：构建时直接复制到 `public/game.html`，通过 `https://yuanbw.vercel.app/game.html` 访问。
+- **公开镜像**：`yuanbw2025/flying-sword-pinball`，含详细 README。
+- **特点**：8 关卡、三星评价、本地排行榜、程序化音效、全设备兼容。
+
+### 4. API 安全与鉴权设计 (生命线：绝不能泄露明文)
 为了彻底隐藏敏感的系统级 LLM API Keys，本项目独创了一套 Vercel 后端中转机制。该机制经历过数次因为硬编码导致的 Google 官方封号血泪史。
 **所有后来的 AI 必须把以下规范刻进代码本能中：**
 - **只能引用环境变量**：在任何文件（尤其是后端的 Serverless 如 `/api/v2/telemetry-sync.js`）里调用 Gemini API 时，**绝对、无论如何不允许写入 `const API_KEY = "AIza..."` 这样的保底硬编码字符串**。所有的通信密钥只允许且强制通过 `process.env.SECRET_GEMINI_KEY` 获取。哪怕没有取到，你也只能通过抛出 500 并在日志中要求用户配置 Vercel 环境变量来阻断运行，严禁添加任何回退字符串。
