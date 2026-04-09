@@ -28,6 +28,82 @@ export interface CompilationResult {
 }
 
 // ========================================
+// 通用 LLM 提供商配置（OpenAI 兼容协议）
+// ========================================
+export interface LLMProviderConfig {
+  id: string;
+  name: string;
+  baseURL: string;
+  defaultModel: string;       // 默认快速模型
+  proModel: string;           // 推理/高质量模型
+  requiresApiKey: boolean;
+}
+
+/** 预置的 LLM 提供商列表（全部兼容 OpenAI Chat Completions 格式） */
+export const LLM_PROVIDERS: LLMProviderConfig[] = [
+  {
+    id: "gemini",
+    name: "Google Gemini",
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    defaultModel: "gemini-2.5-flash",
+    proModel: "gemini-2.5-pro",
+    requiresApiKey: true,
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    baseURL: "https://api.deepseek.com/v1/",
+    defaultModel: "deepseek-chat",
+    proModel: "deepseek-reasoner",
+    requiresApiKey: true,
+  },
+  {
+    id: "qwen",
+    name: "阿里千问 (Qwen)",
+    baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1/",
+    defaultModel: "qwen-plus",
+    proModel: "qwen-max",
+    requiresApiKey: true,
+  },
+  {
+    id: "kimi",
+    name: "Kimi (月之暗面)",
+    baseURL: "https://api.moonshot.cn/v1/",
+    defaultModel: "moonshot-v1-8k",
+    proModel: "moonshot-v1-128k",
+    requiresApiKey: true,
+  },
+  {
+    id: "glm",
+    name: "智谱 GLM",
+    baseURL: "https://open.bigmodel.cn/api/paas/v4/",
+    defaultModel: "glm-4-flash",
+    proModel: "glm-4-plus",
+    requiresApiKey: true,
+  },
+  {
+    id: "doubao",
+    name: "豆包 (火山引擎)",
+    baseURL: "https://ark.cn-beijing.volces.com/api/v3/",
+    defaultModel: "doubao-1.5-pro-32k",
+    proModel: "doubao-1.5-pro-256k",
+    requiresApiKey: true,
+  },
+  {
+    id: "custom",
+    name: "自定义 (OpenAI 兼容)",
+    baseURL: "",
+    defaultModel: "",
+    proModel: "",
+    requiresApiKey: true,
+  },
+];
+
+export function getProvider(id: string): LLMProviderConfig {
+  return LLM_PROVIDERS.find(p => p.id === id) || LLM_PROVIDERS[0];
+}
+
+// ========================================
 // 额度追踪器（localStorage，按太平洋时间自动重置）
 // ========================================
 export class QuotaTracker {
@@ -115,22 +191,41 @@ export class QuotaTracker {
 export class SkillCompiler {
   private ai: OpenAI | null = null;
   private userApiKey: string;
+  private provider: LLMProviderConfig;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, providerId: string = "gemini", customBaseURL?: string, customModel?: string, customProModel?: string) {
     this.userApiKey = apiKey;
-    if (apiKey) {
+    this.provider = getProvider(providerId);
+
+    // 自定义提供商：覆盖 baseURL 和模型
+    if (providerId === "custom") {
+      if (customBaseURL) this.provider = { ...this.provider, baseURL: customBaseURL };
+      if (customModel) this.provider = { ...this.provider, defaultModel: customModel };
+      if (customProModel) this.provider = { ...this.provider, proModel: customProModel };
+    }
+
+    if (apiKey && this.provider.baseURL) {
       this.ai = new OpenAI({
         apiKey: apiKey,
-        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+        baseURL: this.provider.baseURL,
         dangerouslyAllowBrowser: true
       });
     }
   }
 
-  private async _callLLM(systemPrompt: string, userPrompt: string, usePro: boolean = false): Promise<string> {
-    const modelStr = usePro ? "gemini-2.5-pro" : "gemini-2.5-flash";
+  /** 获取当前使用的提供商信息 */
+  getProviderInfo(): { name: string; defaultModel: string; proModel: string } {
+    return {
+      name: this.provider.name,
+      defaultModel: this.provider.defaultModel,
+      proModel: this.provider.proModel,
+    };
+  }
 
-    // --- 用户自带 Key，走直连 ---
+  private async _callLLM(systemPrompt: string, userPrompt: string, usePro: boolean = false): Promise<string> {
+    const modelStr = usePro ? this.provider.proModel : this.provider.defaultModel;
+
+    // --- 用户自带 Key，走直连（通用 OpenAI 兼容协议） ---
     if (this.userApiKey && this.ai) {
       const response = await this.ai.chat.completions.create({
         model: modelStr,
