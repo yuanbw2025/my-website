@@ -647,7 +647,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="mt-24 pb-8 text-gray-500 text-sm text-center">
-        <p>© 2026 InfiniteSkill · 悬象出品 · 支持 Gemini / DeepSeek / 千问 / Kimi / GLM / 豆包 及任何 OpenAI 兼容 API</p>
+        <p>© 2026 InfiniteSkill · 悬象出品 · 支持 GPT / Claude / Gemini / DeepSeek / 千问 / Kimi / GLM / 豆包 及任何 OpenAI 兼容 API</p>
         <p className="mt-2 text-brand-primary/60 font-medium">不是总结，是结构化编译。</p>
       </footer>
 

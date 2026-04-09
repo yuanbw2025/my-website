@@ -50,6 +50,22 @@ export const LLM_PROVIDERS: LLMProviderConfig[] = [
     requiresApiKey: true,
   },
   {
+    id: "openai",
+    name: "OpenAI (GPT)",
+    baseURL: "https://api.openai.com/v1/",
+    defaultModel: "gpt-4o-mini",
+    proModel: "gpt-4o",
+    requiresApiKey: true,
+  },
+  {
+    id: "claude",
+    name: "Anthropic (Claude)",
+    baseURL: "https://api.anthropic.com/v1/",
+    defaultModel: "claude-sonnet-4-20250514",
+    proModel: "claude-sonnet-4-20250514",
+    requiresApiKey: true,
+  },
+  {
     id: "deepseek",
     name: "DeepSeek",
     baseURL: "https://api.deepseek.com/v1/",
@@ -222,19 +238,57 @@ export class SkillCompiler {
     };
   }
 
+  /**
+   * Claude (Anthropic) 使用独立的 Messages API，非 OpenAI 兼容格式。
+   * 需要用 fetch 直接调用原生接口。
+   */
+  private async _callClaude(systemPrompt: string, userPrompt: string, usePro: boolean): Promise<string> {
+    const model = usePro ? this.provider.proModel : this.provider.defaultModel;
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.userApiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`Claude API 错误 (${resp.status}): ${err.substring(0, 300)}`);
+    }
+    const data = await resp.json();
+    // Anthropic Messages API 返回格式: { content: [{ type: "text", text: "..." }] }
+    return data.content?.[0]?.text || "";
+  }
+
   private async _callLLM(systemPrompt: string, userPrompt: string, usePro: boolean = false): Promise<string> {
     const modelStr = usePro ? this.provider.proModel : this.provider.defaultModel;
 
-    // --- 用户自带 Key，走直连（通用 OpenAI 兼容协议） ---
-    if (this.userApiKey && this.ai) {
-      const response = await this.ai.chat.completions.create({
-        model: modelStr,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      return response.choices[0].message.content || "";
+    // --- 用户自带 Key ---
+    if (this.userApiKey) {
+      // Claude 走原生 Anthropic Messages API（非 OpenAI 兼容）
+      if (this.provider.id === "claude") {
+        return this._callClaude(systemPrompt, userPrompt, usePro);
+      }
+
+      // 其余提供商统一走 OpenAI 兼容协议
+      if (this.ai) {
+        const response = await this.ai.chat.completions.create({
+          model: modelStr,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ]
+        });
+        return response.choices[0].message.content || "";
+      }
     }
 
     // --- 无 Key，走服务端代理 ---
