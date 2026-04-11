@@ -1,6 +1,11 @@
 # 构建产物
 infiniteskill/node_modules/
 infiniteskill/dist/
+yuntype/node_modules/
+yuntype/dist/
+
+# 备份目录
+infiniteskill_backup/
 
 # 系统文件
 .DS_Store

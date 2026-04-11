@@ -5,6 +5,10 @@
     {
       "source": "/infiniteskill/(.*)",
       "destination": "/infiniteskill/index.html"
+    },
+    {
+      "source": "/yuntype/(.*)",
+      "destination": "/yuntype/index.html"
     }
   ]
 }

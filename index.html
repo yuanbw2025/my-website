@@ -167,6 +167,15 @@ footer{text-align:center;padding:36px 0 24px;border-top:1px solid var(--bdr);mar
       <div class="pc-go" data-i="go">进入 →</div>
     </div>
   </a>
+  <a href="/yuntype/" class="pc">
+    <div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-g)"></div><span style="position:relative;z-index:1">☁️</span></div>
+    <div class="pc-bd">
+      <span class="pc-tag" style="background:var(--acc-l);color:var(--acc)">AI TYPESETTING</span>
+      <h3 class="pc-ti">云中书 YunType</h3>
+      <p class="pc-de" data-i="dYT">AI 驱动的排版工具，660种原子组合，一键生成公众号富文本和小红书图片组。粘贴文章，AI推荐排版，复制即用。</p>
+      <div class="pc-go" data-i="go">进入 →</div>
+    </div>
+  </a>
   <div class="ph"><span class="ph-i">🏺</span><span data-i="phTool">更多工具，敬请期待</span></div>
 </div></div>
 
@@ -208,8 +217,8 @@ document.querySelectorAll('.tab').forEach(b=>{b.addEventListener('click',()=>{do
 
 /* ══════════ I18N ══════════ */
 const L={
-zh:{brand:'悬 象',motto:'却顾所来径，苍苍横翠微',langBtn:'中 / EN',banTxt:'— 智能文档 Skill 编译器已上线',banCta:'立即体验 →',tTools:'🏺 器 · 工具',tBooks:'📜 卷 · 书籍',tGames:'🎯 弈 · 游戏',dIS:'将任何专业书籍一键编译为大模型可直接调用的结构化 Skill 技能包，让 AI 智能体获得真正的专业能力。',gFSB:'飞剑弹珠',dFSB:'用飞剑击碎弹珠，摧毁核心！8 个关卡、连击系统、瞬移技能，纯 Canvas 零依赖。',go:'进入 →',phTool:'更多工具，敬请期待',phBook:'书卷未展，静候墨香',phGame:'更多游戏，敬请期待',fBrand:'悬象 · Xuán Xiàng'},
-en:{brand:'Xuán Xiàng',motto:'Looking back upon the path I came, the blue-green haze stretches far.',langBtn:'EN / 中',banTxt:'— AI Document Skill Compiler is Live',banCta:'Try Now →',tTools:'🏺 Tools',tBooks:'📜 Books',tGames:'🎯 Games',dIS:'Compile any professional book into structured Skill packs that LLM agents can directly invoke — giving AI true domain expertise.',gFSB:'Flying Sword Breakout',dFSB:'Smash bricks with your flying sword! 8 levels, combo system, dash skill. Pure Canvas, zero dependencies.',go:'Enter →',phTool:'More tools coming soon...',phBook:'The scrolls await, stay tuned.',phGame:'More games coming soon...',fBrand:'Xuán Xiàng · 悬象'}
+zh:{brand:'悬 象',motto:'却顾所来径，苍苍横翠微',langBtn:'中 / EN',banTxt:'— 智能文档 Skill 编译器已上线',banCta:'立即体验 →',tTools:'🏺 器 · 工具',tBooks:'📜 卷 · 书籍',tGames:'🎯 弈 · 游戏',dIS:'将任何专业书籍一键编译为大模型可直接调用的结构化 Skill 技能包，让 AI 智能体获得真正的专业能力。',dYT:'AI 驱动的排版工具，660种原子组合，一键生成公众号富文本和小红书图片组。粘贴文章，AI推荐排版，复制即用。',gFSB:'飞剑弹珠',dFSB:'用飞剑击碎弹珠，摧毁核心！8 个关卡、连击系统、瞬移技能，纯 Canvas 零依赖。',go:'进入 →',phTool:'更多工具，敬请期待',phBook:'书卷未展，静候墨香',phGame:'更多游戏，敬请期待',fBrand:'悬象 · Xuán Xiàng'},
+en:{brand:'Xuán Xiàng',motto:'Looking back upon the path I came, the blue-green haze stretches far.',langBtn:'EN / 中',banTxt:'— AI Document Skill Compiler is Live',banCta:'Try Now →',tTools:'🏺 Tools',tBooks:'📜 Books',tGames:'🎯 Games',dIS:'Compile any professional book into structured Skill packs that LLM agents can directly invoke — giving AI true domain expertise.',dYT:'AI-powered typesetting tool with 660 atomic combinations. Generate WeChat articles and Xiaohongshu image sets instantly. Paste, style, copy.',gFSB:'Flying Sword Breakout',dFSB:'Smash bricks with your flying sword! 8 levels, combo system, dash skill. Pure Canvas, zero dependencies.',go:'Enter →',phTool:'More tools coming soon...',phBook:'The scrolls await, stay tuned.',phGame:'More games coming soon...',fBrand:'Xuán Xiàng · 悬象'}
 };
 let cl=localStorage.getItem('xx-lang')||'zh';
 function setLang(l){cl=l;document.documentElement.lang=l==='zh'?'zh-CN':'en';document.documentElement.setAttribute('data-lang',l);const t=L[l];document.querySelectorAll('[data-i]').forEach(e=>{const k=e.getAttribute('data-i');if(t[k])e.textContent=t[k]});localStorage.setItem('xx-lang',l)}
