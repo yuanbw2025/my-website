@@ -11,6 +11,9 @@ infiniteskill_backup/
 .DS_Store
 Thumbs.db
 
+# 参考资料（不推送）
+_reference/
+
 # 编辑器
 .vscode/
 .idea/
