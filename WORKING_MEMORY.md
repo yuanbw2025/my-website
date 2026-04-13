@@ -8,6 +8,8 @@
 
 *这是用于精细回溯的操作日志。严禁以覆盖的方式修改过去的节点。必须**从最上方插入最新一条记录***。
 
+- **[19:49:00] (2026-04-13)**: [Phase 8 骨架引擎V2 代码推送] 将今日完成的 Phase 8 全部变更推送到线上：① 主库 my-website 推送 yuntype/ 子目录变更（不含 storyforge/）→ 触发 Vercel 自动部署；② yuntype 公开镜像库推送全部 Phase 4~8 新增文件（插槽系统6类48变体、蓝图5套、V2渲染器、LayoutPanel、AI模块、字体模块、信息图、小红书模式等27+个新文件）。更新 WORKING_MEMORY.md、README.md 路线图。
+- **[18:14:00] (2026-04-13)**: [Phase 8 骨架引擎V2 完工] 完成插槽系统（6类48种变体：标题10/引用8/列表8/分割线8/段落6/节区6）+ 蓝图系统（5套：极简流/杂志卡片/学术严谨/时间线叙事/日式侘寂）+ V2渲染器 renderWechatV2() + LayoutPanel.tsx + WechatPreview V1/V2双模式 + App.tsx 集成。TypeScript 0 error，Vite 构建通过。组合空间从660种扩展到100万+种。解决了原T1-T5仅改CSS参数的核心架构问题。
 - **[01:30:00] (2026-04-13)**: [赛博飞剑 Monobuild 集成完成] 将 cyber-flying-sword 子项目完整集成到主仓库：① 修改 `build.mjs` 新增 Step 3 构建 cyber-flying-sword；② `vercel.json` 新增 SPA rewrite；③ `.gitignore` 排除 node_modules/dist/；④ `index.html` 游戏面板新增赛博飞剑卡片+i18n；⑤ 创建项目骨架（package.json/tsconfig/vite.config/src/*）；⑥ 复制 4 份核心文档（PROJECT_BIBLE/GDD/TDD/手势参考）；⑦ 更新 PROJECT_PLAN.md v6.0（五大仓库架构）；⑧ 更新 README.md（目录结构+部署架构+更新日志）；⑨ 更新 WORKING_MEMORY.md。待办：创建独立公开仓库 yuanbw2025/cyber-flying-sword。
 - **[22:40:00] (2026-04-12)**: [Phase 7 文档收尾 + 推送] 更新 PROGRESS.md（新增 Phase 7 多渠道分发 + 用户反馈的架构问题）、WORKING_MEMORY.md（今日全部交互记录）、.gitignore（排除 _reference/）。同步 yuntype 到独立仓库并推送两个仓库。
 - **[21:30:00] (2026-04-12)**: [参考资料收集] 用户提供两个参考项目 ZIP 下载，已解压到 `_reference/` 目录：① awesome-design-md（66套 DESIGN.md，Google Stitch 概念）② ui-ux-pro-max-skill（67种 UI 风格 + 161条推理规则，AI设计智能 Skill）。这两个项目展示了真正的"多版式"设计思路，可作为布局重构灵感来源。
@@ -26,7 +28,7 @@
 - 这是一个在主私人库里包办所有的 **混合构建（Monobuild）网络体系**。主门面使用 Vanilla 技术流；子工具走 React。
 - 绝密环境变数：所有后端 Serverless 的外呼认证全部只且必须走 `process.env.XXXX`，一旦明文进源代码即视为破坏红线。
 - 只有被明确记录并在 `build.mjs` 中登记聚合的子项目，才能在线上 `vercel.app` 中渲染显示，不要迷信本地 `npm run dev`。
-- **[2026-04-12 新增]** 云中书 YunType 的排版系统(T1-T5)存在架构缺陷：仅改CSS参数不改HTML结构。下一阶段需彻底重构为真正的多版式系统。参考资料在 `_reference/` 目录。
+- **[2026-04-13 更新]** 云中书 YunType 的排版系统架构问题已通过 Phase 8 骨架引擎V2 解决：插槽系统（6类48变体）+ 蓝图系统（5套）实现真正结构性布局差异，V1/V2共存兼容旧工作流。
 - **[2026-04-12 新增]** 云中书多渠道分发已就绪：MCP Server（`yuntype/mcp-server/`）、Prompt Skill 基础版+完整版（`yuntype/skill/`）、测试 Playground（`yuntype/test-playground.html`）。完整版 Skill 是推荐方案，无需 API Key。
 
 - **[19:07:00] (2026-04-07)**: [架构级降级策略上线] 在后端层实现了循环探测机制，支持跨版本（v1/v1beta）模型自动切换。
