@@ -42,11 +42,24 @@ my-website/
 │   ├── vite.config.ts
 │   └── tsconfig.json
 │
+├── yuntype/                     # 📦 云中书 AI 排版引擎（React + Vite + TypeScript）
+│   ├── src/                    #   660 种排版组合渲染引擎
+│   ├── mcp-server/             #   MCP Server（4 工具 + 1 资源）
+│   ├── skill/                  #   Prompt Skill（基础版 + 完整版）
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── cyber-flying-sword/         # 🗡️ 赛博飞剑手势动作游戏（React + Three.js + MediaPipe）
+│   ├── src/                    #   游戏核心源码
+│   ├── docs/                   #   PROJECT_BIBLE / GDD / TDD / 手势参考
+│   ├── package.json
+│   └── vite.config.ts
+│
 ├── public/                     # 📂 构建产物（Vercel 最终部署此目录）
 │   ├── index.html              #   主页副本
-│   └── infiniteskill/          #   InfiniteSkill 编译产物
-│       ├── index.html
-│       └── assets/             #   JS/CSS/Worker 文件
+│   ├── infiniteskill/          #   InfiniteSkill 编译产物
+│   ├── yuntype/                #   云中书编译产物
+│   └── cyber-flying-sword/     #   赛博飞剑编译产物
 │
 ├── api/                        # ⚡ Vercel Serverless Functions
 │   └── v2/
@@ -183,16 +196,25 @@ git add -A && git commit -m "update" && git push origin main
 GitHub (main) → Vercel Auto Deploy
                   ├── buildCommand: "node build.mjs"
                   ├── outputDirectory: "public/"
-                  └── rewrites: /infiniteskill/* → /infiniteskill/index.html (SPA)
+                  └── rewrites: /<子项目>/* → /<子项目>/index.html (SPA)
 ```
 
 - 推送到 `main` 分支即自动触发 Vercel 部署
-- `build.mjs` 负责：安装依赖 → 构建 InfiniteSkill → 组装 `public/` 目录
-- Vercel rewrites 确保 InfiniteSkill SPA 路由正常工作
+- `build.mjs` 负责：按序构建 infiniteskill → yuntype → cyber-flying-sword → 组装 `public/` 目录
+- Vercel rewrites 确保各子项目 SPA 路由正常工作
 
 ---
 
 ## 📜 更新日志
+
+### 2026-04-13
+- 🗡️ 赛博飞剑（Cyber Flying Sword）子项目集成 — Monobuild 骨架 + 核心设计文档
+- 📊 PROJECT_PLAN.md v6.0 — 五大仓库架构全面更新
+
+### 2026-04-12
+- 📝 云中书 YunType v1.0 全渠道上线（Web App + MCP Server + Prompt Skill + Playground）
+- 🔧 MCP Server 4 工具 + 1 资源注册到 Cline
+- 📄 Prompt Skill 基础版 + 完整版发布
 
 ### 2026-04-08
 - 🎨 全站改版为中国风「悬象」门户

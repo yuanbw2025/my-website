@@ -9,6 +9,10 @@
     {
       "source": "/yuntype/(.*)",
       "destination": "/yuntype/index.html"
+    },
+    {
+      "source": "/cyber-flying-sword/(.*)",
+      "destination": "/cyber-flying-sword/index.html"
     }
   ]
 }

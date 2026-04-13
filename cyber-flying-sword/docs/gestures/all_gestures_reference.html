@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛博飞剑 - 全手势参考图</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a1a;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 40px 20px;
+        }
+        h1 {
+            color: #00ffff;
+            text-shadow: 0 0 20px rgba(0,255,255,0.5);
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .gestures-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .gesture-card {
+            background: rgba(0,255,255,0.03);
+            border: 1px solid rgba(0,255,255,0.2);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+        }
+        .gesture-card h2 {
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+        .gesture-card .action {
+            font-size: 14px;
+            margin-bottom: 15px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        .gesture-card canvas {
+            border-radius: 12px;
+            background: rgba(0,0,0,0.5);
+            display: block;
+            margin: 0 auto 15px;
+        }
+        .finger-status {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+        .finger {
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .finger.extended {
+            background: rgba(0,255,100,0.15);
+            border: 1px solid #00ff66;
+            color: #00ff66;
+        }
+        .finger.curled {
+            background: rgba(255,60,60,0.15);
+            border: 1px solid #ff3c3c;
+            color: #ff3c3c;
+        }
+        .finger.any {
+            background: rgba(100,100,255,0.15);
+            border: 1px solid #6666ff;
+            color: #8888ff;
+        }
+        .detection-box {
+            background: rgba(0,255,255,0.06);
+            border-left: 3px solid #00ffff;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 0 8px 8px 0;
+            font-size: 12px;
+            line-height: 1.5;
+            text-align: left;
+        }
+        .detection-box code {
+            color: #ffcc00;
+            font-family: 'Consolas', monospace;
+        }
+        .card-whip { border-color: rgba(0,200,255,0.4); }
+        .card-whip h2 { color: #00ccff; }
+        .card-whip .action { background: rgba(0,200,255,0.15); color: #00ccff; border: 1px solid rgba(0,200,255,0.3); }
+        .card-shield { border-color: rgba(0,255,100,0.4); }
+        .card-shield h2 { color: #00ff66; }
+        .card-shield .action { background: rgba(0,255,100,0.15); color: #00ff66; border: 1px solid rgba(0,255,100,0.3); }
+        .card-ultimate { border-color: rgba(255,200,0,0.4); }
+        .card-ultimate h2 { color: #ffcc00; }
+        .card-ultimate .action { background: rgba(255,200,0,0.15); color: #ffcc00; border: 1px solid rgba(255,200,0,0.3); }
+
+        .summary-table {
+            max-width: 900px;
+            margin: 40px auto;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .summary-table th {
+            background: rgba(0,255,255,0.1);
+            color: #00ffff;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 2px solid rgba(0,255,255,0.3);
+        }
+        .summary-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        @media (max-width: 1000px) {
+            .gestures-grid { grid-template-columns: 1fr; max-width: 500px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>🗡️ 赛博飞剑 Cyber Flying Sword — 手势操控参考</h1>
+    <p class="subtitle">MediaPipe Hands · 右手单手操控 · 3种核心手势</p>
+
+    <div class="gestures-grid">
+        <!-- 1. 挥鞭操控 -->
+        <div class="gesture-card card-whip">
+            <h2>🌊 挥鞭操控</h2>
+            <span class="action">移动 + 攻击（默认状态）</span>
+            <canvas id="canvas-whip" width="380" height="420"></canvas>
+            <div class="finger-status">
+                <span class="finger any">👍 拇指 任意</span>
+                <span class="finger extended">☝ 食指 伸展</span>
+                <span class="finger any">🖕 中指 任意</span>
+                <span class="finger any">💍 无名指 任意</span>
+                <span class="finger any">🤙 小指 任意</span>
+            </div>
+            <div class="detection-box">
+                <strong>检测逻辑：</strong><br>
+                非握拳 且 非一指定江山 → 默认为挥鞭状态<br>
+                <code>extendedCount >= 1 && !isFist && !isUltimate</code><br><br>
+                <strong>操控映射：</strong><br>
+                · 食指尖(lm[8])位置 → 鞭子握柄端<br>
+                · 手指运动速度 → 鞭尾速度 → 伤害<br>
+                · fingerHistory[N] lerp链 → 鞭体物理
+            </div>
+        </div>
+
+        <!-- 2. 握拳防御 -->
+        <div class="gesture-card card-shield">
+            <h2>🛡️ 握拳防御</h2>
+            <span class="action">护盾 / 精防</span>
+            <canvas id="canvas-fist" width="380" height="420"></canvas>
+            <div class="finger-status">
+                <span class="finger curled">👍 拇指 弯曲</span>
+                <span class="finger curled">☝ 食指 弯曲</span>
+                <span class="finger curled">🖕 中指 弯曲</span>
+                <span class="finger curled">💍 无名指 弯曲</span>
+                <span class="finger curled">🤙 小指 弯曲</span>
+            </div>
+            <div class="detection-box">
+                <strong>检测逻辑：</strong><br>
+                <code>extendedCount <= 1 && !isIndexUp && !isMiddleUp</code><br><br>
+                <strong>普通格挡：</strong>持续握拳 → 消耗护盾值抵挡伤害<br>
+                <strong>精防(Perfect Block)：</strong><br>
+                在敌人攻击命中前 <code>~100ms</code> 内握拳<br>
+                → 不消耗护盾 + 大量怒气<br><br>
+                <strong>代价：</strong>握拳期间无法挥鞭（停止移动和攻击）
+            </div>
+        </div>
+
+        <!-- 3. 一指定江山 -->
+        <div class="gesture-card card-ultimate">
+            <h2>⚡ 一指定江山</h2>
+            <span class="action">怒气大招 · 全屏飞剑齐射</span>
+            <canvas id="canvas-ultimate" width="380" height="420"></canvas>
+            <div class="finger-status">
+                <span class="finger extended">👍 拇指 伸展</span>
+                <span class="finger extended">☝ 食指 伸展</span>
+                <span class="finger curled">🖕 中指 弯曲</span>
+                <span class="finger curled">💍 无名指 弯曲</span>
+                <span class="finger curled">🤙 小指 弯曲</span>
+            </div>
+            <div class="detection-box">
+                <strong>检测逻辑：</strong><br>
+                <code>isThumbUp && isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp</code><br>
+                <code>angle(thumb_dir, index_dir) ∈ [80°, 100°]</code><br><br>
+                <strong>触发条件：</strong><br>
+                · 手势保持 <code>>300ms</code>（防误触）<br>
+                · 怒气值已满<br><br>
+                <strong>效果：</strong>全屏hit-stop → 满屏飞剑射向所有敌人
+            </div>
+        </div>
+    </div>
+
+    <table class="summary-table">
+        <tr>
+            <th>手势</th>
+            <th>游戏动作</th>
+            <th>核心检测</th>
+            <th>备注</th>
+        </tr>
+        <tr>
+            <td style="color:#00ccff;">🌊 自然手型</td>
+            <td>挥鞭（移动+攻击）</td>
+            <td>非握拳 且 非大招</td>
+            <td>默认状态，手指位置=鞭子根部</td>
+        </tr>
+        <tr>
+            <td style="color:#00ff66;">✊ 握拳</td>
+            <td>护盾/格挡</td>
+            <td>所有手指弯曲</td>
+            <td>精防窗口≈100ms，放弃移动和攻击</td>
+        </tr>
+        <tr>
+            <td style="color:#ffcc00;">👆 一指定江山</td>
+            <td>怒气大招</td>
+            <td>拇指+食指90°，其余弯曲</td>
+            <td>保持300ms触发，需怒气满</td>
+        </tr>
+    </table>
+
+    <script>
+        // ============ 通用绘制函数 ============
+        function drawHand(canvasId, landmarks, config) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],
+                [0,5],[5,6],[6,7],[7,8],
+                [0,9],[9,10],[10,11],[11,12],
+                [0,13],[13,14],[14,15],[15,16],
+                [0,17],[17,18],[18,19],[19,20],
+                [5,9],[9,13],[13,17],
+            ];
+
+            // 背景网格
+            ctx.strokeStyle = 'rgba(0,255,255,0.04)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < W; i += 20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+            for (let i = 0; i < H; i += 20) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
+
+            // 手掌半透明
+            ctx.fillStyle = 'rgba(180, 140, 100, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(...landmarks[0]);
+            ctx.lineTo(...landmarks[5]);
+            ctx.lineTo(...landmarks[9]);
+            ctx.lineTo(...landmarks[13]);
+            ctx.lineTo(...landmarks[17]);
+            ctx.closePath();
+            ctx.fill();
+
+            // 连线
+            connections.forEach(([a, b]) => {
+                const highlight = config.highlightFingers || [];
+                const aFinger = Math.floor(a / 4);
+                const bFinger = Math.floor(b / 4);
+                const isHighlight = highlight.some(f => {
+                    if (f === 'thumb') return a <= 4 && b <= 4;
+                    if (f === 'index') return (a >= 5 && a <= 8 && b >= 5 && b <= 8) || (a === 0 && b === 5);
+                    return false;
+                });
+
+                ctx.strokeStyle = isHighlight ? config.highlightColor || 'rgba(0,255,200,0.9)' : config.dimColor || 'rgba(150,150,150,0.4)';
+                ctx.lineWidth = isHighlight ? 3 : 2;
+                if (isHighlight) { ctx.shadowColor = config.highlightColor || '#00ffcc'; ctx.shadowBlur = 6; }
+                else { ctx.shadowBlur = 0; }
+
+                ctx.beginPath();
+                ctx.moveTo(...landmarks[a]);
+                ctx.lineTo(...landmarks[b]);
+                ctx.stroke();
+            });
+            ctx.shadowBlur = 0;
+
+            // 关节点
+            Object.entries(landmarks).forEach(([idx, pos]) => {
+                const i = parseInt(idx);
+                const isTip = [4,8,12,16,20].includes(i);
+                let color = config.dimColor || '#666';
+                let radius = isTip ? 5 : 3;
+
+                if (config.highlightFingers) {
+                    if (config.highlightFingers.includes('thumb') && i >= 1 && i <= 4) { color = config.highlightColor || '#00ffcc'; radius = isTip ? 7 : 4; }
+                    if (config.highlightFingers.includes('index') && i >= 5 && i <= 8) { color = config.highlightColor || '#00ffcc'; radius = isTip ? 7 : 4; }
+                }
+                if (i === 0) { color = '#ffffff'; radius = 5; }
+
+                if (isTip) {
+                    ctx.beginPath();
+                    ctx.arc(pos[0], pos[1], radius + 6, 0, Math.PI * 2);
+                    ctx.fillStyle = color.replace(')', ',0.12)').replace('rgb', 'rgba');
+                    ctx.fill();
+                }
+
+                ctx.beginPath();
+                ctx.arc(pos[0], pos[1], radius, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '9px Consolas';
+                ctx.fillText(idx, pos[0] + (isTip ? 10 : 6), pos[1] - 4);
+            });
+
+            // 额外标注
+            if (config.extraDraw) config.extraDraw(ctx, landmarks);
+        }
+
+        // ============ 1. 挥鞭操控（自然手型，食指指向前方） ============
+        drawHand('canvas-whip', {
+            0: [190, 380],
+            1: [155, 340], 2: [125, 305], 3: [100, 275], 4: [80, 250],
+            5: [175, 265], 6: [165, 195], 7: [158, 140], 8: [152, 90],
+            9: [200, 255], 10: [200, 190], 11: [198, 140], 12: [195, 100],
+            13: [225, 260], 14: [230, 200], 15: [232, 155], 16: [230, 120],
+            17: [245, 275], 18: [255, 225], 19: [258, 190], 20: [258, 160],
+        }, {
+            highlightFingers: ['index'],
+            highlightColor: '#00ccff',
+            dimColor: 'rgba(0,200,255,0.35)',
+            extraDraw: (ctx, lm) => {
+                // 画运动轨迹箭头
+                ctx.strokeStyle = 'rgba(0,200,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6,4]);
+                ctx.beginPath();
+                ctx.moveTo(152, 90);
+                ctx.quadraticCurveTo(100, 50, 60, 70);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#00ccff';
+                ctx.font = 'bold 12px Segoe UI';
+                ctx.fillText('手指自然运动 → 控制鞭子', 40, 55);
+            }
+        });
+
+        // ============ 2. 握拳防御 ============
+        drawHand('canvas-fist', {
+            0: [190, 380],
+            1: [165, 345], 2: [140, 315], 3: [135, 330], 4: [155, 340],
+            5: [180, 275], 6: [175, 245], 7: [185, 275], 8: [178, 300],
+            9: [200, 270], 10: [200, 238], 11: [208, 268], 12: [200, 295],
+            13: [222, 275], 14: [225, 245], 15: [230, 272], 16: [222, 298],
+            17: [242, 285], 18: [248, 260], 19: [250, 282], 20: [242, 305],
+        }, {
+            highlightFingers: [],
+            highlightColor: '#00ff66',
+            dimColor: 'rgba(0,255,100,0.5)',
+            extraDraw: (ctx, lm) => {
+                // 画护盾光环
+                ctx.strokeStyle = 'rgba(0,255,100,0.2)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(195, 300, 80, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(0,255,100,0.1)';
+                ctx.beginPath();
+                ctx.arc(195, 300, 95, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = '#00ff66';
+                ctx.font = 'bold 12px Segoe UI';
+                ctx.fillText('🛡️ 所有手指弯曲 = 护盾', 85, 410);
+            }
+        });
+
+        // ============ 3. 一指定江山 ============
+        drawHand('canvas-ultimate', {
+            0: [190, 380],
+            1: [165, 340], 2: [130, 305], 3: [90, 285], 4: [50, 268],
+            5: [175, 260], 6: [168, 195], 7: [162, 135], 8: [158, 80],
+            9: [200, 250], 10: [205, 205], 11: [218, 240], 12: [210, 270],
+            13: [222, 258], 14: [230, 218], 15: [240, 250], 16: [232, 280],
+            17: [242, 272], 18: [252, 242], 19: [258, 268], 20: [248, 295],
+        }, {
+            highlightFingers: ['thumb', 'index'],
+            highlightColor: '#ffcc00',
+            dimColor: 'rgba(255,60,60,0.4)',
+            extraDraw: (ctx, lm) => {
+                // 画90度角弧
+                ctx.beginPath();
+                ctx.arc(140, 278, 30, Math.PI * 0.95, -Math.PI * 0.55);
+                ctx.strokeStyle = '#ffcc00';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 14px Segoe UI';
+                ctx.fillText('≈90°', 108, 255);
+
+                // 标签
+                ctx.font = 'bold 11px Segoe UI';
+                ctx.fillStyle = '#ffcc00';
+                ctx.fillText('拇指(伸展)', 10, 260);
+                ctx.fillText('食指(伸展)', 160, 70);
+                ctx.fillStyle = '#ff5555';
+                ctx.font = '10px Segoe UI';
+                ctx.fillText('其余弯曲贴掌', 245, 280);
+            }
+        });
+    </script>
+</body>
+</html>

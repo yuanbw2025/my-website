@@ -8,6 +8,7 @@
 
 *这是用于精细回溯的操作日志。严禁以覆盖的方式修改过去的节点。必须**从最上方插入最新一条记录***。
 
+- **[01:30:00] (2026-04-13)**: [赛博飞剑 Monobuild 集成完成] 将 cyber-flying-sword 子项目完整集成到主仓库：① 修改 `build.mjs` 新增 Step 3 构建 cyber-flying-sword；② `vercel.json` 新增 SPA rewrite；③ `.gitignore` 排除 node_modules/dist/；④ `index.html` 游戏面板新增赛博飞剑卡片+i18n；⑤ 创建项目骨架（package.json/tsconfig/vite.config/src/*）；⑥ 复制 4 份核心文档（PROJECT_BIBLE/GDD/TDD/手势参考）；⑦ 更新 PROJECT_PLAN.md v6.0（五大仓库架构）；⑧ 更新 README.md（目录结构+部署架构+更新日志）；⑨ 更新 WORKING_MEMORY.md。待办：创建独立公开仓库 yuanbw2025/cyber-flying-sword。
 - **[22:40:00] (2026-04-12)**: [Phase 7 文档收尾 + 推送] 更新 PROGRESS.md（新增 Phase 7 多渠道分发 + 用户反馈的架构问题）、WORKING_MEMORY.md（今日全部交互记录）、.gitignore（排除 _reference/）。同步 yuntype 到独立仓库并推送两个仓库。
 - **[21:30:00] (2026-04-12)**: [参考资料收集] 用户提供两个参考项目 ZIP 下载，已解压到 `_reference/` 目录：① awesome-design-md（66套 DESIGN.md，Google Stitch 概念）② ui-ux-pro-max-skill（67种 UI 风格 + 161条推理规则，AI设计智能 Skill）。这两个项目展示了真正的"多版式"设计思路，可作为布局重构灵感来源。
 - **[20:45:00] (2026-04-12)**: [🔴 核心架构问题暴露] 用户实测 test-playground.html 后严厉指出：660种组合实际只是"换色"，不是"换版式"。5种排版(T1-T5)仅改 CSS 数值参数（字号/行高/间距），HTML 结构完全一致。用户原话："版式定好之后，纯改色的东西，完全不是我想要的"。用户期望：极简排版只强调标题、线条主导版式、图形模块丰富版式、图片突出留位版式等。此问题是渲染引擎架构级缺陷，影响所有渠道（Web App / MCP / Skill / Playground），需在下一阶段彻底重构。同时 Playground 缺少小红书平台入口。
