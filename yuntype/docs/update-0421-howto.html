@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>云中书 YunType · 编辑功能使用指南</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; min-height: 608px;
+    background: #FAF8F5;
+    font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
+    color: #1A1714;
+    overflow: hidden;
+  }
+
+  .wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 608px;
+  }
+
+  /* 左侧深色主标题区 */
+  .left {
+    background: #1C1917;
+    padding: 52px 48px;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    position: relative; overflow: hidden;
+  }
+  .left::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+  }
+  .left-deco {
+    position: absolute; bottom: -40px; right: -40px;
+    width: 200px; height: 200px; border-radius: 50%;
+    border: 1px solid #2A2A38; opacity: 0.4;
+  }
+  .left-deco2 {
+    position: absolute; bottom: -10px; right: -10px;
+    width: 120px; height: 120px; border-radius: 50%;
+    border: 1px solid #4F46E5; opacity: 0.2;
+  }
+
+  .left-top {}
+  .left-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #2A2438; border: 1px solid #4F46E530;
+    padding: 5px 14px; border-radius: 20px;
+    font-size: 11px; color: #818CF8; letter-spacing: 1.5px;
+    margin-bottom: 24px;
+  }
+  .left-tag::before { content: ''; width: 5px; height: 5px; background: #818CF8; border-radius: 50%; }
+  .left-title {
+    font-size: 36px; font-weight: 900; line-height: 1.2;
+    color: #F0EDE8; letter-spacing: -0.5px;
+  }
+  .left-title .accent { color: #818CF8; }
+  .left-title .accent2 { color: #34D399; }
+  .left-body {
+    font-size: 14px; color: #6B7280; line-height: 1.8; margin-top: 16px;
+    font-weight: 300;
+  }
+
+  .left-steps {
+    display: flex; flex-direction: column; gap: 12px;
+    position: relative; z-index: 1;
+  }
+  .step {
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: #F0EDE8;
+  }
+  .step-num.blue { background: #4F46E5; }
+  .step-num.green { background: #059669; }
+  .step-num.amber { background: #D97706; }
+  .step-num.purple { background: #7C3AED; }
+  .step-content {}
+  .step-label { font-size: 13px; font-weight: 700; color: #E5E2DC; }
+  .step-desc { font-size: 11px; color: #6B7280; margin-top: 2px; line-height: 1.6; }
+
+  /* 右侧浅色卡片区 */
+  .right {
+    background: #FAF8F5;
+    padding: 44px 40px;
+    display: flex; flex-direction: column;
+    gap: 16px;
+  }
+  .right-header {
+    font-size: 13px; font-weight: 700; color: #9CA3AF;
+    letter-spacing: 3px; text-transform: uppercase;
+  }
+
+  /* 模拟界面截图 */
+  .ui-mock {
+    background: #FFFFFF;
+    border: 1px solid #E5E0DA;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .ui-toolbar {
+    background: #F9FAFB;
+    border-bottom: 1px solid #E5E0DA;
+    padding: 8px 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tb-btn {
+    padding: 4px 10px; border-radius: 4px;
+    font-size: 11px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .tb-btn.active { background: #4F46E5; color: #fff; }
+  .tb-btn.ghost { background: #EEF2FF; color: #4F46E5; border: 1px solid #E0E7FF; }
+  .tb-btn.outline { background: #fff; color: #6B7280; border: 1px solid #E5E0DA; }
+  .tb-btn.disabled { background: #F5F5F5; color: #ccc; border: 1px solid #eee; }
+
+  .ui-body { display: flex; }
+  .ui-preview {
+    flex: 1; padding: 14px;
+    background: #1C1917;
+    border-right: 1px solid #2A2438;
+    min-height: 130px;
+    position: relative;
+  }
+  .preview-block {
+    margin-bottom: 8px; border-radius: 6px; padding: 8px 10px;
+    font-size: 10px; line-height: 1.5;
+  }
+  .preview-block.heading {
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+    color: #fff; font-weight: 700; font-size: 11px;
+  }
+  .preview-block.para {
+    background: #2A2438; color: #A89EC4;
+    border-left: 2px solid #4F46E5;
+  }
+  .preview-block.para.editing {
+    background: rgba(79,70,229,0.15);
+    outline: 1px solid #4F46E5;
+    color: #C4BBE8;
+  }
+  .preview-block.list {
+    background: #1A2438; color: #6B9EC4;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .list-item { display: flex; gap: 6px; }
+  .list-dot { color: #4F46E5; }
+
+  .ui-panel {
+    width: 150px; flex-shrink: 0; padding: 10px;
+    background: #FAFAFA;
+  }
+  .panel-title {
+    font-size: 10px; font-weight: 700; color: #374151;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 4px;
+  }
+  .panel-item {
+    padding: 6px 8px; border-radius: 6px;
+    background: #fff; border: 1px solid #E5E0DA;
+    margin-bottom: 6px;
+  }
+  .panel-item-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 3px;
+  }
+  .panel-item-label {
+    font-size: 10px; font-weight: 700; color: #4F46E5;
+  }
+  .panel-item-btns {
+    display: flex; gap: 2px;
+  }
+  .pi-btn {
+    width: 16px; height: 16px; border-radius: 3px;
+    font-size: 9px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .pi-btn.arrow { background: #EEF2FF; color: #4F46E5; }
+  .pi-btn.dup { background: #ECFDF5; color: #059669; }
+  .pi-btn.del { background: #FEF2F2; color: #EF4444; }
+  .panel-item-preview {
+    font-size: 9px; color: #9CA3AF;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .add-btns {
+    display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px;
+    padding-top: 6px; border-top: 1px dashed #E5E0DA;
+  }
+  .add-btn {
+    padding: 2px 7px; border-radius: 4px;
+    font-size: 9px; font-weight: 600;
+    background: #EEF2FF; color: #4F46E5;
+    border: 1px solid #E0E7FF;
+  }
+
+  /* 说明文字 */
+  .tip-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: #F3F4F6; border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .tip-icon {
+    font-size: 18px; flex-shrink: 0; line-height: 1;
+  }
+  .tip-text { font-size: 12px; color: #374151; line-height: 1.7; }
+  .tip-text strong { color: #1A1714; }
+
+  /* footer */
+  .footer-strip {
+    grid-column: span 2;
+    background: #1C1917;
+    padding: 14px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .fs-left { font-size: 12px; color: #4B4540; display: flex; gap: 24px; }
+  .fs-right { font-size: 12px; color: #4B4540; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- 左列 -->
+    <div class="left">
+      <div class="left-deco"></div>
+      <div class="left-deco2"></div>
+      <div class="left-top">
+        <div class="left-tag">使用指南 · How to Edit</div>
+        <div class="left-title">
+          三步完成<br>
+          <span class="accent">内容微调</span><br>
+          <span style="font-size:26px;font-weight:400;color:#6B7280">无需重写 Markdown</span>
+        </div>
+        <div class="left-body">
+          生成满意的排版后，用内联编辑直接改文字，用块面板调整结构，操作失误随时 Ctrl+Z 撤销。
+        </div>
+      </div>
+      <div class="left-steps">
+        <div class="step">
+          <div class="step-num blue">1</div>
+          <div class="step-content">
+            <div class="step-label">点击「✏️ 编辑文字」开启编辑模式</div>
+            <div class="step-desc">图上所有可编辑文字出现浅紫底色提示</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num green">2</div>
+          <div class="step-content">
+            <div class="step-label">点击文字直接修改 · 失焦自动保存</div>
+            <div class="step-desc">粗体/斜体格式完整保留，不会被展平为纯文本</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num amber">3</div>
+          <div class="step-content">
+            <div class="step-label">右侧块面板调整结构顺序</div>
+            <div class="step-desc">↑↓ 移位、⎘ 复制、× 删除、+ 追加新块</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num purple">4</div>
+          <div class="step-content">
+            <div class="step-label">Ctrl+Z 随时撤销，↷ 重做</div>
+            <div class="step-desc">50 步历史，改错了不怕</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右列 -->
+    <div class="right">
+      <div class="right-header">界面预览 · Interface Preview</div>
+
+      <!-- 模拟界面 -->
+      <div class="ui-mock">
+        <div class="ui-toolbar">
+          <div class="tb-btn disabled">↶</div>
+          <div class="tb-btn outline">↷</div>
+          <div class="tb-btn ghost">🎲 随机</div>
+          <div class="tb-btn ghost">🎨 配色</div>
+          <div class="tb-btn active">✏️ 编辑中</div>
+          <div style="flex:1"></div>
+          <div class="tb-btn outline">3:4</div>
+          <div class="tb-btn outline">16:9</div>
+        </div>
+        <div class="ui-body">
+          <div class="ui-preview">
+            <div class="preview-block heading">为什么写作能让思维更清晰</div>
+            <div class="preview-block para editing">写作是思考的外化。当你把模糊的<strong>想法</strong>落到文字上，问题的棱角就清晰起来。</div>
+            <div class="preview-block list">
+              <div class="list-item"><span class="list-dot">▸</span><span>先写出脑子里最乱的那一句</span></div>
+              <div class="list-item"><span class="list-dot">▸</span><span>然后追问背后的前提</span></div>
+              <div class="list-item"><span class="list-dot">▸</span><span>用反例检验这个前提</span></div>
+            </div>
+          </div>
+          <div class="ui-panel">
+            <div class="panel-title">🧱 块编辑 <span style="color:#4F46E5;font-size:9px">已改</span></div>
+            <div class="panel-item">
+              <div class="panel-item-head">
+                <span class="panel-item-label">1. 标题</span>
+                <div class="panel-item-btns">
+                  <div class="pi-btn arrow">↑</div>
+                  <div class="pi-btn arrow" style="opacity:0.3">↑</div>
+                  <div class="pi-btn dup">⎘</div>
+                  <div class="pi-btn del">×</div>
+                </div>
+              </div>
+              <div class="panel-item-preview">为什么写作能让...</div>
+            </div>
+            <div class="panel-item" style="border-color:#4F46E5;background:#F5F3FF">
+              <div class="panel-item-head">
+                <span class="panel-item-label">2. 段落</span>
+                <div class="panel-item-btns">
+                  <div class="pi-btn arrow">↑</div>
+                  <div class="pi-btn arrow">↓</div>
+                  <div class="pi-btn dup">⎘</div>
+                  <div class="pi-btn del">×</div>
+                </div>
+              </div>
+              <div class="panel-item-preview" style="color:#4F46E5">写作是思考的外化...</div>
+            </div>
+            <div class="panel-item">
+              <div class="panel-item-head">
+                <span class="panel-item-label">3. 列表</span>
+                <div class="panel-item-btns">
+                  <div class="pi-btn arrow">↑</div>
+                  <div class="pi-btn arrow" style="opacity:0.3">↓</div>
+                  <div class="pi-btn dup">⎘</div>
+                  <div class="pi-btn del">×</div>
+                </div>
+              </div>
+              <div class="panel-item-preview">先写出脑子里最乱...</div>
+            </div>
+            <div class="add-btns">
+              <div class="add-btn">+ 标题</div>
+              <div class="add-btn">+ 段落</div>
+              <div class="add-btn">+ 列表</div>
+              <div class="add-btn">+ 引用</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip-row">
+        <div class="tip-icon">💡</div>
+        <div class="tip-text">
+          <strong>块重排后文本编辑会自动重置</strong>，因为 editId 是基于元素位置的。建议先调好块结构，再修文字。操作顺序：块重排 → 文字精修 → 导出。
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-strip">
+      <div class="fs-left">
+        <span>☁️ 云中书 YunType</span>
+        <span>yuanbw2025.github.io/yuntype</span>
+        <span>github.com/yuanbw2025/yuntype</span>
+      </div>
+      <div class="fs-right">MIT · 零后端 · 零账号 · 零付费墙</div>
+    </div>
+  </div>
+</body>
+</html>
