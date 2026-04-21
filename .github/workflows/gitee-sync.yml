@@ -23,11 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install CloudBase CLI
-        run: npm install -g @cloudbase/cli
+      - name: Install coscmd
+        run: pip install coscmd
 
-      - name: Deploy to CloudBase static hosting
+      - name: Deploy to CloudBase via COS
         run: |
-          tcb login --apiKeyId ${{ secrets.TENCENT_SECRET_ID }} --apiKey ${{ secrets.TENCENT_SECRET_KEY }}
+          coscmd config \
+            -a ${{ secrets.TENCENT_SECRET_ID }} \
+            -s ${{ secrets.TENCENT_SECRET_KEY }} \
+            -b e423-static-mywebsite-d8gvyutlm167e92e1-1255521619 \
+            -r ap-shanghai
           rsync -a --exclude='.git' --exclude='node_modules' --exclude='.github' ./ /tmp/deploy/
-          tcb hosting deploy /tmp/deploy/ / --env-id mywebsite-d8gvyutlm167e92e1
+          coscmd upload -r /tmp/deploy/ /
