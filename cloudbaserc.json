@@ -1,0 +1,15 @@
+{
+  "envId": "mywebsite-d8gvyutlm167e92e1",
+  "framework": {
+    "name": "my-website",
+    "plugins": {
+      "website": {
+        "use": "@cloudbase/framework-plugin-website",
+        "inputs": {
+          "outputPath": "./",
+          "cloudPath": "/"
+        }
+      }
+    }
+  }
+}
