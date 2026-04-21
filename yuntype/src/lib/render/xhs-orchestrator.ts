@@ -120,6 +120,7 @@ function renderElement(
   ctx: BlockContext,
   variants: BlueprintVariantMap,
 ): string {
+  const baseId = `p${ctx.pageIndex}-e${index}`
   switch (el.type) {
     case 'heading': {
       const vid = variants.title
@@ -128,6 +129,7 @@ function renderElement(
         text: el.content,
         level: el.level ?? 2,
         index: index + 1,
+        editId: baseId,
       }
       return fn(ctx, data)
     }
@@ -135,7 +137,7 @@ function renderElement(
     case 'paragraph': {
       const vid = variants.paragraph
       const fn = blockRegistry.paragraph[vid] ?? blockRegistry.paragraph[DEFAULT_VARIANTS.paragraph]
-      const data: ParagraphData = { text: renderInline(el.content) }
+      const data: ParagraphData = { text: renderInline(el.content), editId: baseId }
       return fn(ctx, data)
     }
 
@@ -145,6 +147,7 @@ function renderElement(
       const data: ListData = {
         items: (el.items ?? []).map(renderInline),
         ordered: !!el.ordered,
+        editIdPrefix: baseId,
       }
       return fn(ctx, data)
     }
@@ -152,7 +155,7 @@ function renderElement(
     case 'blockquote': {
       const vid = variants.quote
       const fn = blockRegistry.quote[vid] ?? blockRegistry.quote[DEFAULT_VARIANTS.quote]
-      const data: QuoteData = { text: renderInline(el.content) }
+      const data: QuoteData = { text: renderInline(el.content), editId: baseId }
       return fn(ctx, data)
     }
 
@@ -163,7 +166,7 @@ function renderElement(
     default: {
       if (!el.content) return ''
       const fn = blockRegistry.paragraph['plain-text']
-      return fn(ctx, { text: renderInline(el.content) })
+      return fn(ctx, { text: renderInline(el.content), editId: baseId })
     }
   }
 }

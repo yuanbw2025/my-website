@@ -1,6 +1,6 @@
 // 标题块 — 4 个 variant
 
-import type { BlockContext, TitleData, VariantRenderer } from './types'
+import { editable, type BlockContext, type TitleData, type VariantRenderer } from './types'
 
 function titleSize(level: number, base: number): number {
   if (level <= 1) return Math.round(base * 2.0)
@@ -17,7 +17,7 @@ export const plain: VariantRenderer<TitleData> = (ctx, data) => {
     : ''
   return `
     <div style="margin:24px 0;">
-      <div style="font-size:${size}px;font-weight:800;color:${colors.text};line-height:1.3;">${escape(data.text)}</div>
+      <div style="font-size:${size}px;font-weight:800;color:${colors.text};line-height:1.3;">${editable(data.editId, escape(data.text), 'text')}</div>
       ${subtitle}
     </div>`
 }
@@ -29,7 +29,7 @@ export const leftBar: VariantRenderer<TitleData> = (ctx, data) => {
   return `
     <div style="margin:20px 0;display:flex;align-items:center;gap:18px;">
       <div style="width:8px;height:${Math.round(size * 1.1)}px;background-color:${colors.primary};border-radius:4px;flex-shrink:0;"></div>
-      <div style="font-size:${size}px;font-weight:800;color:${colors.text};line-height:1.3;">${escape(data.text)}</div>
+      <div style="font-size:${size}px;font-weight:800;color:${colors.text};line-height:1.3;">${editable(data.editId, escape(data.text), 'text')}</div>
     </div>`
 }
 
@@ -42,7 +42,7 @@ export const numberedBadge: VariantRenderer<TitleData> = (ctx, data) => {
   return `
     <div style="margin:24px 0;display:flex;align-items:center;gap:20px;">
       <div style="width:${badgeSize}px;height:${badgeSize}px;background-color:${colors.primary};color:${colors.contentBg};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.7)}px;font-weight:800;flex-shrink:0;">${badge}</div>
-      <div style="font-size:${size}px;font-weight:800;color:${colors.text};line-height:1.3;">${escape(data.text)}</div>
+      <div style="font-size:${size}px;font-weight:800;color:${colors.text};line-height:1.3;">${editable(data.editId, escape(data.text), 'text')}</div>
     </div>`
 }
 
@@ -52,7 +52,7 @@ export const gradientBox: VariantRenderer<TitleData> = (ctx, data) => {
   const size = titleSize(data.level, config.fontSize)
   return `
     <div style="margin:24px 0;padding:${Math.round(size * 0.5)}px ${Math.round(size * 0.8)}px;background:linear-gradient(135deg, ${colors.primary} 0%, ${colors.accent} 100%);border-radius:16px;">
-      <div style="font-size:${size}px;font-weight:800;color:${colors.contentBg};line-height:1.3;">${escape(data.text)}</div>
+      <div style="font-size:${size}px;font-weight:800;color:${colors.contentBg};line-height:1.3;">${editable(data.editId, escape(data.text), 'text')}</div>
     </div>`
 }
 
