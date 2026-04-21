@@ -20,6 +20,9 @@ jobs:
 
   deploy-cloudbase:
     runs-on: ubuntu-latest
+    env:
+      TENCENTCLOUD_SECRET_ID: ${{ secrets.TENCENT_SECRET_ID }}
+      TENCENTCLOUD_SECRET_KEY: ${{ secrets.TENCENT_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,8 +30,4 @@ jobs:
         run: npm install -g @cloudbase/cli
 
       - name: Deploy to CloudBase static hosting
-        run: |
-          tcb hosting deploy ./ / \
-            --envId mywebsite-d8gvyutlm167e92e1 \
-            --secretId ${{ secrets.TENCENT_SECRET_ID }} \
-            --secretKey ${{ secrets.TENCENT_SECRET_KEY }}
+        run: tcb hosting deploy ./ / --envId mywebsite-d8gvyutlm167e92e1
