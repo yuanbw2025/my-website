@@ -1,0 +1,37 @@
+name: Sync to Gitee + Deploy to CloudBase
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  mirror-gitee:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to Gitee
+        run: |
+          git remote add gitee https://Aloneoneyuan:${{ secrets.GITEE_TOKEN }}@gitee.com/Aloneoneyuan/my-website.git
+          git push gitee main --force
+
+  deploy-cloudbase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install coscmd
+        run: pip install coscmd
+
+      - name: Deploy to CloudBase via COS
+        run: |
+          coscmd config \
+            -a ${{ secrets.TENCENT_SECRET_ID }} \
+            -s ${{ secrets.TENCENT_SECRET_KEY }} \
+            -b e423-static-mywebsite-d8gvyutlm167e92e1-1255521619 \
+            -r ap-shanghai
+          rsync -a --exclude='.git' --exclude='node_modules' --exclude='.github' ./ /tmp/deploy/
+          coscmd upload -r /tmp/deploy/ /

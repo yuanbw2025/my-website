@@ -1,25 +1,40 @@
 // 小红书预览组件 — 缩略图网格 + 大图预览
 
 import { useState, useMemo, useRef } from 'react'
-import { splitToPages, renderXhsPageHTML, XHS_PRESETS, type XhsConfig } from '../lib/render/xiaohongshu'
+import { splitToPagesV2, renderXhsPageV2, XHS_PRESETS, type XhsConfig, type PageTemplateType } from '../lib/render/xiaohongshu'
 import { exportAllPagesAsZip, downloadSinglePage } from '../lib/export/image'
-import type { StyleCombo, AtomIds } from '../lib/atoms'
+import type { StyleComboV2, AtomIdsV2 } from '../lib/atoms'
+import type { ColorOverride } from '../lib/atoms/colors'
+import ColorCustomDialog from './ColorCustomDialog'
+
+const TEMPLATE_OPTIONS: { value: PageTemplateType; label: string }[] = [
+  { value: 'standard',       label: '📄 标准' },
+  { value: 'card-list',      label: '🃏 卡片列表' },
+  { value: 'feature-grid',   label: '🔲 特性网格' },
+  { value: 'workflow',       label: '🔢 流程步骤' },
+  { value: 'text-highlight', label: '💬 文字高亮' },
+]
 
 interface XhsPreviewProps {
   markdown: string
-  style: StyleCombo
+  style: StyleComboV2
   comboName: string
-  atomIds: AtomIds
+  atomIdsV2?: AtomIdsV2
+  onColorChange?: (colorId: string, override?: ColorOverride) => void
+  onShuffle?: () => void
 }
 
-type AspectRatio = '3:4' | '1:1' | '16:9'
+type AspectRatio = '3:4' | '16:9'
 
-export default function XiaohongshuPreview({ markdown, style, comboName, atomIds: _atomIds }: XhsPreviewProps) {
+export default function XiaohongshuPreview({ markdown, style, comboName, atomIdsV2, onColorChange, onShuffle }: XhsPreviewProps) {
   const [ratio, setRatio] = useState<AspectRatio>('3:4')
+  const [colorDialogOpen, setColorDialogOpen] = useState(false)
   const [selectedPage, setSelectedPage] = useState(0)
   const [exporting, setExporting] = useState(false)
   const [progress, setProgress] = useState(0)
   const [pageOrder, setPageOrder] = useState<number[]>([])
+  const [templateOverrides, setTemplateOverrides] = useState<Record<number, PageTemplateType>>({})
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
   const dragItemRef = useRef<number | null>(null)
   const dragOverRef = useRef<number | null>(null)
 
@@ -27,12 +42,14 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
 
   const rawPages = useMemo(() => {
     if (!markdown.trim()) return []
-    return splitToPages(markdown, config)
-  }, [markdown, config])
+    return splitToPagesV2(markdown, config, style)
+  }, [markdown, config, style])
 
-  // 页面排序：当原始页面变化时重置排序
+  // 页面排序 + 模板覆盖：当原始页面变化时重置
   useMemo(() => {
     setPageOrder(rawPages.map((_, i) => i))
+    setTemplateOverrides({})
+    setShowTemplatePicker(false)
   }, [rawPages.length])
 
   // 按用户排列顺序得到的页面
@@ -40,6 +57,16 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
     if (pageOrder.length !== rawPages.length) return rawPages
     return pageOrder.map(i => rawPages[i]).filter(Boolean)
   }, [rawPages, pageOrder])
+
+  // 应用模板覆盖
+  const pagesWithOverrides = useMemo(() => {
+    return pages.map((page, i) => {
+      if (page.type !== 'content') return page
+      const override = templateOverrides[i]
+      if (!override) return page
+      return { ...page, templateType: override }
+    })
+  }, [pages, templateOverrides])
 
   // 拖拽排序
   const handleDragStart = (idx: number) => { dragItemRef.current = idx }
@@ -57,17 +84,17 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
   }
 
   const selectedPageHtml = useMemo(() => {
-    if (pages.length === 0) return ''
-    const page = pages[Math.min(selectedPage, pages.length - 1)]
-    return renderXhsPageHTML(page, style, config)
-  }, [pages, selectedPage, style, config])
+    if (pagesWithOverrides.length === 0) return ''
+    const page = pagesWithOverrides[Math.min(selectedPage, pagesWithOverrides.length - 1)]
+    return renderXhsPageV2(page, style, config)
+  }, [pagesWithOverrides, selectedPage, style, config])
 
   const handleExportZip = async () => {
-    if (pages.length === 0) return
+    if (pagesWithOverrides.length === 0) return
     setExporting(true)
     setProgress(0)
     try {
-      await exportAllPagesAsZip(pages, style, config, (p) => setProgress(p))
+      await exportAllPagesAsZip(pagesWithOverrides, style, config, (p) => setProgress(p))
     } catch (e) {
       console.error('导出失败:', e)
     } finally {
@@ -76,8 +103,8 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
   }
 
   const handleDownloadSingle = async () => {
-    if (pages.length === 0) return
-    const page = pages[Math.min(selectedPage, pages.length - 1)]
+    if (pagesWithOverrides.length === 0) return
+    const page = pagesWithOverrides[Math.min(selectedPage, pagesWithOverrides.length - 1)]
     setExporting(true)
     try {
       await downloadSinglePage(page, style, config)
@@ -87,6 +114,8 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
       setExporting(false)
     }
   }
+
+  const activeColors = style.color.colors
 
   // 缩略图尺寸
   const thumbW = 100
@@ -113,13 +142,43 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '14px', fontWeight: 600, color: '#333' }}>📸 小红书图片组</span>
           <span style={{ fontSize: '12px', color: '#999' }}>
-            {pages.length > 0 ? `${pages.length} 张` : '暂无'}
+            {pagesWithOverrides.length > 0 ? `${pagesWithOverrides.length} 张` : '暂无'}
           </span>
+        </div>
+
+        {/* 快捷工具 */}
+        <div style={{ display: 'flex', gap: '6px', marginRight: '8px' }}>
+          {onShuffle && (
+            <button
+              onClick={onShuffle}
+              title="随机换一套排版 (Ctrl+Shift+R)"
+              style={{
+                padding: '4px 10px', fontSize: '11px', fontWeight: 600,
+                color: '#4F46E5', background: '#EEF2FF',
+                border: '1px solid #E0E7FF', borderRadius: '4px', cursor: 'pointer',
+              }}
+            >
+              🎲 随机
+            </button>
+          )}
+          {atomIdsV2 && onColorChange && (
+            <button
+              onClick={() => setColorDialogOpen(true)}
+              title="自定义配色"
+              style={{
+                padding: '4px 10px', fontSize: '11px', fontWeight: 600,
+                color: '#4F46E5', background: '#EEF2FF',
+                border: '1px solid #E0E7FF', borderRadius: '4px', cursor: 'pointer',
+              }}
+            >
+              🎨 配色{atomIdsV2.colorOverride ? ' ✓' : ''}
+            </button>
+          )}
         </div>
 
         {/* 比例选择 */}
         <div style={{ display: 'flex', gap: '4px' }}>
-          {(['3:4', '1:1', '16:9'] as AspectRatio[]).map((r) => (
+          {(['3:4', '16:9'] as AspectRatio[]).map((r) => (
             <button
               key={r}
               onClick={() => { setRatio(r); setSelectedPage(0) }}
@@ -154,12 +213,12 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
           flexDirection: 'column',
           gap: '8px',
         }}>
-          {pages.length === 0 ? (
+          {pagesWithOverrides.length === 0 ? (
             <div style={{ fontSize: '11px', color: '#999', textAlign: 'center', padding: '20px 0' }}>
               输入文章后<br />自动分页
             </div>
           ) : (
-            pages.map((page, i) => (
+            pagesWithOverrides.map((page, i) => (
               <div
                 key={`page-${i}`}
                 draggable
@@ -171,7 +230,7 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
                 style={{
                   width: `${thumbW}px`,
                   height: `${thumbH}px`,
-                  background: style.color.colors.pageBg,
+                  background: activeColors.pageBg,
                   border: `2px solid ${selectedPage === i ? '#4F46E5' : '#ddd'}`,
                   borderRadius: '4px',
                   cursor: 'grab',
@@ -187,7 +246,7 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
                   bottom: '2px',
                   right: '4px',
                   fontSize: '10px',
-                  color: style.color.colors.textMuted,
+                  color: activeColors.textMuted,
                   fontWeight: 600,
                 }}>
                   {page.type === 'cover' ? '封面' : page.type === 'ending' ? '尾页' : `${i + 1}`}
@@ -197,7 +256,7 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
                   padding: '6px',
                   fontSize: '6px',
                   lineHeight: '1.4',
-                  color: style.color.colors.text,
+                  color: activeColors.text,
                   overflow: 'hidden',
                 }}>
                   {page.type === 'cover' && (
@@ -230,20 +289,136 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
           overflow: 'auto',
           padding: '16px',
           display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
+          flexDirection: 'column',
+          alignItems: 'center',
         }}>
           {selectedPageHtml ? (
-            <div style={{
-              transform: `scale(${previewScale})`,
-              transformOrigin: 'top center',
-              flexShrink: 0,
-            }}>
+            <>
+              {/* 模板切换工具栏（仅 content 页显示） */}
+              {(() => {
+                const curPage = pagesWithOverrides[Math.min(selectedPage, pagesWithOverrides.length - 1)]
+                if (!curPage || curPage.type !== 'content') return null
+                const curTemplate = curPage.templateType ?? 'standard'
+                const curLabel = TEMPLATE_OPTIONS.find(o => o.value === curTemplate)?.label ?? '模板'
+                const hasOverride = templateOverrides[selectedPage] !== undefined
+                return (
+                  <div style={{ position: 'relative', marginBottom: '8px', alignSelf: 'flex-end' }}>
+                    <button
+                      onClick={() => setShowTemplatePicker(p => !p)}
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: hasOverride ? '#4F46E5' : '#666',
+                        background: hasOverride ? '#EEF0FF' : '#f0f0f0',
+                        border: `1px solid ${hasOverride ? '#4F46E5' : '#ddd'}`,
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      🔄 {curLabel}
+                      {hasOverride && <span style={{ fontSize: '9px', color: '#4F46E5' }}>已覆盖</span>}
+                    </button>
+                    {showTemplatePicker && (
+                      <div style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: '100%',
+                        marginTop: '4px',
+                        background: '#fff',
+                        border: '1px solid #e5e5e5',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                        zIndex: 100,
+                        minWidth: '160px',
+                        overflow: 'hidden',
+                      }}>
+                        {TEMPLATE_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => {
+                              setTemplateOverrides(prev => ({ ...prev, [selectedPage]: opt.value }))
+                              setShowTemplatePicker(false)
+                            }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 14px',
+                              fontSize: '12px',
+                              fontWeight: opt.value === curTemplate ? 700 : 400,
+                              color: opt.value === curTemplate ? '#4F46E5' : '#333',
+                              background: opt.value === curTemplate ? '#EEF0FF' : 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                        {hasOverride && (
+                          <>
+                            <div style={{ height: '1px', background: '#e5e5e5', margin: '2px 0' }} />
+                            <button
+                              onClick={() => {
+                                setTemplateOverrides(prev => {
+                                  const next = { ...prev }
+                                  delete next[selectedPage]
+                                  return next
+                                })
+                                setShowTemplatePicker(false)
+                              }}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                textAlign: 'left',
+                                padding: '8px 14px',
+                                fontSize: '11px',
+                                color: '#999',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              ↩ 恢复自动模板
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               <div
-                dangerouslySetInnerHTML={{ __html: selectedPageHtml }}
-                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.15)', borderRadius: '8px', overflow: 'hidden' }}
-              />
-            </div>
+                onClick={() => setShowTemplatePicker(false)}
+                style={{
+                  width: `${Math.round(config.width * previewScale)}px`,
+                  height: `${Math.round(config.height * previewScale)}px`,
+                  position: 'relative',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{
+                  width: `${config.width}px`,
+                  height: `${config.height}px`,
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: 'top left',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                }}>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: selectedPageHtml }}
+                    style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.15)', borderRadius: '8px', overflow: 'hidden' }}
+                  />
+                </div>
+              </div>
+            </>
           ) : (
             <div style={{
               textAlign: 'center',
@@ -283,16 +458,16 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
 
         <button
           onClick={handleDownloadSingle}
-          disabled={pages.length === 0 || exporting}
+          disabled={pagesWithOverrides.length === 0 || exporting}
           style={{
             padding: '8px 14px',
             fontSize: '12px',
             fontWeight: 600,
-            background: pages.length === 0 ? '#eee' : '#f0f0f0',
-            color: pages.length === 0 ? '#999' : '#333',
+            background: pagesWithOverrides.length === 0 ? '#eee' : '#f0f0f0',
+            color: pagesWithOverrides.length === 0 ? '#999' : '#333',
             border: '1px solid #ddd',
             borderRadius: '6px',
-            cursor: pages.length === 0 ? 'not-allowed' : 'pointer',
+            cursor: pagesWithOverrides.length === 0 ? 'not-allowed' : 'pointer',
           }}
         >
           📥 下载当前页
@@ -300,21 +475,32 @@ export default function XiaohongshuPreview({ markdown, style, comboName, atomIds
 
         <button
           onClick={handleExportZip}
-          disabled={pages.length === 0 || exporting}
+          disabled={pagesWithOverrides.length === 0 || exporting}
           style={{
             padding: '8px 14px',
             fontSize: '12px',
             fontWeight: 600,
-            background: pages.length === 0 ? '#ccc' : '#4F46E5',
+            background: pagesWithOverrides.length === 0 ? '#ccc' : '#4F46E5',
             color: '#fff',
             border: 'none',
             borderRadius: '6px',
-            cursor: pages.length === 0 ? 'not-allowed' : 'pointer',
+            cursor: pagesWithOverrides.length === 0 ? 'not-allowed' : 'pointer',
           }}
         >
-          {exporting ? '⏳ 导出中...' : `📦 打包下载 ZIP (${pages.length}张)`}
+          {exporting ? '⏳ 导出中...' : `📦 打包下载 ZIP (${pagesWithOverrides.length}张)`}
         </button>
       </div>
+
+      {/* 配色自定义弹窗 */}
+      {atomIdsV2 && onColorChange && (
+        <ColorCustomDialog
+          visible={colorDialogOpen}
+          onClose={() => setColorDialogOpen(false)}
+          colorId={atomIdsV2.colorId}
+          colorOverride={atomIdsV2.colorOverride}
+          onChange={(id, override) => onColorChange(id, override)}
+        />
+      )}
     </div>
   )
 }

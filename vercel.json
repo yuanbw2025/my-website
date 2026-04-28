@@ -13,6 +13,10 @@
     {
       "source": "/cyber-flying-sword/(.*)",
       "destination": "/cyber-flying-sword/index.html"
+    },
+    {
+      "source": "/storyforge/(.*)",
+      "destination": "/storyforge/index.html"
     }
   ]
 }

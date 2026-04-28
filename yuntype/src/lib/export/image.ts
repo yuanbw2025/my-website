@@ -1,8 +1,8 @@
 // 小红书图片导出 — HTML→PNG + ZIP打包
 
 import type { XhsPage, XhsConfig } from '../render/xiaohongshu'
-import { renderXhsPageHTML } from '../render/xiaohongshu'
-import type { StyleCombo } from '../atoms'
+import { renderXhsPageV2 } from '../render/xiaohongshu'
+import type { StyleComboV2 } from '../atoms'
 
 /** 将单页 HTML 渲染为 PNG Blob */
 async function renderPageToImage(
@@ -51,10 +51,10 @@ async function renderPageToImage(
 /** 渲染单页并返回 data URL（用于预览） */
 export async function renderPageToDataURL(
   page: XhsPage,
-  style: StyleCombo,
+  style: StyleComboV2,
   config: XhsConfig,
 ): Promise<string> {
-  const html = renderXhsPageHTML(page, style, config)
+  const html = renderXhsPageV2(page, style, config)
 
   const container = document.createElement('div')
   container.innerHTML = html
@@ -87,11 +87,11 @@ export async function renderPageToDataURL(
 /** 下载单张图片 */
 export async function downloadSinglePage(
   page: XhsPage,
-  style: StyleCombo,
+  style: StyleComboV2,
   config: XhsConfig,
   filename?: string,
 ): Promise<void> {
-  const html = renderXhsPageHTML(page, style, config)
+  const html = renderXhsPageV2(page, style, config)
   const blob = await renderPageToImage(html, config.width, config.height)
   const name = filename || `yuntype-${String(page.pageIndex + 1).padStart(2, '0')}.png`
   downloadBlob(blob, name)
@@ -100,7 +100,7 @@ export async function downloadSinglePage(
 /** 打包下载所有页面为 ZIP */
 export async function exportAllPagesAsZip(
   pages: XhsPage[],
-  style: StyleCombo,
+  style: StyleComboV2,
   config: XhsConfig,
   onProgress?: (progress: number) => void,
 ): Promise<void> {
@@ -108,7 +108,7 @@ export async function exportAllPagesAsZip(
   const zip = new JSZip()
 
   for (let i = 0; i < pages.length; i++) {
-    const html = renderXhsPageHTML(pages[i], style, config)
+    const html = renderXhsPageV2(pages[i], style, config)
     const blob = await renderPageToImage(html, config.width, config.height)
 
     const paddedIndex = String(i + 1).padStart(2, '0')

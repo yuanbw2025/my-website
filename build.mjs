@@ -5,11 +5,13 @@
  * 1. 构建 InfiniteSkill React 应用（输出到 infiniteskill/dist/）
  * 2. 构建 YunType React 应用（输出到 yuntype/dist/）
  * 3. 构建 Cyber Flying Sword React 应用（输出到 cyber-flying-sword/dist/）
- * 4. 组装 public/ 目录：
+ * 4. 构建 StoryForge React 应用（输出到 storyforge/dist/）
+ * 5. 组装 public/ 目录：
  *    - public/index.html            ← 主门户
  *    - public/infiniteskill/        ← 编译后的 React 应用
  *    - public/yuntype/              ← 编译后的 React 应用
  *    - public/cyber-flying-sword/   ← 编译后的 React 应用
+ *    - public/storyforge/           ← 编译后的 React 应用
  */
 
 import { execSync } from 'child_process';
@@ -36,13 +38,20 @@ execSync('npm install', { cwd: join(ROOT, 'cyber-flying-sword'), stdio: 'inherit
 execSync('npm run build', { cwd: join(ROOT, 'cyber-flying-sword'), stdio: 'inherit' });
 console.log('✅ Cyber Flying Sword built successfully.');
 
-// Step 4: Assemble public/ directory
+// Step 4: Build StoryForge
+console.log('\n🔨 Building StoryForge React app...');
+execSync('npm install', { cwd: join(ROOT, 'storyforge'), stdio: 'inherit' });
+execSync('npm run build', { cwd: join(ROOT, 'storyforge'), stdio: 'inherit' });
+console.log('✅ StoryForge built successfully.');
+
+// Step 5: Assemble public/ directory
 console.log('\n📦 Assembling portal output...');
 
 mkdirSync(join(ROOT, 'public'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'infiniteskill'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'yuntype'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'cyber-flying-sword'), { recursive: true });
+mkdirSync(join(ROOT, 'public', 'storyforge'), { recursive: true });
 
 // Copy portal HTML
 copyFileSync(join(ROOT, 'index.html'), join(ROOT, 'public', 'index.html'));
@@ -75,5 +84,13 @@ cpSync(
   { recursive: true }
 );
 console.log('  ✓ Copied cyber-flying-sword/dist → public/cyber-flying-sword/');
+
+// Copy StoryForge build output
+cpSync(
+  join(ROOT, 'storyforge', 'dist'),
+  join(ROOT, 'public', 'storyforge'),
+  { recursive: true }
+);
+console.log('  ✓ Copied storyforge/dist → public/storyforge/');
 
 console.log('\n🚀 Build complete! Output in public/');

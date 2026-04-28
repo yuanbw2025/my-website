@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import ArticleInput from './components/ArticleInput'
-import StylePanel from './components/StylePanel'
+import LayoutPanel from './components/LayoutPanel'
 import WechatPreview from './components/WechatPreview'
 import ExportPanel from './components/ExportPanel'
 import XiaohongshuPreview from './components/XiaohongshuPreview'
@@ -10,16 +10,19 @@ import InfographicPanel from './components/InfographicPanel'
 import AIImageDialog from './components/AIImageDialog'
 import ApiConfigDialog from './components/ApiConfigDialog'
 import GuideOverlay from './components/GuideOverlay'
-import { randomAtomIds, getStyleCombo, getComboName, TOTAL_COMBOS, type AtomIds } from './lib/atoms'
-import { defaultTuneParams, applyTuning, type TuneParams } from './lib/atoms/presets'
-import { pushHistory } from './lib/storage'
+import { randomAtomIdsV2, getStyleComboV2, getComboNameV2, TOTAL_COMBOS_V2, defaultAtomIdsV2, type AtomIdsV2 } from './lib/atoms'
 
 type AppMode = 'wechat' | 'xiaohongshu' | 'infographic'
 
 export default function App() {
   const [article, setArticle] = useState('')
-  const [atomIds, setAtomIds] = useState<AtomIds>(randomAtomIds)
-  const [tuneParams, setTuneParams] = useState<TuneParams>(defaultTuneParams)
+  const [atomIdsV2, setAtomIdsV2] = useState<AtomIdsV2>(() => {
+    try {
+      const raw = localStorage.getItem('yuntype-atom-ids-v2')
+      if (raw) return JSON.parse(raw) as AtomIdsV2
+    } catch {}
+    return defaultAtomIdsV2()
+  })
   const [mode, setMode] = useState<AppMode>('wechat')
   const [showAIImage, setShowAIImage] = useState(false)
   const [showApiConfig, setShowApiConfig] = useState(false)
@@ -36,9 +39,13 @@ export default function App() {
     localStorage.setItem('yuntype-dark-mode', String(darkMode))
   }, [darkMode])
 
+  // 排版配置持久化（含 colorOverride）
+  useEffect(() => {
+    localStorage.setItem('yuntype-atom-ids-v2', JSON.stringify(atomIdsV2))
+  }, [atomIdsV2])
+
   const handleShuffle = useCallback(() => {
-    setAtomIds(randomAtomIds())
-    setTuneParams(defaultTuneParams)
+    setAtomIdsV2(randomAtomIdsV2())
   }, [])
 
   // 键盘快捷键
@@ -73,18 +80,10 @@ export default function App() {
     }
   }, [])
 
-  // 计算最终样式（原子 + 微调）
-  const finalStyle = useMemo(() => {
-    const base = getStyleCombo(atomIds)
-    return applyTuning(base, tuneParams)
-  }, [atomIds, tuneParams])
+  const finalStyle = useMemo(() => getStyleComboV2(atomIdsV2), [atomIdsV2])
 
-  const comboName = getComboName(atomIds)
-
-  // 记录历史（atomIds变化时）
-  useEffect(() => {
-    pushHistory({ atomIds, tuneParams, comboName })
-  }, [atomIds.colorId, atomIds.layoutId, atomIds.decorationId, atomIds.typographyId])
+  const comboName = getComboNameV2(atomIdsV2)
+  const totalCombos = TOTAL_COMBOS_V2
 
   return (
     <div style={{
@@ -109,9 +108,8 @@ export default function App() {
         visible={showApiConfig}
         onClose={() => setShowApiConfig(false)}
         article={article}
-        onApplyRecommendation={(ids, tune) => {
-          setAtomIds(ids)
-          if (tune) setTuneParams(tune)
+        onApplyRecommendation={(ids) => {
+          setAtomIdsV2(ids)
           setShowApiConfig(false)
         }}
       />
@@ -130,12 +128,12 @@ export default function App() {
           <span style={{ fontSize: '20px' }}>☁️</span>
           <span style={{ fontSize: '16px', fontWeight: 700, color: '#333' }}>云中书 YunType</span>
           <span style={{ fontSize: '12px', color: '#999', marginLeft: '8px' }}>
-            {TOTAL_COMBOS} 种排版组合
+            {totalCombos}+ 种排版组合
           </span>
         </div>
 
         {/* 模式切换 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {([
             { key: 'wechat' as AppMode, label: '📝 公众号', color: '#07C160' },
             { key: 'xiaohongshu' as AppMode, label: '📸 小红书', color: '#FF2442' },
@@ -238,17 +236,19 @@ export default function App() {
         {/* 中栏：风格面板（信息图模式下隐藏） */}
         {mode !== 'infographic' && (
           <div style={{
-            width: '240px',
+            width: '260px',
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
+            background: '#fff',
+            borderRight: '1px solid #e5e5e5',
+            overflow: 'hidden',
           }}>
-            <StylePanel
-              atomIds={atomIds}
-              tuneParams={tuneParams}
-              onAtomIdsChange={setAtomIds}
-              onTuneChange={setTuneParams}
+            <LayoutPanel
+              atomIdsV2={atomIdsV2}
+              onChange={setAtomIdsV2}
               onShuffle={handleShuffle}
+              article={article}
             />
           </div>
         )}
@@ -267,7 +267,6 @@ export default function App() {
                   markdown={article}
                   style={finalStyle}
                   comboName={comboName}
-                  atomIds={atomIds}
                 />
               </div>
               <ExportPanel markdown={article} style={finalStyle} />
@@ -278,7 +277,11 @@ export default function App() {
               markdown={article}
               style={finalStyle}
               comboName={comboName}
-              atomIds={atomIds}
+              atomIdsV2={atomIdsV2}
+              onShuffle={handleShuffle}
+              onColorChange={(colorId, override) =>
+                setAtomIdsV2({ ...atomIdsV2, colorId, colorOverride: override })
+              }
             />
           )}
           {mode === 'infographic' && (
