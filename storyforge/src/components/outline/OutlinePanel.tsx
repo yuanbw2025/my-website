@@ -3,7 +3,7 @@ import { Plus, Trash2, Sparkles, ChevronDown, ChevronRight, BookOpen } from 'luc
 import { useOutlineStore } from '../../stores/outline'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useAIStream } from '../../hooks/useAIStream'
-import { buildVolumeOutlinePrompt, buildChapterOutlinePrompt } from '../../lib/ai/prompts/outline'
+import { buildVolumeOutlinePrompt, buildChapterOutlinePrompt } from '../../lib/ai/adapters/outline-adapter'
 import { buildWorldContext } from '../../lib/ai/context-builder'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import type { Project, OutlineNode } from '../../lib/types'

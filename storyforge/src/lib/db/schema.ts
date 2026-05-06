@@ -17,6 +17,7 @@ import type {
   Snapshot,
   Reference,
 } from '../types'
+import type { PromptTemplate } from '../types/prompt'
 
 class StoryForgeDB extends Dexie {
   projects!: Table<Project>
@@ -35,6 +36,7 @@ class StoryForgeDB extends Dexie {
   characterRelations!: Table<CharacterRelation>
   snapshots!: Table<Snapshot>
   references!: Table<Reference>
+  promptTemplates!: Table<PromptTemplate>
 
   constructor() {
     super('storyforge')
@@ -69,6 +71,11 @@ class StoryForgeDB extends Dexie {
     // v5: 新增参考书目表，projects 表支持 genres[] / status / coverImage
     this.version(5).stores({
       references: '++id, projectId, type, createdAt',
+    })
+
+    // v6: 提示词模板表（Phase 1 — 提示词基础设施）
+    this.version(6).stores({
+      promptTemplates: '++id, scope, moduleKey, isActive, updatedAt',
     })
   }
 }

@@ -6,7 +6,7 @@ import {
 import { useCharacterStore } from '../../stores/character'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useAIStream } from '../../hooks/useAIStream'
-import { buildCharacterPrompt } from '../../lib/ai/prompts/character'
+import { buildCharacterPrompt } from '../../lib/ai/adapters/character-adapter'
 import { buildWorldContext } from '../../lib/ai/context-builder'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import type { Project, Character, CharacterRole } from '../../lib/types'
