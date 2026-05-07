@@ -18,7 +18,7 @@ import Sidebar, { type SidebarModule } from '../components/layout/Sidebar'
 import PropertiesPanel from '../components/layout/PropertiesPanel'
 import ProjectInfoPanel from '../components/project/ProjectInfoPanel'
 import ReferencePanel from '../components/project/ReferencePanel'
-import AIConfigPanel from '../components/settings/AIConfigPanel'
+import SettingsPage from '../components/settings/SettingsPage'
 import DataManagementPanel from '../components/data/DataManagementPanel'
 import WorldviewPanel from '../components/worldview/WorldviewPanel'
 import StoryCorePanel from '../components/worldview/StoryCorePanel'
@@ -132,7 +132,7 @@ export default function WorkspacePage() {
       case 'foreshadow':
         return <ForeshadowPanel project={project} />
       case 'settings':
-        return <AIConfigPanel />
+        return <SettingsPage />
       // 数据管理（含 export + backup legacy aliases）
       case 'data-management':
       case 'backup':
