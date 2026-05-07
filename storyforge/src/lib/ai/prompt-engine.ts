@@ -32,19 +32,24 @@ export function renderPrompt(
   if (template.parameters && template.parameters.length > 0) {
     for (const p of template.parameters) {
       const userVal = options?.parameterValues?.[p.key]
-      const usesKey = `uses${p.key.charAt(0).toUpperCase()}${p.key.slice(1)}`
+      const cap = p.key.charAt(0).toUpperCase() + p.key.slice(1)
+      const usesKey = `uses${cap}`
+      const notUsesKey = `notUses${cap}`
 
-      // optional 且用户显式关闭：不注入参数变量、usesXxx 设为空（条件块隐藏）
+      // optional 且用户显式关闭：不注入参数变量、usesXxx 设为空、notUsesXxx 设为 '1'
       if (p.optional && options?.parameterValues && (userVal === undefined || userVal === null || userVal === '')) {
         enriched[p.key] = ''
         enriched[usesKey] = ''
+        enriched[notUsesKey] = '1'
         continue
       }
 
       // 注入参数值（用户值优先，否则默认值）
       const v = userVal !== undefined ? userVal : p.default
+      const truthy = !(v === '' || v === false || v === null || v === undefined)
       enriched[p.key] = v as string | number
-      enriched[usesKey] = (v === '' || v === false || v === null || v === undefined) ? '' : '1'
+      enriched[usesKey] = truthy ? '1' : ''
+      enriched[notUsesKey] = truthy ? '' : '1'
     }
   }
 
