@@ -29,6 +29,9 @@ import WorldviewOriginPanel from '../components/worldview/WorldviewOriginPanel'
 import WorldviewNaturalPanel from '../components/worldview/WorldviewNaturalPanel'
 import WorldviewHumanityPanel from '../components/worldview/WorldviewHumanityPanel'
 import CharacterPanel from '../components/character/CharacterPanel'
+import CharacterMinorPanel from '../components/character/CharacterMinorPanel'
+import CharacterNPCPanel from '../components/character/CharacterNPCPanel'
+import CharacterExtraPanel from '../components/character/CharacterExtraPanel'
 import FactionPanel from '../components/faction/FactionPanel'
 import OutlinePanel from '../components/outline/OutlinePanel'
 import ChapterEditor from '../components/editor/ChapterEditor'
@@ -139,20 +142,11 @@ export default function WorkspacePage() {
       case 'characters':
         return <CharacterPanel project={project} />
       case 'characters-minor':
-        return <PlaceholderPanel
-          title="次要角色"
-          phase="将在 Phase 7 实施（按 role=minor 过滤的紧凑卡片视图）"
-        />
+        return <CharacterMinorPanel project={project} />
       case 'characters-npc':
-        return <PlaceholderPanel
-          title="NPC"
-          phase="将在 Phase 7 实施（紧凑列表视图）"
-        />
+        return <CharacterNPCPanel project={project} />
       case 'characters-extra':
-        return <PlaceholderPanel
-          title="路人"
-          phase="将在 Phase 7 实施（表格视图：姓名/出场/章节/作用/结局）"
-        />
+        return <CharacterExtraPanel project={project} />
       case 'relations':
         return <CharacterRelationPanel project={project} />
       case 'factions':
