@@ -20,8 +20,8 @@ import ProjectInfoPanel from '../components/project/ProjectInfoPanel'
 import ReferencePanel from '../components/project/ReferencePanel'
 import SettingsPage from '../components/settings/SettingsPage'
 import VersionHistoryPanel from '../components/system/VersionHistoryPanel'
+import ImportDocPanel from '../components/system/ImportDocPanel'
 import PromptManagerPanel from '../components/settings/prompt/PromptManagerPanel'
-import PlaceholderPanel from '../components/shared/PlaceholderPanel'
 import DataManagementPanel from '../components/data/DataManagementPanel'
 import WorldviewPanel from '../components/worldview/WorldviewPanel'
 import StoryCorePanel from '../components/worldview/StoryCorePanel'
@@ -177,11 +177,7 @@ export default function WorkspacePage() {
       case 'version-history':
         return <VersionHistoryPanel project={project} />
       case 'import-doc':
-        return <PlaceholderPanel
-          title="导入"
-          phase="将在 Phase 10 实施（含 AI 文档解析）"
-          description="支持 .docx / .xlsx / .csv / .md / .txt，AI 自动识别角色 / 世界观 / 大纲并入库。"
-        />
+        return <ImportDocPanel project={project} />
       case 'settings':
         return <SettingsPage />
       case 'data-management':

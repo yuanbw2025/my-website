@@ -466,6 +466,111 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
     isActive: true,
   },
 
+  // 17. AI 导入解析-角色（Phase 10）
+  {
+    scope: 'system',
+    moduleKey: 'import.parse-character',
+    promptType: 'parse',
+    name: '内置-角色文档解析',
+    description: '从用户上传的角色设定文档中抽取结构化角色数据（JSON）。',
+    systemPrompt: `你是一位精确的文档结构化抽取器。从用户提供的文档中识别出所有角色，并输出严格的 JSON 数组。
+
+JSON 字段定义（每个角色对象）：
+- name: 姓名（必填）
+- role: 'protagonist'|'antagonist'|'supporting'|'minor'|'npc'|'extra' （必填，根据描述合理判断）
+- shortDescription: 一句话简介
+- appearance: 外貌
+- personality: 性格
+- background: 背景故事
+- motivation: 动机
+- abilities: 能力
+- arc: 角色弧光（可空字符串）
+
+输出要求：
+1. 只输出 JSON 数组，不要任何其他文字
+2. 必须用 \`\`\`json 代码块包裹
+3. 字段缺失用空字符串
+4. 不要编造文档里没有的信息`,
+    userPromptTemplate: `请从以下文档抽取角色：
+
+---
+{{rawDocument}}
+---
+
+按 JSON 数组输出，包含所有识别到的角色。`,
+    variables: ['rawDocument'],
+    isActive: true,
+  },
+
+  // 18. AI 导入解析-世界观（Phase 10）
+  {
+    scope: 'system',
+    moduleKey: 'import.parse-worldview',
+    promptType: 'parse',
+    name: '内置-世界观文档解析',
+    description: '从世界观设定文档中抽取结构化字段（JSON）。',
+    systemPrompt: `你是一位精确的文档结构化抽取器。从用户提供的世界观文档中抽取信息到 JSON 对象。
+
+JSON 字段（按 v3 数据模型）：
+- worldOrigin: 世界来源
+- powerHierarchy: 力量层次
+- worldStructure: 世界结构
+- continentLayout: 大陆分布
+- mountainsRivers: 山川河流
+- climateByRegion: 气候
+- historyLine: 世界历史线
+- worldEvents: 世界大事记
+- races: 种族设定
+- factionLayout: 势力分布
+- politicsEconomyCulture: 政治经济文化
+- itemDesign: 道具设计
+
+输出要求：
+1. 只输出 JSON 对象（用 \`\`\`json 代码块包裹）
+2. 没有对应内容的字段输出空字符串
+3. 不要编造文档里没有的信息`,
+    userPromptTemplate: `请从以下文档抽取世界观字段：
+
+---
+{{rawDocument}}
+---
+
+按 JSON 对象输出。`,
+    variables: ['rawDocument'],
+    isActive: true,
+  },
+
+  // 19. AI 导入解析-大纲（Phase 10）
+  {
+    scope: 'system',
+    moduleKey: 'import.parse-outline',
+    promptType: 'parse',
+    name: '内置-大纲文档解析',
+    description: '从大纲文档中抽取结构化卷/章节树（JSON 数组）。',
+    systemPrompt: `你是一位精确的文档结构化抽取器。从用户提供的大纲文档中抽取卷与章节，输出 JSON 数组。
+
+JSON 节点字段：
+- type: 'volume'|'chapter'
+- title: 标题
+- summary: 一句话概要
+- children?: 子节点（仅 volume 可有 chapter 子节点）
+
+输出要求：
+1. 只输出 JSON 数组（用 \`\`\`json 代码块包裹）
+2. 顶层是卷或章节列表
+3. 卷可以嵌套章节（用 children 字段）
+4. 不要编造文档里没有的章节`,
+    userPromptTemplate: `请从以下文档抽取大纲结构：
+
+---
+{{rawDocument}}
+---
+
+按 JSON 数组输出。`,
+    variables: ['rawDocument'],
+    isActive: true,
+  },
+
   // 16. 细纲-场景生成（Phase 8）
   {
     scope: 'system',
