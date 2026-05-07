@@ -81,10 +81,14 @@ export interface Project {
   genre: string
   /** 多选流派标签 */
   genres: string[]
+  /** 用户在 GENRE_OPTIONS 之外自定义的流派标签（v3 §2.2，多选时显示在最末） */
+  customGenre?: string
   /** 写作状态 */
   status: ProjectStatus
   description: string
   targetWordCount: number  // 目标字数
+  /** 当前已写字数（v3 §2.2 状态栏，由 chapter 字数累加得到） */
+  currentWordCount?: number
   /** 封面图（base64 或 object URL） */
   coverImage?: string
   createdAt: number        // timestamp

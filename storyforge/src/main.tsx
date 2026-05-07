@@ -19,6 +19,7 @@ const REQUIRED_TABLES = [
   'geographies', 'histories', 'itemSystems', 'creativeRules',
   'characterRelations', 'snapshots', 'references',
   'promptTemplates',
+  'detailedOutlines', 'importJobs',
 ]
 
 async function bootstrap() {

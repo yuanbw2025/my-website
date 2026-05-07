@@ -30,6 +30,11 @@ export interface Foreshadow {
   echoChapterIds: string           // 呼应章节（JSON array string）
   resolveChapterId: number | null  // 回收章节
   notes: string              // 备注
+
+  // ── v3 §4.2 新字段：用于时间线视图 ─────────────────────────────
+  /** 时间线位置：相对于全文的归一化进度（0-1），由前端按埋设/呼应/回收章节自动算 */
+  timelinePosition?: number
+
   createdAt: number
   updatedAt: number
 }

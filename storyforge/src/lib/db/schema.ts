@@ -18,6 +18,8 @@ import type {
   Reference,
 } from '../types'
 import type { PromptTemplate } from '../types/prompt'
+import type { DetailedOutline } from '../types/detailed-outline'
+import type { ImportJob } from '../types/import-job'
 
 class StoryForgeDB extends Dexie {
   projects!: Table<Project>
@@ -37,6 +39,8 @@ class StoryForgeDB extends Dexie {
   snapshots!: Table<Snapshot>
   references!: Table<Reference>
   promptTemplates!: Table<PromptTemplate>
+  detailedOutlines!: Table<DetailedOutline>
+  importJobs!: Table<ImportJob>
 
   constructor() {
     super('storyforge')
@@ -76,6 +80,12 @@ class StoryForgeDB extends Dexie {
     // v6: 提示词模板表（Phase 1 — 提示词基础设施）
     this.version(6).stores({
       promptTemplates: '++id, scope, moduleKey, isActive, updatedAt',
+    })
+
+    // v7: 细纲 + AI 导入任务（Phase 3 — 数据模型增量扩展）
+    this.version(7).stores({
+      detailedOutlines: '++id, projectId, outlineNodeId',
+      importJobs: '++id, projectId, type, status, createdAt',
     })
   }
 }

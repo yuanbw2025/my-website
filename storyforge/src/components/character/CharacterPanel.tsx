@@ -16,6 +16,8 @@ const ROLE_LABELS: Record<CharacterRole, string> = {
   antagonist:  '反派',
   supporting:  '配角',
   minor:       '次要',
+  npc:         'NPC',
+  extra:       '路人',
 }
 
 const ROLE_COLORS: Record<CharacterRole, string> = {
@@ -23,6 +25,8 @@ const ROLE_COLORS: Record<CharacterRole, string> = {
   antagonist:  'text-red-400 bg-red-400/10 border-red-400/30',
   supporting:  'text-blue-400 bg-blue-400/10 border-blue-400/30',
   minor:       'text-text-muted bg-bg-elevated border-border',
+  npc:         'text-purple-400 bg-purple-400/10 border-purple-400/30',
+  extra:       'text-text-muted bg-bg-base border-border',
 }
 
 type ViewMode = 'card' | 'table'

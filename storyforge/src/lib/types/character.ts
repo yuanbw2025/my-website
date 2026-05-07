@@ -1,9 +1,11 @@
-/** 角色定位 */
+/** 角色定位（v3 §2.1 — 扩展 npc / extra 两类） */
 export type CharacterRole =
   | 'protagonist'    // 主角
   | 'antagonist'     // 反派
   | 'supporting'     // 重要配角
   | 'minor'          // 次要角色
+  | 'npc'            // NPC（紧凑列表展示）
+  | 'extra'          // 路人（表格行：姓名/出场时间/章节/作用/结局）
 
 /** 角色 */
 export interface Character {
@@ -19,6 +21,17 @@ export interface Character {
   abilities: string          // 能力
   relationships: string      // 关系描述（JSON string）
   arc: string                // 角色弧光/成长线
+
+  // ── v3 §2.1 新字段：路人卡片用 ───────────────────────────────
+  /** 常驻地点 / 起始地点 */
+  location?: string
+  /** 首次出场（章节号或自由文本） */
+  firstAppearance?: string
+  /** 在故事中扮演的角色作用（v3 §2.1 表格行字段） */
+  storyRole?: string
+  /** 结局走向 */
+  ending?: string
+
   createdAt: number
   updatedAt: number
 }
