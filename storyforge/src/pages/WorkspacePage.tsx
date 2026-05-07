@@ -34,7 +34,9 @@ import CharacterNPCPanel from '../components/character/CharacterNPCPanel'
 import CharacterExtraPanel from '../components/character/CharacterExtraPanel'
 import FactionPanel from '../components/faction/FactionPanel'
 import OutlinePanel from '../components/outline/OutlinePanel'
+import DetailedOutlinePanel from '../components/outline/DetailedOutlinePanel'
 import ChapterEditor from '../components/editor/ChapterEditor'
+import ChaptersListPanel from '../components/editor/ChaptersListPanel'
 import ForeshadowPanel from '../components/foreshadow/ForeshadowPanel'
 import GeographyPanel from '../components/geography/GeographyPanel'
 import HistoryPanel from '../components/history/HistoryPanel'
@@ -158,17 +160,9 @@ export default function WorkspacePage() {
       case 'outline':
         return <OutlinePanel project={project} onOpenChapter={handleOpenChapter} />
       case 'detailed-outline':
-        return <PlaceholderPanel
-          title="细纲"
-          phase="将在 Phase 8 实施"
-          description="把单章大纲展开为多个场景：人物 / 地点 / 冲突 / 节奏 / 字数估算。"
-        />
+        return <DetailedOutlinePanel project={project} />
       case 'chapters-list':
-        return <PlaceholderPanel
-          title="章节列表"
-          phase="将在 Phase 8 实施"
-          description="独立的章节管理（状态徽章 / 字数统计 / 批量操作）。"
-        />
+        return <ChaptersListPanel project={project} onOpenChapter={handleOpenChapter} />
       case 'editor':
         return <ChapterEditor project={project} outlineNodeId={editorNodeId} />
       case 'foreshadow':

@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Sparkles } from 'lucide-react'
 import { useCreativeRulesStore } from '../../stores/creative-rules'
+import { useWorldviewStore } from '../../stores/worldview'
+import { useAIStream } from '../../hooks/useAIStream'
+import { buildRulesGeneratePrompt } from '../../lib/ai/adapters/rules-adapter'
+import AIStreamOutput from '../shared/AIStreamOutput'
 import type { Project, NarrativePOV } from '../../lib/types'
 
 const POV_OPTIONS: { value: NarrativePOV; label: string; desc: string }[] = [
@@ -16,6 +20,7 @@ interface Props {
 
 export default function CreativeRulesPanel({ project }: Props) {
   const { creativeRules, loadAll, save } = useCreativeRulesStore()
+  const { worldview, storyCore, loadAll: loadWorldview } = useWorldviewStore()
   const [writingStyle, setWritingStyle] = useState('')
   const [narrativePOV, setNarrativePOV] = useState<NarrativePOV>('third-limited')
   const [toneAndMood, setToneAndMood] = useState('')
@@ -23,10 +28,13 @@ export default function CreativeRulesPanel({ project }: Props) {
   const [consistencyRules, setConsistencyRules] = useState<string[]>([])
   const [specialRequirements, setSpecialRequirements] = useState('')
   const [referenceWorks, setReferenceWorks] = useState<string[]>([])
+  const [aiTarget, setAiTarget] = useState<'writingStyle' | 'toneAndMood' | 'specialRequirements' | null>(null)
+  const ai = useAIStream()
 
   useEffect(() => {
     loadAll(project.id!)
-  }, [project.id, loadAll])
+    loadWorldview(project.id!)
+  }, [project.id, loadAll, loadWorldview])
 
   useEffect(() => {
     if (creativeRules) {
@@ -43,6 +51,32 @@ export default function CreativeRulesPanel({ project }: Props) {
   const saveField = useCallback(async (data: Record<string, unknown>) => {
     await save({ projectId: project.id!, ...data })
   }, [project.id, save])
+
+  /** AI 生成某字段：调 rules.generate 模板 */
+  const generateField = (target: 'writingStyle' | 'toneAndMood' | 'specialRequirements') => {
+    const dimensionMap = {
+      writingStyle: '写作风格',
+      toneAndMood: '基调和氛围',
+      specialRequirements: '特殊创作要求',
+    }
+    setAiTarget(target)
+    const messages = buildRulesGeneratePrompt(
+      dimensionMap[target],
+      project.name,
+      project.genre || '',
+      worldview?.summary || worldview?.worldOrigin?.slice(0, 200) || '',
+      storyCore?.theme || storyCore?.centralConflict || '',
+    )
+    ai.start(messages)
+  }
+
+  const acceptAi = (text: string) => {
+    if (aiTarget === 'writingStyle') { setWritingStyle(text); saveField({ writingStyle: text }) }
+    else if (aiTarget === 'toneAndMood') { setToneAndMood(text); saveField({ toneAndMood: text }) }
+    else if (aiTarget === 'specialRequirements') { setSpecialRequirements(text); saveField({ specialRequirements: text }) }
+    ai.reset()
+    setAiTarget(null)
+  }
 
   /* ---- 列表操作通用 ---- */
   const handleAddToList = (
@@ -137,7 +171,16 @@ export default function CreativeRulesPanel({ project }: Props) {
 
       {/* 写作风格 */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-text-secondary mb-1">写作风格</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium text-text-secondary">写作风格</label>
+          <button
+            onClick={() => generateField('writingStyle')}
+            disabled={ai.isStreaming}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-accent hover:bg-accent/10 rounded transition-colors disabled:opacity-50"
+          >
+            <Sparkles className="w-3 h-3" /> AI 建议
+          </button>
+        </div>
         <textarea
           value={writingStyle}
           onChange={e => setWritingStyle(e.target.value)}
@@ -145,6 +188,15 @@ export default function CreativeRulesPanel({ project }: Props) {
           placeholder="描述期望的写作风格，如：简洁凌厉、文笔华丽、幽默诙谐、冷峻写实..."
           className="w-full h-24 p-3 bg-bg-surface border border-border rounded-lg text-text-primary text-sm resize-y focus:outline-none focus:border-accent"
         />
+        {aiTarget === 'writingStyle' && (ai.output || ai.isStreaming || ai.error) && (
+          <div className="mt-2">
+            <AIStreamOutput
+              output={ai.output} isStreaming={ai.isStreaming} error={ai.error}
+              onStop={ai.stop} onAccept={acceptAi}
+              onRetry={() => generateField('writingStyle')}
+            />
+          </div>
+        )}
       </div>
 
       {/* 叙事视角 */}
@@ -173,7 +225,16 @@ export default function CreativeRulesPanel({ project }: Props) {
 
       {/* 基调和氛围 */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-text-secondary mb-1">基调和氛围</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium text-text-secondary">基调和氛围</label>
+          <button
+            onClick={() => generateField('toneAndMood')}
+            disabled={ai.isStreaming}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-accent hover:bg-accent/10 rounded transition-colors disabled:opacity-50"
+          >
+            <Sparkles className="w-3 h-3" /> AI 建议
+          </button>
+        </div>
         <textarea
           value={toneAndMood}
           onChange={e => setToneAndMood(e.target.value)}
@@ -181,6 +242,15 @@ export default function CreativeRulesPanel({ project }: Props) {
           placeholder="描述作品的整体基调和氛围，如：黑暗压抑、热血激昂、温馨治愈..."
           className="w-full h-20 p-3 bg-bg-surface border border-border rounded-lg text-text-primary text-sm resize-y focus:outline-none focus:border-accent"
         />
+        {aiTarget === 'toneAndMood' && (ai.output || ai.isStreaming || ai.error) && (
+          <div className="mt-2">
+            <AIStreamOutput
+              output={ai.output} isStreaming={ai.isStreaming} error={ai.error}
+              onStop={ai.stop} onAccept={acceptAi}
+              onRetry={() => generateField('toneAndMood')}
+            />
+          </div>
+        )}
       </div>
 
       {/* 禁止事项 */}
@@ -194,7 +264,16 @@ export default function CreativeRulesPanel({ project }: Props) {
 
       {/* 特殊创作要求 */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-text-secondary mb-1">特殊创作要求</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium text-text-secondary">特殊创作要求</label>
+          <button
+            onClick={() => generateField('specialRequirements')}
+            disabled={ai.isStreaming}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-accent hover:bg-accent/10 rounded transition-colors disabled:opacity-50"
+          >
+            <Sparkles className="w-3 h-3" /> AI 建议
+          </button>
+        </div>
         <textarea
           value={specialRequirements}
           onChange={e => setSpecialRequirements(e.target.value)}
@@ -202,6 +281,15 @@ export default function CreativeRulesPanel({ project }: Props) {
           placeholder="其他需要 AI 遵守的特殊创作要求..."
           className="w-full h-24 p-3 bg-bg-surface border border-border rounded-lg text-text-primary text-sm resize-y focus:outline-none focus:border-accent"
         />
+        {aiTarget === 'specialRequirements' && (ai.output || ai.isStreaming || ai.error) && (
+          <div className="mt-2">
+            <AIStreamOutput
+              output={ai.output} isStreaming={ai.isStreaming} error={ai.error}
+              onStop={ai.stop} onAccept={acceptAi}
+              onRetry={() => generateField('specialRequirements')}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

@@ -410,4 +410,101 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
     variables: ['imageStyle', 'projectName', 'locationNames', 'locationTypes'],
     isActive: true,
   },
+
+  // 14. 故事设计-整体生成（Phase 8）
+  {
+    scope: 'system',
+    moduleKey: 'story.generate',
+    promptType: 'generate',
+    name: '内置-故事核心生成',
+    description: '基于已有世界观和用户提示，生成故事的某个维度（一句话/概念/主题/核心冲突等）。',
+    systemPrompt: `你是一位资深的故事架构师，擅长在世界观基础上构思引人入胜的故事核心。
+
+设计原则：
+1. 故事核心要有明确的主题与情感张力
+2. 核心冲突要有层次（外在冲突 + 内在冲突）
+3. 与世界观底层逻辑自洽
+4. 避免落入俗套，但保留爽点和共鸣
+
+输出要求：直接输出内容，使用 Markdown，简明扼要。`,
+    userPromptTemplate: `小说名称：{{projectName}}
+小说类型：{{genres}}
+需要生成的故事维度：{{dimension}}{{#if worldContext}}
+
+世界观摘要（保持自洽）：
+{{worldContext}}{{/if}}{{#if userHint}}
+
+用户补充说明：{{userHint}}{{/if}}`,
+    variables: ['projectName', 'genres', 'dimension', 'worldContext', 'userHint'],
+    isActive: true,
+  },
+
+  // 15. 创作规则-生成（Phase 8）
+  {
+    scope: 'system',
+    moduleKey: 'rules.generate',
+    promptType: 'generate',
+    name: '内置-创作规则生成',
+    description: '基于项目类型和世界观，建议适配的创作规则（风格/视角/基调/禁忌等）。',
+    systemPrompt: `你是一位资深的创作顾问，擅长帮作者明确创作规则与风格约束，避免后续行文偏移。
+
+输出要求：
+- 针对用户指定的规则维度（写作风格/叙事视角/基调氛围/禁忌等），给出具体可执行的建议
+- 不要泛泛而谈，每条都要有「该做什么」+「不该做什么」
+- 用 Markdown 列表`,
+    userPromptTemplate: `小说：{{projectName}}（{{genres}}）
+需要生成的规则维度：{{dimension}}{{#if worldContext}}
+
+世界观摘要：
+{{worldContext}}{{/if}}{{#if storyCore}}
+
+故事核心：
+{{storyCore}}{{/if}}{{#if userHint}}
+
+用户补充：{{userHint}}{{/if}}`,
+    variables: ['projectName', 'genres', 'dimension', 'worldContext', 'storyCore', 'userHint'],
+    isActive: true,
+  },
+
+  // 16. 细纲-场景生成（Phase 8）
+  {
+    scope: 'system',
+    moduleKey: 'detail.scene',
+    promptType: 'generate',
+    name: '内置-细纲场景生成',
+    description: '把单章大纲展开为若干场景（每个场景含人物 / 地点 / 冲突 / 节奏）。',
+    systemPrompt: `你是一位经验丰富的小说场景拆分师，擅长把章节大纲拆解成精彩的场景节拍。
+
+设计原则：
+1. 每章 3-6 个场景为宜
+2. 节奏要错落：慢-中-快-高潮
+3. 每个场景必须有明确的"小目标"和"小冲突"
+4. 场景间用悬念或情绪转折衔接
+
+输出格式：使用编号列表，每个场景包含：
+- 场景标题
+- 一句话概要
+- 主要人物
+- 发生地点
+- 核心冲突
+- 节奏标签（慢/中/快/高潮）
+- 估算字数`,
+    userPromptTemplate: `章节标题：{{chapterTitle}}
+章节大纲：{{chapterSummary}}{{#if worldContext}}
+
+世界观摘要：
+{{worldContext}}{{/if}}{{#if characters}}
+
+涉及角色：
+{{characters}}{{/if}}{{#if previousChapterEnding}}
+
+前一章结尾（衔接用）：
+{{previousChapterEnding}}{{/if}}{{#if userHint}}
+
+用户补充要求：{{userHint}}{{/if}}
+
+请将本章拆分为 3-6 个场景。`,
+    variables: ['chapterTitle', 'chapterSummary', 'worldContext', 'characters', 'previousChapterEnding', 'userHint'],
+    isActive: true,
+  },
 ]
