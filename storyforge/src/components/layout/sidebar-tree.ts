@@ -3,7 +3,7 @@ import {
   FileText, Library, Globe, Mountain, Users2, Sparkles,
   UserCircle, UsersRound, User, Footprints, Network,
   Ruler, BookOpen, ListTree, FilePen, PenTool, Eye,
-  FileCog, History, Upload, Download, Settings, Database,
+  FileCog, History, Upload, Download, Settings,
 } from 'lucide-react'
 
 /**
@@ -150,7 +150,6 @@ export const NAV_TREE: TreeSection[] = [
       leaf('import-doc',       '导入',     Upload),
       leaf('export',           '导出',     Download),
       leaf('settings',         '设置',     Settings),
-      leaf('data-management',  '数据管理', Database),
     ],
   },
 ]

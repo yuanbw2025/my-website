@@ -2,8 +2,8 @@
 
 > **本文档是 AI 助手换机/换会话时的唯一交接依据。**
 > 任何新 Claude / Sonnet / Gemini 会话第一件事必须完整读完此文档。
-> 最近更新：Phase 0 完成、即将启动 Phase 1
-> 由 Opus 4.7 撰写于 2026-05-06
+> 最近更新：**Phase 1-11 全部完成** — v3 重构已落地。
+> 由 Opus 4.7 撰写、维护至 2026-05-07。
 
 ---
 
@@ -69,31 +69,38 @@ git push origin main
 
 ---
 
-## 3. 当前 Git 状态（2026-05-06）
+## 3. 当前 Git 状态（2026-05-07）
 
-**最新 commit hash**（换机后 git pull 验证一致）：
+**最新 commit**（my-website main 分支，已 push origin/main）：
 
-| 仓库 | HEAD | 内容 |
-|------|------|------|
-| storyforge | `07beda2` | feat(phase-00): 流派标签数据集 + Playbook 体系建立 |
-| my-website | `2eac11d` | sync(storyforge): phase-00 流派标签数据 + Playbook 体系 |
-| infiniteskill | `8b59dae` | docs: 双语 README |
-| yuntype | `da5f7a1` | ci: Gitee auto-deploy |
-| cyber-flying-sword | `5310578` | ci: Gitee auto-deploy |
-| flying-sword-pinball | `878d968` | feat: initial release v2.0 |
-| Infinite_SpatioTemporal_Map | `4fa17aa` | Initial infra |
+| Phase | commit | 内容 |
+|-------|--------|------|
+| P0  | `2eac11d` | 流派标签数据 + Playbook 体系 |
+| P1  | `bf40acb` | 提示词基础设施 — promptTemplates v6 + 渲染引擎 + 6 适配器 |
+| P2  | `70652b0` | 提示词管理 UI — 设置 Tab + 列表 + 编辑器 + 实时预览 + 导入导出 |
+| P3  | `42c5459` | 数据模型增量扩展 — 2 张新表 + 6 接口加可选字段 |
+| P4  | `0cab068` | 侧边栏 5 一级三级树 + 提示词库升一级 + 7 个新占位 |
+| P5  | `d4cddb1` | 世界观.世界起源 + 自然环境 — 共 13 字段每个带 AI 生成 |
+| P6  | `c10d16f` | 世界观.人文环境 — 7 字段 + AI 生成 |
+| P7  | `1e651e0` | 角色分档面板 — 次要 / NPC / 路人 |
+| P8  | `db458a6` | 创作区六模块全开 — 故事设计 7 字段 / 规则 AI / 章节列表 / 细纲 |
+| P9  | `8690707` | 版本历史 UI — 时间线 + 创建 / 恢复 / 删除 |
+| P10 | `321f2c7` | AI 文档解析导入 — 3 类型 + 上传/粘贴 + 预览 + 一键入库 |
+| P11 | （本次） | 全侧边栏巡检 + 主题修复 + 重复菜单清理 + HANDOFF 更新 |
 
-**所有仓库本地与远端完全同步**。换机后只需 `git clone` 或 `git pull` 即可拿到最全状态。
+**镜像仓库**：本机暂未克隆独立 storyforge 镜像（按用户决议走 my-website 单仓发起）。
+后续在原电脑或新增镜像 clone 时，需把 `storyforge/` 子目录手动 cp 同步到独立镜像仓库。
 
 ---
 
-## 4. 当前开发任务：StoryForge 全面 UI/UX 重构（v3 重设计）
+## 4. 当前开发任务：StoryForge 全面 UI/UX 重构（v3 重设计）— 已完成 ✅
 
 ### 战略文档（必读）
 
 - 📜 `docs/09-REDESIGN-INTEGRATION-PLAN.md` —— v3 战略文档（约 1300 行）
 - 📋 `docs/playbooks/TEMPLATE.md` —— Playbook 标准模板
 - 📋 `docs/playbooks/PHASE-00-genre-web-search.md` —— Phase 0 完整执行手册（已完成）
+- 📋 `docs/playbooks/PHASE-01..11-*.md` —— Phase 1-11 各自完整 Playbook
 
 ### 用户的核心诉求（3 句话总结）
 
@@ -101,22 +108,31 @@ git push origin main
 2. **流派标签扩展**：从 8 条扩展到 70+ 条，参考起点/纵横/晋江三大平台
 3. **AI 是核心特色**：每个创作模块都要 AI 一键生成按钮；提示词系统**对用户开放自定义**（关键差异化卖点）
 
-### 开发分 12 个 Phase
+### 开发分 12 个 Phase（全部完成 ✅）
 
 | Phase | 内容 | 状态 |
 |-------|------|------|
-| **P0** | 流派标签数据 + Playbook 体系 | ✅ **已完成** |
-| **P1** | 提示词基础设施（promptTemplates 表 + 渲染引擎 + 适配器） | 🔄 **下一步** |
-| P2 | 提示词管理 UI | ⏸ 待办 |
-| P3 | Dexie v6 schema 重建 + 依赖修复 | ⏸ |
-| P4 | 侧边栏导航三级重建 | ⏸ |
-| P5 | 著作信息面板（多选流派 + 状态栏） | ⏸ |
-| P6 | 世界观大面板（整合 6 个旧模块） | ⏸ |
-| P7 | 角色设计四级显示 + 关系图保留 | ⏸ |
-| P8 | 创作区六模块（创作规则/大纲/细纲/章节/正文/伏笔，每个加 AI 按钮） | ⏸ |
-| P9 | 概念地图（Voronoi 程序生成 + AI 视觉解析占位） | ⏸ |
-| P10 | AI 解析导入（支持 .docx/.xlsx/.csv/.txt/.md） | ⏸ |
-| P11 | UI 走查 + token 替换 + 主题验证 | ⏸ |
+| **P0** | 流派标签数据 + Playbook 体系 | ✅ |
+| **P1** | 提示词基础设施（promptTemplates 表 + 渲染引擎 + 6 适配器） | ✅ |
+| **P2** | 提示词管理 UI（设置 Tab → P4 升一级） | ✅ |
+| **P3** | 数据模型增量扩展（Dexie v7、+detailedOutlines/importJobs、6 接口加可选字段）| ✅ |
+| **P4** | 侧边栏 5 一级三级树 + 提示词库升一级 + 7 占位 | ✅ |
+| **P5** | 世界观.世界起源（3 字段）+ 自然环境（11 字段，含嵌套）| ✅ |
+| **P6** | 世界观.人文环境（7 字段，AI 上下文带上游设定）| ✅ |
+| **P7** | 角色分档（次要小卡片 / NPC 紧凑列表 / 路人表格）| ✅ |
+| **P8** | 创作区六模块全开（故事 7 字段 / 规则 AI / 章节列表 / 细纲 AI 拆场景）| ✅ |
+| **P9** | 版本历史 UI（基于 snapshots 表）| ✅ |
+| **P10** | AI 文档解析导入（角色/世界观/大纲，支持 .txt/.md/.csv）| ✅ |
+| **P11** | 全侧边栏巡检 + 主题修复 + 重复菜单清理 + HANDOFF 更新 | ✅ |
+
+### 设计偏差备忘（与 v3 原文不一致的地方）
+
+| 偏差项 | v3 原文 | 实际实施 | 理由 |
+|---|---|---|---|
+| Phase 3 数据迁移 | 删库重建 | 增量加表加字段，旧表暂留 | 保证每个 Phase 都 build 绿、可独立交付 |
+| Phase 9 概念地图 | Voronoi 程序生成 + AI 视觉解析 | 暂用 Phase 1 的 SVG AI 生成；Voronoi 和 vision 留单独立项 | 工作量大、跨厂商兼容性深 |
+| Phase 10 文件格式 | .docx / .xlsx / .csv / .md / .txt | 当前仅 .txt / .md / .csv | .docx/.xlsx 需引入额外库（mammoth/xlsx），按需补 |
+| 旧表清理 | P3 删 factions/geographies/histories/itemSystems/references | 全部保留（路由仍可访问，但不在新 sidebar 暴露）| 数据未迁移完成前不动 |
 
 ### 工作流（关键决策）
 
@@ -155,67 +171,71 @@ Phase N 完成   → 进入 Phase N+1
 
 ---
 
-## 6. Phase 1 计划（下一步）
+## 6. 当前架构总览（Phase 1-11 落地后）
 
-### Phase 1 目标
+### 提示词系统（Phase 1-2 + P8/P10 增量）
 
-构建提示词基础设施，让"用户自定义提示词"成为可能。
+- **数据层**：`promptTemplates` 表（v6）— 19 条 system seed
+- **渲染引擎**：`src/lib/ai/prompt-engine.ts` — 支持 `{{var}}` + `{{#if var}}...{{/if}}`
+- **schema 自检**：`src/lib/db/ensure-schema.ts` — 启动时检测缺表自动重置 DB（开发期专用）
+- **9 个适配器**（`src/lib/ai/adapters/`）：
+  - worldview / character / outline / chapter / foreshadow / geography（P1）
+  - story / rules / detail-scene / import（P8/P10）
+- **管理 UI**：「提示词库」一级菜单（`PromptManagerPanel`）— 列表 + 编辑器 + 实时预览 + 导入/导出
 
-### Phase 1 改动清单（预计）
+### 数据模型（Dexie v7，19 张表）
 
-#### 新增
+- 旧表（兼容保留，路由可访问但 sidebar 不暴露）：factions / geographies / histories / itemSystems / references
+- 新表：detailedOutlines / importJobs / promptTemplates
+- Worldview 字段从 7 扩到 23（含 v3 §2.1 的 worldOrigin / 自然环境 / 人文环境 全套）
+- StoryCore 从 4 扩到 8 字段
+- Character role 加 npc / extra；新增 location / firstAppearance / storyRole / ending
 
-- `src/lib/types/prompt.ts` —— PromptTemplate / Variable 类型
-- `src/lib/ai/prompt-engine.ts` —— 模板渲染引擎（变量插值 + 校验）
-- `src/lib/ai/prompt-seed-data.ts` —— 14+ 系统模板种子数据
-- `src/stores/prompt.ts` —— Zustand store
-- `src/lib/ai/adapters/` —— 6 个适配器（每个对应一条 AI 链）
-  - `worldview-adapter.ts`
-  - `character-adapter.ts`
-  - `outline-adapter.ts`
-  - `chapter-adapter.ts`
-  - `editing-adapter.ts`
-  - `foreshadow-adapter.ts`
+### 侧边栏 5 一级三级树（Phase 4）
 
-#### 修改
+```
+📚 著作信息 / 🌍 设定库 / ✏️ 创作区 / 🎯 提示词库 / ⚙️ 设置区
+```
 
-- `src/lib/db/schema.ts` —— Dexie v5 → v6（新增 `promptTemplates` 表）
-- 6 个 Panel 组件（worldview/character/outline/chapter/editor/foreshadow）—— 仅改 1~2 行换 import 路径
+数据驱动：`src/components/layout/sidebar-tree.ts`。要加新 module 只改这一个文件。
 
-#### 删除
+### AI 一键生成覆盖
 
-- `src/lib/ai/prompts/` —— 旧硬编码 prompts 目录（迁移完成后删除）
-
-### 与 Phase 1 相关的 6 条 AI 链路（必须保留）
-
-1. **链 1：世界观生成**（`prompts/worldview.ts` → `worldview-adapter.ts`）
-2. **链 2：角色设计**（`prompts/character.ts` → `character-adapter.ts`）
-3. **链 3：大纲生成**（`prompts/outline.ts` → `outline-adapter.ts`）
-4. **链 5：章节正文写作**（`prompts/chapter.ts` → `chapter-adapter.ts`）
-5. **链 6/7：续写/润色/扩写/去AI味**（`prompts/editing.ts` → `editing-adapter.ts`）
-6. **链 8：伏笔建议**（`prompts/foreshadow.ts` → `foreshadow-adapter.ts`）
-
-### Phase 1 必须满足的兼容性约束
-
-- **Panel 组件代码改动 ≤ 2 行/文件**（只改 import 路径）
-- 现有所有 AI 链跑完后输出**与重构前等价**
-- 用户感知不到任何变化（只是底层换骨）
-- 只在 Phase 2 之后才暴露"自定义提示词"UI
+| 模块 | 字段数 | AI 集成 |
+|---|---|---|
+| 世界起源 | 3 | ✅ |
+| 自然环境 | 11 (含 4 子) | ✅ |
+| 人文环境 | 7 | ✅ |
+| 故事设计 | 7 | ✅ |
+| 角色（主要） | 完整 | ✅ |
+| 创作规则 | 3 主字段 | ✅ |
+| 大纲 | 卷 + 章节 | ✅ |
+| 细纲 | 场景拆分 | ✅ |
+| 章节正文 | 写/续/润/扩/去 AI 味 | ✅ |
+| 伏笔 | 建议 | ✅ |
+| 文档导入 | 角色/世界观/大纲解析 | ✅ |
 
 ---
 
-## 7. 用户当前需要做的事
+## 7. 当前可继续的开发（如果要继续）
 
-### ⚠️ 阻塞 Phase 1 启动的一件事
+### 短期收尾（按需）
 
-清空浏览器 IndexedDB（开发期数据，无真实用户）：
+- 旧表数据迁移：写脚本把 factions / geographies / histories / itemSystems / references 中的现有数据迁到 worldview.* 字段，然后删旧表
+- 移除 DataManagementPanel 重复 Tab：版本历史 / AI 解析导入两个 Tab 已被一级菜单替代，只剩"导出"功能；可以彻底拆成 ExportPanel
+- 提示词模板 modelOverride（temperature/maxTokens）在 PromptManagerPanel 编辑器里加 UI
 
-```javascript
-// 在浏览器 DevTools Console 执行：
-indexedDB.deleteDatabase('storyforge')
-```
+### 中期增量（v3 §3.7 / §3.8）
 
-清完后告诉 AI「清空完毕」即可启动 Phase 1。
+- 提示词工作流（链式编排，蛙蛙写作风格）— 新表 promptWorkflows
+- 题材模板包（玄幻/言情/科幻 等多套预设包）
+
+### 长期（v3 §6 P9 / §3.9）
+
+- 概念地图 Voronoi 程序生成 + AI vision 反向解析（需 vision API 跨厂商兼容）
+- 提示词社区市场（需后端）
+- A/B 测试 / 自动调优（需用户行为数据）
+- .docx / .xlsx 文件解析（需 mammoth / SheetJS 库）
 
 ---
 
