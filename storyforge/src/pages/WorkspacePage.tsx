@@ -27,6 +27,7 @@ import StoryCorePanel from '../components/worldview/StoryCorePanel'
 import PowerSystemPanel from '../components/worldview/PowerSystemPanel'
 import WorldviewOriginPanel from '../components/worldview/WorldviewOriginPanel'
 import WorldviewNaturalPanel from '../components/worldview/WorldviewNaturalPanel'
+import WorldviewHumanityPanel from '../components/worldview/WorldviewHumanityPanel'
 import CharacterPanel from '../components/character/CharacterPanel'
 import FactionPanel from '../components/faction/FactionPanel'
 import OutlinePanel from '../components/outline/OutlinePanel'
@@ -116,11 +117,7 @@ export default function WorkspacePage() {
       case 'worldview-natural':
         return <WorldviewNaturalPanel project={project} />
       case 'worldview-humanity':
-        return <PlaceholderPanel
-          title="人文环境"
-          phase="将在 Phase 6 实施"
-          description="历史线 / 大事记 / 种族 / 势力 / 政治经济文化 / 矛盾冲突 / 道具设计。"
-        />
+        return <WorldviewHumanityPanel project={project} />
       // 旧入口暂时映射到旧面板（P5/P6 改造时迁移到上面 3 个）
       case 'worldview':
         return <WorldviewPanel project={project} />
