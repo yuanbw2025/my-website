@@ -19,6 +19,7 @@ import PropertiesPanel from '../components/layout/PropertiesPanel'
 import ProjectInfoPanel from '../components/project/ProjectInfoPanel'
 import ReferencePanel from '../components/project/ReferencePanel'
 import SettingsPage from '../components/settings/SettingsPage'
+import VersionHistoryPanel from '../components/system/VersionHistoryPanel'
 import PromptManagerPanel from '../components/settings/prompt/PromptManagerPanel'
 import PlaceholderPanel from '../components/shared/PlaceholderPanel'
 import DataManagementPanel from '../components/data/DataManagementPanel'
@@ -174,11 +175,7 @@ export default function WorkspacePage() {
 
       // ── 设置区 ─────────────────────────────────────────────────────
       case 'version-history':
-        return <PlaceholderPanel
-          title="版本历史"
-          phase="将在 Phase 9 实施"
-          description="基于 snapshots 表的时间线视图，支持回滚到任意快照。"
-        />
+        return <VersionHistoryPanel project={project} />
       case 'import-doc':
         return <PlaceholderPanel
           title="导入"
