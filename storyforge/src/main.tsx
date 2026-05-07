@@ -5,6 +5,7 @@ import App from './App'
 import ErrorBoundary from './components/shared/ErrorBoundary'
 import { ToastProvider } from './components/shared/Toast'
 import { usePromptStore } from './stores/prompt'
+import { useWorkflowStore } from './stores/workflow'
 import { ensureSchema } from './lib/db/ensure-schema'
 import './index.css'
 
@@ -20,6 +21,7 @@ const REQUIRED_TABLES = [
   'characterRelations', 'snapshots', 'references',
   'promptTemplates',
   'detailedOutlines', 'importJobs',
+  'promptWorkflows',
 ]
 
 async function bootstrap() {
@@ -35,6 +37,13 @@ async function bootstrap() {
     await usePromptStore.getState().init()
   } catch (e) {
     console.error('[bootstrap] prompt store init failed:', e)
+  }
+
+  // 3. Phase 16：初始化工作流（必要时 seed 系统工作流）
+  try {
+    await useWorkflowStore.getState().init()
+  } catch (e) {
+    console.error('[bootstrap] workflow store init failed:', e)
   }
 
   ReactDOM.createRoot(document.getElementById('root')!).render(

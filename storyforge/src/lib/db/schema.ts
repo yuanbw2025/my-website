@@ -20,6 +20,7 @@ import type {
 import type { PromptTemplate } from '../types/prompt'
 import type { DetailedOutline } from '../types/detailed-outline'
 import type { ImportJob } from '../types/import-job'
+import type { PromptWorkflow } from '../types/workflow'
 
 class StoryForgeDB extends Dexie {
   projects!: Table<Project>
@@ -41,6 +42,7 @@ class StoryForgeDB extends Dexie {
   promptTemplates!: Table<PromptTemplate>
   detailedOutlines!: Table<DetailedOutline>
   importJobs!: Table<ImportJob>
+  promptWorkflows!: Table<PromptWorkflow>
 
   constructor() {
     super('storyforge')
@@ -86,6 +88,11 @@ class StoryForgeDB extends Dexie {
     this.version(7).stores({
       detailedOutlines: '++id, projectId, outlineNodeId',
       importJobs: '++id, projectId, type, status, createdAt',
+    })
+
+    // v8: 提示词工作流（Phase 16）
+    this.version(8).stores({
+      promptWorkflows: '++id, scope, isDefault, updatedAt',
     })
   }
 }
