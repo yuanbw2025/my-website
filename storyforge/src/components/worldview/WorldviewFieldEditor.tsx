@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildWorldviewPrompt } from '../../lib/ai/adapters/worldview-adapter'
 import AIStreamOutput from '../shared/AIStreamOutput'
+import PromptRunPanel from '../shared/PromptRunPanel'
 import type { Project } from '../../lib/types'
 
 interface Props {
@@ -29,12 +30,28 @@ export default function WorldviewFieldEditor({
 }: Props) {
   const [hint, setHint] = useState('')
   const [showHintBox, setShowHintBox] = useState(false)
+  // Phase 14：运行时调参 / 临时覆盖
+  const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
+  const [systemOverride, setSystemOverride] = useState<string | null>(null)
+  const [userOverride, setUserOverride] = useState<string | null>(null)
   const ai = useAIStream()
 
-  // 切换字段时清空 AI 流
-  useEffect(() => { ai.reset() }, [project.id, label, ai])
+  // 切换字段时清空 AI 流 + 重置临时覆盖
+  useEffect(() => {
+    ai.reset()
+    setParameterValues({})
+    setSystemOverride(null)
+    setUserOverride(null)
+  }, [project.id, label, ai])
 
   const handleGenerate = async () => {
+    const opts = {
+      parameterValues: Object.keys(parameterValues).length > 0 ? parameterValues : undefined,
+      overrides: (systemOverride != null || userOverride != null) ? {
+        systemPrompt: systemOverride ?? undefined,
+        userPromptTemplate: userOverride ?? undefined,
+      } : undefined,
+    }
     // 直接传中文标签作为 dimension（adapter 的 fallback 会用这个）
     const messages = buildWorldviewPrompt(
       label.replace(/^[^a-zA-Z一-龥]+/, ''), // 去前面 emoji
@@ -42,6 +59,7 @@ export default function WorldviewFieldEditor({
       project.genre || '',
       contextSummary,
       hint,
+      opts,
     )
     ai.start(messages)
   }
@@ -98,6 +116,17 @@ export default function WorldviewFieldEditor({
           AI 生成
         </button>
       </div>
+
+      {/* 调参浮窗 (Phase 14) */}
+      <PromptRunPanel
+        moduleKey="worldview.dimension"
+        parameterValues={parameterValues}
+        onParamChange={setParameterValues}
+        systemOverride={systemOverride}
+        onSystemOverrideChange={setSystemOverride}
+        userOverride={userOverride}
+        onUserOverrideChange={setUserOverride}
+      />
 
       {(ai.output || ai.isStreaming || ai.error) && (
         <AIStreamOutput

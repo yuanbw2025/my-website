@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react'
 import { Sparkles } from 'lucide-react'
 import { useAIStream } from '../../hooks/useAIStream'
 import AIStreamOutput from './AIStreamOutput'
+import PromptRunPanel from './PromptRunPanel'
 import type { ChatMessage } from '../../lib/types'
+import type { PromptModuleKey } from '../../lib/types/prompt'
+
+export interface AIFieldRunOptions {
+  parameterValues?: Record<string, unknown>
+  overrides?: { systemPrompt?: string; userPromptTemplate?: string }
+}
 
 interface Props {
   /** emoji + 名字，如 "📜 一句话故事" */
@@ -14,12 +21,15 @@ interface Props {
   onSave: (val: string) => void
   /**
    * 构造 AI 提示词。userHint 由本组件自管。
-   * 调用方提供 hint 后调对应的 adapter（buildStoryGeneratePrompt 等）
+   * Phase 14：buildMessages 接受第二个参数 options，由本组件传入运行时覆盖。
+   * 调用方应把它转发给对应的 adapter。
    */
-  buildMessages: (hint: string) => ChatMessage[]
+  buildMessages: (hint: string, options?: AIFieldRunOptions) => ChatMessage[]
   rows?: number
   /** 用于切换字段时清空 AI 输出（一般传字段 key） */
   resetKey?: string
+  /** 使用的 moduleKey；提供后会显示「调参」浮窗 */
+  moduleKey?: PromptModuleKey
 }
 
 /**
@@ -31,15 +41,33 @@ interface Props {
  */
 export default function AIFieldCard({
   label, description, value, onChange, onSave,
-  buildMessages, rows = 4, resetKey,
+  buildMessages, rows = 4, resetKey, moduleKey,
 }: Props) {
   const [hint, setHint] = useState('')
   const [showHint, setShowHint] = useState(false)
+  // Phase 14：运行时调参 / 临时覆盖 prompt 文字
+  const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
+  const [systemOverride, setSystemOverride] = useState<string | null>(null)
+  const [userOverride, setUserOverride] = useState<string | null>(null)
   const ai = useAIStream()
 
-  useEffect(() => { ai.reset() }, [resetKey, ai])
+  useEffect(() => {
+    ai.reset()
+    setParameterValues({})
+    setSystemOverride(null)
+    setUserOverride(null)
+  }, [resetKey, ai])
 
-  const handleGenerate = () => ai.start(buildMessages(hint))
+  const handleGenerate = () => {
+    const opts: AIFieldRunOptions = {
+      parameterValues: Object.keys(parameterValues).length > 0 ? parameterValues : undefined,
+      overrides: (systemOverride != null || userOverride != null) ? {
+        systemPrompt: systemOverride ?? undefined,
+        userPromptTemplate: userOverride ?? undefined,
+      } : undefined,
+    }
+    ai.start(buildMessages(hint, opts))
+  }
   const handleAccept = (text: string) => {
     onChange(text); onSave(text); ai.reset()
   }
@@ -87,6 +115,19 @@ export default function AIFieldCard({
           <Sparkles className="w-3.5 h-3.5" /> AI 生成
         </button>
       </div>
+
+      {/* 调参浮窗 (Phase 14) */}
+      {moduleKey && (
+        <PromptRunPanel
+          moduleKey={moduleKey}
+          parameterValues={parameterValues}
+          onParamChange={setParameterValues}
+          systemOverride={systemOverride}
+          onSystemOverrideChange={setSystemOverride}
+          userOverride={userOverride}
+          onUserOverrideChange={setUserOverride}
+        />
+      )}
 
       {(ai.output || ai.isStreaming || ai.error) && (
         <AIStreamOutput

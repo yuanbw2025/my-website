@@ -12,6 +12,11 @@ const DIMENSION_LABELS: Record<string, string> = {
   summary: '世界观精华摘要',
 }
 
+export interface RunOptions {
+  parameterValues?: Record<string, unknown>
+  overrides?: { systemPrompt?: string; userPromptTemplate?: string }
+}
+
 /** 生成世界观某个维度（API 与旧 src/lib/ai/prompts/worldview.ts 一致） */
 export function buildWorldviewPrompt(
   dimension: string,
@@ -19,6 +24,7 @@ export function buildWorldviewPrompt(
   genre: string,
   existingContext: string,
   userHint?: string,
+  options?: RunOptions,
 ): ChatMessage[] {
   const tpl = usePromptStore.getState().getActive('worldview.dimension')
   const label = DIMENSION_LABELS[dimension] || dimension
@@ -29,6 +35,6 @@ export function buildWorldviewPrompt(
     worldContext: existingContext,
     userHint,
     isSummary: dimension === 'summary' ? '1' : '',
-  })
+  }, options)
   return messages
 }
