@@ -23,6 +23,12 @@ export type SaveTarget =
   | { type: 'worldview-field'; field: string; mode?: 'replace' | 'append' }
   | { type: 'storyCore-field'; field: string; mode?: 'replace' | 'append' }
   | { type: 'creativeRules-field'; field: string; mode?: 'replace' | 'append' }
+  /** 期望 AI 输出 JSON 数组，每项是一个 character。前端解析后批量 addCharacter */
+  | { type: 'create-characters' }
+  /** 期望 AI 输出 JSON 数组（嵌套树）。前端递归 addNode */
+  | { type: 'create-outline-nodes' }
+  /** 期望 AI 输出 JSON 数组，批量 addForeshadow */
+  | { type: 'create-foreshadows' }
 
 export interface PromptWorkflowStep {
   /** UUID（前端生成） */

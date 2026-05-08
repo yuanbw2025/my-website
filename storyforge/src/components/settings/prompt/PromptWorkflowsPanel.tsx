@@ -9,10 +9,14 @@ import { useWorkflowStore } from '../../../stores/workflow'
 import { usePromptStore } from '../../../stores/prompt'
 import { useWorldviewStore } from '../../../stores/worldview'
 import { useCreativeRulesStore } from '../../../stores/creative-rules'
+import { useCharacterStore } from '../../../stores/character'
+import { useOutlineStore } from '../../../stores/outline'
+import { useForeshadowStore } from '../../../stores/foreshadow'
 import { useAIStream } from '../../../hooks/useAIStream'
 import { renderPrompt } from '../../../lib/ai/prompt-engine'
+import { extractJSON } from '../../../lib/ai/adapters/import-adapter'
 import type { PromptWorkflow, PromptWorkflowStep, SaveTarget } from '../../../lib/types/workflow'
-import type { Project } from '../../../lib/types'
+import type { Project, CharacterRole } from '../../../lib/types'
 
 interface Props {
   project?: Project
@@ -245,14 +249,20 @@ function WorkflowRunner({ workflow, project, onClose }: RunnerProps) {
   const ai = useAIStream()
   const { worldview, saveWorldview, storyCore, saveStoryCore, loadAll: loadWorldview } = useWorldviewStore()
   const { creativeRules, save: saveCreativeRules, loadAll: loadCreativeRules } = useCreativeRulesStore()
+  const { addCharacter, loadAll: loadCharacters } = useCharacterStore()
+  const { addNode, loadAll: loadOutline } = useOutlineStore()
+  const { addForeshadow, loadAll: loadForeshadows } = useForeshadowStore()
   const [savedSteps, setSavedSteps] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (project?.id) {
       loadWorldview(project.id)
       loadCreativeRules(project.id)
+      loadCharacters(project.id)
+      loadOutline(project.id)
+      loadForeshadows(project.id)
     }
-  }, [project?.id, loadWorldview, loadCreativeRules])
+  }, [project?.id, loadWorldview, loadCreativeRules, loadCharacters, loadOutline, loadForeshadows])
 
   /** 写入对应模块 */
   const handleSaveTarget = async (stepId: string, output: string, target: SaveTarget) => {
@@ -273,24 +283,101 @@ function WorkflowRunner({ workflow, project, onClose }: RunnerProps) {
         const existing = (creativeRules?.[target.field as keyof typeof creativeRules] as string) || ''
         const next = target.mode === 'append' && existing ? `${existing}\n\n${output}` : output
         await saveCreativeRules({ projectId: project.id, [target.field]: next })
+      } else if (target.type === 'create-characters') {
+        const parsed = extractJSON(output) as unknown[]
+        if (!Array.isArray(parsed)) throw new Error('AI 输出不是 JSON 数组')
+        let n = 0
+        for (const raw of parsed) {
+          if (typeof raw !== 'object' || raw === null) continue
+          const c = raw as Record<string, unknown>
+          if (typeof c.name !== 'string') continue
+          await addCharacter({
+            projectId: project.id,
+            name: c.name,
+            role: ((c.role as string) || 'minor') as CharacterRole,
+            shortDescription: String(c.shortDescription || ''),
+            appearance: String(c.appearance || ''),
+            personality: String(c.personality || ''),
+            background: String(c.background || ''),
+            motivation: String(c.motivation || ''),
+            abilities: String(c.abilities || ''),
+            relationships: String(c.relationships || ''),
+            arc: String(c.arc || ''),
+          })
+          n++
+        }
+        alert(`已写入 ${n} 个角色`)
+      } else if (target.type === 'create-outline-nodes') {
+        const parsed = extractJSON(output) as unknown[]
+        if (!Array.isArray(parsed)) throw new Error('AI 输出不是 JSON 数组')
+        let order = 0, n = 0
+        const writeNode = async (raw: Record<string, unknown>, parentId: number | null) => {
+          if (typeof raw.title !== 'string') return
+          const isVolume = raw.type === 'volume' || (Array.isArray(raw.children) && raw.children.length > 0)
+          const id = await addNode({
+            projectId: project.id!,
+            parentId,
+            type: isVolume ? 'volume' : 'chapter',
+            title: raw.title,
+            summary: String(raw.summary || ''),
+            order: order++,
+          })
+          n++
+          if (Array.isArray(raw.children)) {
+            for (const child of raw.children) {
+              await writeNode(child as Record<string, unknown>, id)
+            }
+          }
+        }
+        for (const x of parsed) {
+          if (typeof x === 'object' && x) await writeNode(x as Record<string, unknown>, null)
+        }
+        alert(`已写入 ${n} 个大纲节点`)
+      } else if (target.type === 'create-foreshadows') {
+        const parsed = extractJSON(output) as unknown[]
+        if (!Array.isArray(parsed)) throw new Error('AI 输出不是 JSON 数组')
+        let n = 0
+        for (const raw of parsed) {
+          if (typeof raw !== 'object' || raw === null) continue
+          const f = raw as Record<string, unknown>
+          if (typeof f.name !== 'string') continue
+          await addForeshadow({
+            projectId: project.id,
+            name: f.name,
+            type: ((f.type as string) || 'chekhov') as 'chekhov',
+            status: 'planned',
+            description: String(f.description || ''),
+            plantChapterId: null,
+            echoChapterIds: '[]',
+            resolveChapterId: null,
+            notes: '',
+          })
+          n++
+        }
+        alert(`已写入 ${n} 个伏笔`)
       }
       setSavedSteps(prev => new Set(prev).add(stepId))
     } catch (e) {
-      alert(`保存失败：${e instanceof Error ? e.message : String(e)}`)
+      alert(`保存失败：${e instanceof Error ? e.message : String(e)}\n\n（角色/大纲/伏笔类目标需 AI 输出 JSON。可用「import.parse-*」类提示词预先调好。）`)
     }
   }
 
   const targetLabel = (target: SaveTarget): string => {
+    if (target.type === 'create-characters') return '角色库（批量创建）'
+    if (target.type === 'create-outline-nodes') return '大纲（批量创建）'
+    if (target.type === 'create-foreshadows') return '伏笔库（批量创建）'
     const fieldMap: Record<string, string> = {
       worldOrigin: '世界起源', powerHierarchy: '力量层次',
       historyLine: '世界历史线', summary: '世界观摘要',
       logline: '一句话故事', concept: '故事概念', theme: '主题',
+      centralConflict: '核心冲突', mainPlot: '故事主线',
       writingStyle: '写作风格', toneAndMood: '基调氛围',
     }
-    const label = fieldMap[target.field] || target.field
+    const label = fieldMap[(target as { field?: string }).field || ''] || (target as { field?: string }).field || ''
     if (target.type === 'worldview-field') return `世界观.${label}`
     if (target.type === 'storyCore-field') return `故事.${label}`
-    return `创作规则.${label}`
+    if (target.type === 'creativeRules-field') return `创作规则.${label}`
+    return ''
   }
   const [results, setResults] = useState<Map<string, StepResult>>(() => {
     const m = new Map<string, StepResult>()
@@ -639,6 +726,9 @@ const SAVE_TARGET_PRESETS = [
   { label: '故事.故事主线', value: 'storyCore-field:mainPlot' },
   { label: '创作规则.写作风格', value: 'creativeRules-field:writingStyle' },
   { label: '创作规则.基调氛围', value: 'creativeRules-field:toneAndMood' },
+  { label: '⚡ 批量创建：角色库（要求 AI 输出 JSON 数组）', value: 'create-characters:_' },
+  { label: '⚡ 批量创建：大纲节点（要求 AI 输出 JSON 数组）', value: 'create-outline-nodes:_' },
+  { label: '⚡ 批量创建：伏笔（要求 AI 输出 JSON 数组）', value: 'create-foreshadows:_' },
 ] as const
 
 function WorkflowEditor({ workflow, onClose }: { workflow: PromptWorkflow; onClose: () => void }) {
@@ -697,13 +787,19 @@ function WorkflowEditor({ workflow, onClose }: { workflow: PromptWorkflow; onClo
 
   const saveTargetToValue = (st?: SaveTarget): string => {
     if (!st) return ''
-    return `${st.type}:${st.field}`
+    if (st.type === 'create-characters' || st.type === 'create-outline-nodes' || st.type === 'create-foreshadows') {
+      return `${st.type}:_`
+    }
+    return `${st.type}:${(st as { field: string }).field}`
   }
 
   const valueToSaveTarget = (v: string): SaveTarget | undefined => {
     if (!v) return undefined
     const [type, field] = v.split(':')
-    return { type: type as SaveTarget['type'], field, mode: 'replace' }
+    if (type === 'create-characters' || type === 'create-outline-nodes' || type === 'create-foreshadows') {
+      return { type } as SaveTarget
+    }
+    return { type: type as 'worldview-field' | 'storyCore-field' | 'creativeRules-field', field, mode: 'replace' }
   }
 
   return (
