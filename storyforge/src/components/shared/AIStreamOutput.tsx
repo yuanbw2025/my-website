@@ -60,9 +60,9 @@ export default function AIStreamOutput({
   }
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className="border border-border rounded-lg overflow-hidden border-l-2 border-l-accent">
       {/* 输出区域 */}
-      <div className="min-h-[200px] max-h-[500px] overflow-y-auto p-4 bg-bg-surface">
+      <div className="min-h-[200px] max-h-[500px] overflow-y-auto p-4 bg-accent-soft">
         {error ? (
           <div className="text-error text-sm">
             <p className="font-medium mb-1">⚠️ 生成失败</p>

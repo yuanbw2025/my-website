@@ -82,7 +82,7 @@ export default function HomePage() {
   }
 
   return (
-    <div data-theme="forge" className="min-h-screen bg-bg-base">
+    <div data-theme="forge" className="min-h-screen bg-bg-base relative overflow-hidden">
       {/* 顶栏 */}
       <header className="border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 bg-bg-base/90 backdrop-blur-sm z-20">
         <div className="flex items-center gap-2.5">
@@ -114,11 +114,15 @@ export default function HomePage() {
         </div>
       </header>
 
+      {/* 火光辉光背景 */}
+      <div className="absolute inset-0 pointer-events-none"
+           style={{ background: 'radial-gradient(circle at 50% 0%, rgba(217,119,87,0.18), transparent 60%)' }} />
+
       {/* 主体 */}
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <main className="max-w-5xl mx-auto px-6 py-10 relative">
         {/* Hero 区域 */}
         <div className="mb-10">
-          <h2 className="text-3xl font-bold text-text-primary mb-2">
+          <h2 className="text-4xl font-serif font-normal text-text-primary mb-3 tracking-tight">
             我的项目
           </h2>
           <p className="text-text-muted text-sm">
