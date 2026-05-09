@@ -1,6 +1,6 @@
 # StoryForge / 故事熔炉 — 开发进度文档
 
-> **最后更新**: 2026-04-13 21:47 | **当前阶段**: Phase 2 ✅ 完成，Phase 3 待开始
+> **最后更新**: 2026-05-09 21:48 | **当前阶段**: Phase 2 ✅ + Design System v2 ✅ + AI 多平台接入 🔧 进行中
 
 ---
 
@@ -12,11 +12,12 @@
 
 ### 技术栈
 - **React 19** + **TypeScript** + **Vite 6**
-- **Tailwind CSS 3** — 5 套主题（CSS 变量驱动）
+- **Tailwind CSS 3** — 3 套场景主题（work/forge/paper，CSS 变量驱动）
 - **Zustand** — 状态管理
 - **Dexie.js** — IndexedDB 本地数据库（9 张表）
 - **lucide-react** — 图标
 - **react-router-dom 7** — 路由
+- **Google Fonts** — Inter + Source Serif 4 + JetBrains Mono
 
 ### 启动开发
 ```bash
@@ -240,6 +241,90 @@ storyforge/src/
 - [x] 自动保存正常工作（useAutoSave Hook）
 - [x] 伏笔 CRUD + 状态流转正常
 - [x] 上下文查看器能显示发送的 prompt
+
+---
+
+## ✅ Design System v2 迁移（已完成）
+
+**完成日期**: 2026-05-09
+
+### 变更概述
+将旧的 5 套主题（midnight/ocean/graphite/mist/parchment，靛蓝色调）替换为全新的 3 套场景主题（品牌色 🔥 火光橙 #D97757）。
+
+### 3 套新主题
+| 主题 | data-theme | 用途 |
+|------|-----------|------|
+| 🔨 工作 | `work` | 深色暖黑，日常生产，WorkspacePage 默认 |
+| 🔥 熔炉 | `forge` | 暖棕火光，HomePage 仪式感 |
+| 📄 纸张 | `paper` | 浅色米白，未来焦点模式写作用 |
+
+### 修改的文件
+| 文件 | 变更 |
+|------|------|
+| `index.html` | 添加 Google Fonts (Inter, Source Serif 4, JetBrains Mono) |
+| `src/index.css` | 替换 5 套旧主题 → 3 套新主题 + 旧名兼容映射 |
+| `tailwind.config.ts` | 新增 fontFamily, brand 颜色, accent.soft, border.subtle, boxShadow, fontSize 阶梯 |
+| `src/pages/WorkspacePage.tsx` | 添加 `data-theme="work"` |
+| `src/pages/HomePage.tsx` | 添加 forge 辉光渐变 + 衬线标题 |
+| `src/components/shared/AIStreamOutput.tsx` | 添加左侧火光色条 + 柔和背景 |
+
+### 设计系统文档
+- `design-system/design-system.md` — 完整设计规范
+- `design-system/tokens.css` — CSS 变量定义
+- `design-system/tailwind.config.ts` — Tailwind 配置
+- `design-system/MIGRATION.md` — 迁移指南
+- `design-system/components-demo.html` — 组件预览
+- `design-system/scenes-demo.html` — 三场景预览
+
+---
+
+## 🔧 AI 多平台接入（进行中）
+
+**开始日期**: 2026-05-09 | **当前状态**: 日志系统 ✅ + DeepSeek ✅ + Poe 适配 ✅
+
+### 目标
+纯前端工具，用户自配 API Key，浏览器直接调用 AI API（无需后端服务器）。
+
+### CORS 兼容性测试结果
+
+| # | 平台 | Base URL | CORS | 状态 |
+|---|------|---------|------|------|
+| 1 | DeepSeek | `https://api.deepseek.com/v1` | ✅ | ✅ 已完成 |
+| 2 | Poe | `https://api.poe.com/bot` | ✅ | ✅ 已完成（需适配器） |
+| 3 | 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | ✅ | 🔜 待测试 |
+| 4 | 豆包 | `https://ark.cn-beijing.volces.com/api/v3` | ✅ | 🔜 待测试 |
+| 5 | MiniMax | `https://api.minimax.chat/v1` | ✅ | 🔜 待测试 |
+| 6 | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | ✅ | 🔜 待测试 |
+| 7 | 文心一言 | `https://qianfan.baidubce.com/v2` | ✅ | 🔜 待测试 |
+| 8 | Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | ✅ | 🔜 待测试 |
+| 9 | Kimi | `https://api.moonshot.cn/v1` | ❌ | 标注需代理 |
+| 10 | OpenAI | `https://api.openai.com/v1` | ❌ | 标注需代理 |
+| 11 | Claude | `https://api.anthropic.com/v1` | ❌ | 标注需代理 |
+
+### 已完成的改动
+
+#### 新增文件
+| 文件 | 说明 |
+|------|------|
+| `src/lib/ai/logger.ts` | AI 连接日志系统（记录每次调用的 URL、状态码、耗时、错误详情） |
+
+#### 修改文件
+| 文件 | 变更 |
+|------|------|
+| `src/lib/types/ai.ts` | `AIProvider` 扩展为 13 种 + `PROVIDER_PRESETS` 包含所有平台预设 URL 和默认模型 |
+| `src/stores/ai-config.ts` | `testConnection` 重写：详细错误解析 + 日志记录 + Poe 格式适配 |
+| `src/lib/ai/client.ts` | `buildRequest()` 函数根据 provider 构造不同请求格式 + 流式日志记录 |
+| `src/components/settings/AIConfigPanel.tsx` | 全部 11 个平台下拉选择 + 每个配置提示（去哪获取 Key）+ 日志面板 + 3 主题切换 |
+
+### 下一步待做
+1. 逐个测试通义千问、豆包、MiniMax、智谱GLM、文心、Gemini 的实际连接
+2. 如果某些平台 API 格式有细微差异，在 `buildRequest()` 中加适配
+3. 考虑给 Kimi/OpenAI/Claude 添加 Vercel Serverless 代理（生产环境）
+
+### 开发 Tips
+- 选择 DeepSeek → 输入 key → 测试连接 → 如果显示 "Insufficient Balance" 说明连接成功但余额不足
+- 点「日志」按钮可查看完整请求日志（URL、HTTP 状态码、耗时、错误信息）
+- Poe 的 API 格式不同：endpoint 是 `baseUrl/{model}` 而非 `baseUrl/chat/completions`
 
 ---
 
