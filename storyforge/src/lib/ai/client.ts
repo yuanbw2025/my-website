@@ -23,7 +23,7 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
   } else if (config.provider === 'deepseek') {
     // DeepSeek 官方文档: https://api.deepseek.com, model = deepseek-v4-flash / deepseek-v4-pro
     // V4 Pro 和 Reasoner 支持 thinking 深度思考模式
-    const isThinkingModel = config.model.includes('v4-pro') || config.model.includes('reasoner')
+    const isThinkingModel = config.model.includes('v4-pro')
     if (isThinkingModel) {
       body.thinking = { type: 'enabled' }
       body.reasoning_effort = 'high'

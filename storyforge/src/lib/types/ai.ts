@@ -48,8 +48,6 @@ export const PROVIDER_MODELS: Record<string, { value: string; label: string; des
   deepseek: [
     { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', desc: '快速，性价比高' },
     { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', desc: '最强，支持深度思考' },
-    { value: 'deepseek-chat', label: 'DeepSeek Chat (旧)', desc: '将于 2026/07/24 弃用' },
-    { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner (旧)', desc: '将于 2026/07/24 弃用' },
   ],
   poe: [
     { value: 'GPT-4o', label: 'GPT-4o' },
