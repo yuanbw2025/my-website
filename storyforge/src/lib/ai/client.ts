@@ -18,8 +18,22 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
 
   // Poe 官方文档明确只需 model + messages，不要传额外参数
   // （Claude 模型在 Poe 上自动启用 thinking，传 max_tokens/temperature 会冲突报 400）
-  // 其他 provider 正常传 temperature 和 max_tokens
-  if (config.provider !== 'poe') {
+  if (config.provider === 'poe') {
+    // Poe: 不传额外参数
+  } else if (config.provider === 'deepseek') {
+    // DeepSeek 官方文档: https://api.deepseek.com, model = deepseek-v4-flash / deepseek-v4-pro
+    // V4 Pro 和 Reasoner 支持 thinking 深度思考模式
+    const isThinkingModel = config.model.includes('v4-pro') || config.model.includes('reasoner')
+    if (isThinkingModel) {
+      body.thinking = { type: 'enabled' }
+      body.reasoning_effort = 'high'
+      // 思考模式下不传 temperature（DeepSeek 文档未在 thinking 示例中包含 temperature）
+    } else {
+      if (config.temperature !== undefined) body.temperature = config.temperature
+    }
+    if (config.maxTokens !== undefined) body.max_tokens = config.maxTokens
+  } else {
+    // 其他 provider 正常传 temperature 和 max_tokens
     if (config.temperature !== undefined) body.temperature = config.temperature
     if (config.maxTokens !== undefined) body.max_tokens = config.maxTokens
   }

@@ -2,6 +2,7 @@ import { useState, useEffect, useSyncExternalStore } from 'react'
 import { Wifi, WifiOff, Eye, EyeOff, CheckCircle, Trash2, ScrollText } from 'lucide-react'
 import { useAIConfigStore, type TestResult } from '../../stores/ai-config'
 import type { AIProvider } from '../../lib/types'
+import { PROVIDER_MODELS } from '../../lib/types'
 import { getLogs, subscribeLogs, clearLogs, formatLog } from '../../lib/ai/logger'
 
 const PROVIDER_OPTIONS: { value: AIProvider; label: string; cors: boolean; hint: string }[] = [
@@ -119,12 +120,26 @@ export default function AIConfigPanel() {
             </div>
             <div>
               <label className="block text-sm text-text-secondary mb-1.5">模型</label>
-              <input
-                type="text"
-                value={config.model}
-                onChange={(e) => setConfig({ model: e.target.value })}
-                className="w-full px-3 py-2 bg-bg-base border border-border rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent transition-colors"
-              />
+              {PROVIDER_MODELS[config.provider] ? (
+                <select
+                  value={config.model}
+                  onChange={(e) => setConfig({ model: e.target.value })}
+                  className="w-full px-3 py-2 bg-bg-base border border-border rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent transition-colors"
+                >
+                  {PROVIDER_MODELS[config.provider].map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}{m.desc ? ` — ${m.desc}` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={config.model}
+                  onChange={(e) => setConfig({ model: e.target.value })}
+                  className="w-full px-3 py-2 bg-bg-base border border-border rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent transition-colors"
+                />
+              )}
             </div>
           </div>
 
