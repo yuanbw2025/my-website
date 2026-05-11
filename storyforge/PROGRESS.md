@@ -318,21 +318,23 @@ storyforge/src/
 
 ### Bug 修复记录
 
-#### 🐛 Poe 连接 404/500 问题（05-11 最终修复）
+#### 🐛 Poe 连接 404/500/400 问题（05-11 最终修复）
 
 **现象**: 
 1. 第一次：URL 双斜杠导致 404（`https://api.poe.com/v1//chat/completions`）
 2. 第二次错误修复：添加了 isPoe 特殊逻辑用 `baseUrl/model` 格式，导致 500
+3. 第三次：错误添加 `thinking` 参数，导致 400（`thinking.enabled.budget_tokens` 错误）
+4. 第四次：移除 thinking 参数后，`max_tokens`/`temperature` 仍与 Poe 的 Claude 自动 thinking 模式冲突，导致 400
 
-**根因**: Poe API 是标准 OpenAI 兼容格式（官方文档: `https://creator.poe.com/docs/external-applications/openai-compatible-api`），不需要任何特殊处理。之前的 isPoe 适配器完全是错误的。
+**根因**: Poe API 是标准 OpenAI 兼容格式（官方文档: `https://poe.com/api`），但 Poe 对 Claude 模型自动启用 thinking 模式，此时传 `max_tokens`、`temperature` 等额外参数会导致冲突报 400。官方示例只需 `model` + `messages`。
 
 **最终修复**（05-11）:
 1. `ai.ts`: Poe 预设 baseUrl 从 `https://api.poe.com/bot` → `https://api.poe.com/v1`
-2. `ai-config.ts`: 删除所有 isPoe 逻辑，统一用 `${baseUrl}/chat/completions`
-3. `client.ts`: 删除所有 isPoe 分支，Poe 走和其他 provider 完全相同的代码路径
+2. `ai-config.ts`: 删除所有 isPoe 逻辑和 thinking 代码，测试连接只发 `model` + `messages`
+3. `client.ts`: `buildRequest()` 对 Poe provider 只发 `model` + `messages` + `stream`，不传 `temperature`/`max_tokens`；其他 provider 正常传
 4. 保留尾部斜杠标准化 `baseUrl.replace(/\/+$/, '')`
 
-**结论**: Poe = OpenAI 兼容，baseUrl `https://api.poe.com/v1`，endpoint `/chat/completions`，body 含 `model` 字段。无需任何特殊适配。
+**结论**: Poe = OpenAI 兼容格式，但对 Claude 模型有自动 thinking 处理，不能传额外参数。baseUrl `https://api.poe.com/v1`，endpoint `/chat/completions`，body 只需 `model` + `messages`。
 
 ### 当前测试状态
 

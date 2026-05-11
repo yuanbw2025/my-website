@@ -9,20 +9,28 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
   // 标准化 baseUrl：去除尾部斜杠
   const baseUrl = config.baseUrl.replace(/\/+$/, '')
 
-  // 所有 provider 统一使用 OpenAI 兼容格式（包括 Poe）
+  // 基础请求体：所有 provider 都需要的字段
+  const body: Record<string, unknown> = {
+    model: config.model,
+    messages,
+    stream,
+  }
+
+  // Poe 官方文档明确只需 model + messages，不要传额外参数
+  // （Claude 模型在 Poe 上自动启用 thinking，传 max_tokens/temperature 会冲突报 400）
+  // 其他 provider 正常传 temperature 和 max_tokens
+  if (config.provider !== 'poe') {
+    if (config.temperature !== undefined) body.temperature = config.temperature
+    if (config.maxTokens !== undefined) body.max_tokens = config.maxTokens
+  }
+
   return {
     url: `${baseUrl}/chat/completions`,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${config.apiKey}`,
     },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      stream,
-      temperature: config.temperature,
-      max_tokens: config.maxTokens,
-    }),
+    body: JSON.stringify(body),
   }
 }
 

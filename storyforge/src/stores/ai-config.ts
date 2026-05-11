@@ -90,7 +90,6 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
         body: JSON.stringify({
           model: config.model,
           messages: [{ role: 'user', content: '请回复"连接成功"' }],
-          max_tokens: 20,
         }),
       })
 
