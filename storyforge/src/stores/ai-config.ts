@@ -5,6 +5,55 @@ import { createLog, updateLog } from '../lib/ai/logger'
 
 const STORAGE_KEY = 'storyforge-ai-config'
 
+/** 根据 HTTP 状态码和英文错误信息，返回中文解释 */
+function getChineseExplanation(status: number, msg: string): string {
+  const lower = msg.toLowerCase()
+
+  // 按 HTTP 状态码
+  if (status === 401) return 'API Key 无效或已过期'
+  if (status === 402) return '账户余额不足，请充值后使用'
+  if (status === 403) return 'API Key 权限不足，无权访问该模型'
+  if (status === 404) return 'API 地址或模型名称错误，请检查 Base URL 和模型名'
+  if (status === 429) return '请求频率超限，请稍后再试'
+  if (status === 500) return '服务器内部错误，请稍后重试'
+  if (status === 502) return '网关错误，服务暂时不可用'
+  if (status === 503) return '服务暂时不可用，可能正在维护'
+
+  // 按错误信息关键词匹配
+  if (lower.includes('insufficient balance') || lower.includes('insufficient_balance'))
+    return '账户余额不足，请充值'
+  if (lower.includes('invalid api key') || lower.includes('invalid_api_key'))
+    return 'API Key 无效，请检查是否填写正确'
+  if (lower.includes('authentication') || lower.includes('unauthorized'))
+    return '认证失败，API Key 无效或已过期'
+  if (lower.includes('rate limit') || lower.includes('rate_limit'))
+    return '请求频率超限，请稍后再试'
+  if (lower.includes('model not found') || lower.includes('model_not_found'))
+    return '模型不存在，请检查模型名称是否正确'
+  if (lower.includes('context length') || lower.includes('context_length'))
+    return '输入内容超过模型最大上下文长度'
+  if (lower.includes('quota exceeded') || lower.includes('quota_exceeded'))
+    return '配额已用完'
+  if (lower.includes('server error') || lower.includes('internal error'))
+    return '服务器内部错误'
+  if (lower.includes('timeout'))
+    return '请求超时'
+  if (lower.includes('bad request'))
+    return '请求格式错误，请检查参数'
+  if (lower.includes('not found'))
+    return '接口不存在，请检查 Base URL'
+  if (lower.includes('permission denied'))
+    return '权限不足'
+  if (lower.includes('billing') || lower.includes('payment'))
+    return '账单/付款问题，请检查账户'
+  if (lower.includes('overloaded') || lower.includes('capacity'))
+    return '服务过载，请稍后重试'
+  if (lower.includes('thinking') && lower.includes('budget'))
+    return '思考模式参数冲突，请不要手动传 thinking 相关参数'
+
+  return ''
+}
+
 /** 从 localStorage 加载配置 */
 function loadConfig(): AIConfig {
   try {
@@ -104,26 +153,27 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
       }
 
       // 解析错误信息
-      let errorMsg = `HTTP ${response.status}`
+      let rawErrorMsg = `HTTP ${response.status}`
       try {
         const errJson = JSON.parse(bodyText)
-        if (errJson.error?.message) errorMsg = errJson.error.message
-        else if (errJson.message) errorMsg = errJson.message
-        else if (errJson.error_msg) errorMsg = errJson.error_msg
+        if (errJson.error?.message) rawErrorMsg = errJson.error.message
+        else if (errJson.message) rawErrorMsg = errJson.message
+        else if (errJson.error_msg) rawErrorMsg = errJson.error_msg
       } catch {
-        if (bodyText.length < 200) errorMsg += ': ' + bodyText
+        if (bodyText.length < 200) rawErrorMsg += ': ' + bodyText
       }
 
-      // 常见错误友好提示
-      if (response.status === 401) errorMsg = 'API Key 无效或已过期'
+      // 常见英文错误 → 中文翻译映射
+      const cnExplanation = getChineseExplanation(response.status, rawErrorMsg)
+
+      // HTTP 402 = 余额不足，但说明连接和认证都成功了
       if (response.status === 402) {
-        // 402 = 余额不足，但说明连接和认证都成功了
+        const msg = `${rawErrorMsg}（${cnExplanation}）`
         updateLog(log.id, { status: 'success', statusCode: response.status, duration, responseBody: bodyText.slice(0, 200) })
-        return { ok: true, message: '✅ 连接成功（账户余额不足，请充值后使用）', statusCode: response.status, duration }
+        return { ok: true, message: `✅ 连接成功 — ${msg}`, statusCode: response.status, duration }
       }
-      if (response.status === 403) errorMsg = 'API Key 权限不足'
-      if (response.status === 404) errorMsg = 'API 地址错误，请检查 Base URL'
-      if (response.status === 429) errorMsg = '请求频率超限，请稍后再试'
+
+      const errorMsg = cnExplanation ? `${rawErrorMsg}（${cnExplanation}）` : rawErrorMsg
 
       updateLog(log.id, { status: 'error', statusCode: response.status, duration, errorMessage: errorMsg, responseBody: bodyText.slice(0, 500) })
       return { ok: false, message: `❌ ${errorMsg}`, statusCode: response.status, duration }
