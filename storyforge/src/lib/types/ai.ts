@@ -50,6 +50,7 @@ export const PROVIDER_MODELS: Record<string, { value: string; label: string; des
     { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', desc: '最强，支持深度思考' },
   ],
   gemini: [
+    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)', desc: '最新，快速' },
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', desc: '快速，免费额度高' },
     { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', desc: '最强，支持思考' },
     { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: '稳定版' },
