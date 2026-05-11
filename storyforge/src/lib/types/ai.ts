@@ -74,7 +74,7 @@ export const PROVIDER_PRESETS: Record<string, Partial<AIConfig>> = {
     model: 'gemini-2.0-flash',
   },
   poe: {
-    baseUrl: 'https://api.poe.com/bot',
+    baseUrl: 'https://api.poe.com/v1',
     model: 'GPT-4o',
   },
   openai: {

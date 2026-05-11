@@ -8,26 +8,8 @@ import { createLog, updateLog } from './logger'
 function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean) {
   // 标准化 baseUrl：去除尾部斜杠
   const baseUrl = config.baseUrl.replace(/\/+$/, '')
-  const isPoe = config.provider === 'poe' || baseUrl.includes('api.poe.com')
 
-  // Poe 使用不同的 endpoint 格式: baseUrl/model
-  if (isPoe) {
-    return {
-      url: `${baseUrl}/${config.model}`,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        messages,
-        stream,
-        temperature: config.temperature,
-        max_tokens: config.maxTokens,
-      }),
-    }
-  }
-
-  // 所有 OpenAI 兼容格式的 provider（deepseek, qwen, doubao, minimax, glm, wenxin, gemini, openai, kimi, claude, ollama）
+  // 所有 provider 统一使用 OpenAI 兼容格式（包括 Poe）
   return {
     url: `${baseUrl}/chat/completions`,
     headers: {

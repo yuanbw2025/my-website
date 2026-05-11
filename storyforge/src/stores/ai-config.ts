@@ -60,13 +60,7 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
     const { config } = get()
     // 标准化 baseUrl：去除尾部斜杠
     const baseUrl = config.baseUrl.replace(/\/+$/, '')
-    const isPoe = config.provider === 'poe' || baseUrl.includes('api.poe.com')
-
-    // Poe 使用不同的 endpoint 格式: baseUrl/model
-    // 其他 provider 使用 OpenAI 兼容格式: baseUrl/chat/completions
-    const url = isPoe
-      ? `${baseUrl}/${config.model}`
-      : `${baseUrl}/chat/completions`
+    const url = `${baseUrl}/chat/completions`
     const startTime = Date.now()
 
     // 创建日志
@@ -81,7 +75,6 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
     try {
       console.log(`[AI Test] 正在测试连接...`, {
         provider: config.provider,
-        isPoe,
         baseUrl,
         url,
         model: config.model,
@@ -94,10 +87,7 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${config.apiKey}`,
         },
-        body: JSON.stringify(isPoe ? {
-          messages: [{ role: 'user', content: '请回复"连接成功"' }],
-          max_tokens: 20,
-        } : {
+        body: JSON.stringify({
           model: config.model,
           messages: [{ role: 'user', content: '请回复"连接成功"' }],
           max_tokens: 20,

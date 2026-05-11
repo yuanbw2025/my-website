@@ -280,7 +280,7 @@ storyforge/src/
 
 ## 🔧 AI 多平台接入（进行中）
 
-**开始日期**: 2026-05-09 | **当前状态**: 日志系统 ✅ + DeepSeek ✅ + Poe 适配 ✅ (bug修复 05-09 21:55)
+**开始日期**: 2026-05-09 | **当前状态**: 日志系统 ✅ + DeepSeek ✅ + Poe ✅ (05-11 修复为 OpenAI 兼容格式)
 
 ### 目标
 纯前端工具，用户自配 API Key，浏览器直接调用 AI API（无需后端服务器）。
@@ -290,7 +290,7 @@ storyforge/src/
 | # | 平台 | Base URL | CORS | 状态 |
 |---|------|---------|------|------|
 | 1 | DeepSeek | `https://api.deepseek.com/v1` | ✅ | ✅ 已完成 |
-| 2 | Poe | `https://api.poe.com/bot` | ✅ | ✅ 已完成（需适配器） |
+| 2 | Poe | `https://api.poe.com/v1` | ✅ | ✅ 已完成（标准 OpenAI 兼容） |
 | 3 | 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | ✅ | 🔜 待测试 |
 | 4 | 豆包 | `https://ark.cn-beijing.volces.com/api/v3` | ✅ | 🔜 待测试 |
 | 5 | MiniMax | `https://api.minimax.chat/v1` | ✅ | 🔜 待测试 |
@@ -318,28 +318,28 @@ storyforge/src/
 
 ### Bug 修复记录
 
-#### 🐛 Poe 连接 404 问题（05-09 21:55 修复）
+#### 🐛 Poe 连接 404/500 问题（05-11 最终修复）
 
-**现象**: 选择 Poe 提供商后测试连接，日志显示请求发到 `https://api.poe.com/v1//chat/completions`（404），未走 Poe 适配路径。
+**现象**: 
+1. 第一次：URL 双斜杠导致 404（`https://api.poe.com/v1//chat/completions`）
+2. 第二次错误修复：添加了 isPoe 特殊逻辑用 `baseUrl/model` 格式，导致 500
 
-**根因**:
-1. 用户手动将 Base URL 改为 `https://api.poe.com/v1/`（末尾带 `/`），拼接后产生双斜杠 `//`
-2. `config.provider === 'poe'` 判断在某些场景下未生效（可能是 localStorage 中存储的旧值问题）
+**根因**: Poe API 是标准 OpenAI 兼容格式（官方文档: `https://creator.poe.com/docs/external-applications/openai-compatible-api`），不需要任何特殊处理。之前的 isPoe 适配器完全是错误的。
 
-**修复**（commit `c5fcc0e`）:
-- `ai-config.ts` + `client.ts` 两处同步修复：
-  - 添加 URL 标准化：`baseUrl.replace(/\/+$/, '')` 去除尾部斜杠
-  - 添加域名兜底检测：`baseUrl.includes('api.poe.com')` — 即使 provider 字段有问题，只要 URL 含 poe 域名就走 Poe 格式
-  - Poe 请求格式：`{baseUrl}/{model}`（不含 `/chat/completions`）
+**最终修复**（05-11）:
+1. `ai.ts`: Poe 预设 baseUrl 从 `https://api.poe.com/bot` → `https://api.poe.com/v1`
+2. `ai-config.ts`: 删除所有 isPoe 逻辑，统一用 `${baseUrl}/chat/completions`
+3. `client.ts`: 删除所有 isPoe 分支，Poe 走和其他 provider 完全相同的代码路径
+4. 保留尾部斜杠标准化 `baseUrl.replace(/\/+$/, '')`
 
-**验证方法**: 在设置页重新切换到 Poe（会重置 Base URL 为 `https://api.poe.com/bot`），输入 Key 后测试连接。
+**结论**: Poe = OpenAI 兼容，baseUrl `https://api.poe.com/v1`，endpoint `/chat/completions`，body 含 `model` 字段。无需任何特殊适配。
 
 ### 当前测试状态
 
 | 平台 | 状态 | 备注 |
 |------|------|------|
 | DeepSeek | ✅ 连通 | HTTP 402 = 余额不足（非代码问题） |
-| Poe | 🔧 已修复待验证 | 需用户重新切换 provider 或手动改 Base URL 为 `https://api.poe.com/bot` |
+| Poe | ✅ 已修复 | OpenAI 兼容格式，baseUrl=`https://api.poe.com/v1` |
 | 通义千问 | 🔜 待测试 | — |
 | 豆包 | 🔜 待测试 | — |
 | MiniMax | 🔜 待测试 | — |
@@ -356,7 +356,7 @@ storyforge/src/
 ### 开发 Tips
 - 选择 DeepSeek → 输入 key → 测试连接 → 如果显示 "Insufficient Balance" 说明连接成功但余额不足
 - 点「日志」按钮可查看完整请求日志（URL、HTTP 状态码、耗时、错误信息）
-- Poe 的 API 格式不同：endpoint 是 `baseUrl/{model}` 而非 `baseUrl/chat/completions`
+- Poe 是标准 OpenAI 兼容格式，和 DeepSeek 等完全一致，无需特殊处理
 - **⚠️ 如果切换 provider 后 Base URL 没变**，说明 localStorage 里有旧配置。可以在浏览器 DevTools → Application → Local Storage → 删除 `storyforge-ai-config` 重来
 
 ---
