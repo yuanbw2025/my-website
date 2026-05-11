@@ -121,17 +121,25 @@ export default function AIConfigPanel() {
             <div>
               <label className="block text-sm text-text-secondary mb-1.5">模型</label>
               {PROVIDER_MODELS[config.provider] ? (
-                <select
-                  value={config.model}
-                  onChange={(e) => setConfig({ model: e.target.value })}
-                  className="w-full px-3 py-2 bg-bg-base border border-border rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent transition-colors"
-                >
-                  {PROVIDER_MODELS[config.provider].map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}{m.desc ? ` — ${m.desc}` : ''}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    value={config.model}
+                    onChange={(e) => setConfig({ model: e.target.value })}
+                    className="w-full px-3 py-2 bg-bg-base border border-border rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent transition-colors"
+                  >
+                    {PROVIDER_MODELS[config.provider].map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.value}
+                      </option>
+                    ))}
+                  </select>
+                  {(() => {
+                    const selected = PROVIDER_MODELS[config.provider]?.find((m) => m.value === config.model)
+                    return selected?.desc ? (
+                      <p className="mt-1 text-xs text-text-muted">{selected.desc}</p>
+                    ) : null
+                  })()}
+                </>
               ) : (
                 <input
                   type="text"
