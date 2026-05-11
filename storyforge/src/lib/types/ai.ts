@@ -49,6 +49,11 @@ export const PROVIDER_MODELS: Record<string, { value: string; label: string; des
     { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', desc: '快速，性价比高' },
     { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', desc: '最强，支持深度思考' },
   ],
+  gemini: [
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', desc: '快速，免费额度高' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', desc: '最强，支持思考' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: '稳定版' },
+  ],
   poe: [
     { value: 'GPT-4o', label: 'GPT-4o' },
     { value: 'Claude-Sonnet-4.6', label: 'Claude Sonnet 4.6' },
@@ -87,7 +92,7 @@ export const PROVIDER_PRESETS: Record<string, Partial<AIConfig>> = {
   },
   gemini: {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
   },
   poe: {
     baseUrl: 'https://api.poe.com/v1',
