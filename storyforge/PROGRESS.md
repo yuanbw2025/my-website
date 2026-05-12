@@ -1,6 +1,6 @@
 # StoryForge / 故事熔炉 — 开发进度文档
 
-> **最后更新**: 2026-05-09 21:57 | **当前阶段**: Phase 2 ✅ + Design System v2 ✅ + AI 多平台接入 🔧 进行中
+> **最后更新**: 2026-05-11 21:45 | **当前阶段**: Phase 18 ✅ 大文档分块导入流水线上线
 
 ---
 
@@ -360,6 +360,88 @@ storyforge/src/
 - 点「日志」按钮可查看完整请求日志（URL、HTTP 状态码、耗时、错误信息）
 - Poe 是标准 OpenAI 兼容格式，和 DeepSeek 等完全一致，无需特殊处理
 - **⚠️ 如果切换 provider 后 Base URL 没变**，说明 localStorage 里有旧配置。可以在浏览器 DevTools → Application → Local Storage → 删除 `storyforge-ai-config` 重来
+
+---
+
+## ✅ Phase 18 — 大文档分块导入流水线（已完成）
+
+**完成日期**: 2026-05-11 | **触发需求**: 用户上传 1.6M 字符的《知北游》报 "AI 输出无法解析为 JSON"（被 maxTokens 截断），要求：支持千万字文档、断点续跑、自动重试、全程可视化。
+
+### 架构总览
+```
+用户上传文件
+  │
+  ├─► doc-parser (txt/md/csv/pdf/docx) → 纯文本
+  │
+  ├─► chunker.chunkDocument() ──► ChunkPlan[]（章节/段落/硬切三级）
+  │
+  ├─► ImportConfirmModal   ——「事前请示」告知块数/时间/tokens/费用
+  │     │
+  │     └─► useImportSessionStore.create()  ←─ session + 每块元数据写 DB
+  │           │
+  │           └─► pipeline.registerChunkTexts(session.id, plans) ← 原文存内存
+  │                 │
+  │                 └─► pipeline.runSession({sessionId, projectId}) ──串行──►
+  │                        for each chunk:
+  │                           render "import.parse-chunk" seed (含 rollingContext)
+  │                           chat(messages, config)  ← 非流式 + AbortController
+  │                           applyChunkResult() → 即时写 worldview/characters/outline
+  │                           更新 rollingContext（最近40角色+世界观关键词）
+  │                           失败自动重试 3 次
+  │                        每 10 块 + 终末：runCharacterMerge()  ←「import.merge-characters」
+  │                        finalReport → ImportReportModal「事后汇报」
+  │
+  └─► UI 订阅 useImportStatusStore → ImportStatusBar / ProgressPanel / ActivityLog
+```
+
+### 新增文件清单
+| 文件 | 作用 |
+|------|------|
+| `src/lib/types/import-session.ts` | ImportSession / ChunkState / ImportLog 类型 |
+| `src/lib/types/import-session-data.ts` | UnifiedParseResult（拆分出来避免循环依赖） |
+| `src/lib/import/chunker.ts` | `chunkDocument()` 章节→段落→硬切三级切块 + `quickHash()` |
+| `src/lib/import/pipeline.ts` | 核心流水线：runSession / pause / cancel / retryFailedChunks + 跨块合并 + in-memory 原文注册 |
+| `src/stores/import-session.ts` | Dexie 会话 CRUD store |
+| `src/stores/import-status.ts` | 全局 pipeline 状态（phase / counts / activity / fatalError） |
+| `src/components/system/import/ImportStatusBar.tsx` | 顶部常驻进度条 |
+| `src/components/system/import/ImportProgressPanel.tsx` | N 块网格视图（hover 查明细） |
+| `src/components/system/import/ImportActivityLog.tsx` | 内存 200 条滚动日志 |
+| `src/components/system/import/ImportConfirmModal.tsx` | 解析前确认弹窗（chunkSize 可调、显示时长/token/费用预估） |
+| `src/components/system/import/ImportReportModal.tsx` | 解析后汇报弹窗 + 重试失败块 |
+
+### 修改文件
+| 文件 | 变更 |
+|------|------|
+| `src/lib/types/prompt.ts` | PromptModuleKey 增加 `import.parse-chunk` / `import.merge-characters` |
+| `src/lib/ai/prompt-seeds.ts` | 新增 2 个 seed |
+| `src/lib/db/schema.ts` | v9：新增 `importSessions`、`importLogs` 两张表 |
+| `src/lib/types/index.ts` | 导出 import-session 类型 |
+| `src/lib/ai/adapters/import-adapter.ts` | `UnifiedParseResult` 移到共享文件（保留 re-export） |
+| `src/components/system/ImportDocPanel.tsx` | 完全重写，编排整套流水线 + 未完成会话扫描 + 续跑 |
+| `vite.config.ts` | workbox `maximumFileSizeToCacheInBytes` 放宽到 5 MiB |
+
+### 关键决策
+1. **串行（非并发）** — 用户原话"慢点就慢点，保证不断就行"。避免并发触发 rate limit 和 prompt 乱序。
+2. **即时入库而非批量写** — 每块成功后立即写 worldview/characters/outlineNodes，用户切 Tab 也能看到进度。标签页和其他模块实时可见。
+3. **原文只存内存** — `ImportSession.chunks` 只保存 start/end/label 元数据。原文由 `registerChunkTexts()` 放 `IN_MEM_CHUNK_TEXT` 字典。理由：
+   - IndexedDB 存 1.6M 字符×N 次写回太慢
+   - 跑完后自动 `clearChunkTexts` 释放内存
+   - 代价：浏览器关闭后续跑需要重新上传同文件（UI 有明确提示 + hash 比对）
+4. **滚动上下文（~1500 字）** — 每块解析完，取累计角色的最近 40 名 + 世界观关键词，塞给下一块的 prompt。避免一个人被解析成多个名字。
+5. **跨块 AI 合并** — 每 10 块 + 终末跑一次 `import.merge-characters` seed，让 AI 找同名/别名。合并时保留 canonical，其他条目的文字内容 append 进来，别名写进 relationships 附记。
+6. **三种失败处理层次**
+   - 单块失败 → 自动重 3 次（1.5s 间隔）
+   - 所有重试失败 → 标记 failed，继续下一块
+   - 全部跑完 → ReportModal 显示失败块，可"仅重试失败块"按钮
+
+### 用户感知基础设施（事前/事中/事后）
+- **事前请示**：ImportConfirmModal 明确告知块数、时长、token、费用预估，以及「串行/即时入库/自动重试/跨块合并」四条行为说明
+- **事中透明**：顶部 StatusBar + ProgressPanel 网格（hover tooltip 看每块细节） + ActivityLog 滚动 200 条 + 暂停/恢复/取消按钮
+- **事后汇报**：ReportModal 显示成功/失败块数、累计入库计数、失败明细与错误信息、可选重试
+
+### 已知限制
+- 浏览器关闭后页面内存里的原文丢失，续跑需要重新上传同一文件（UI 提示 + hash 比对）
+- 串行处理：1000 块文档约需 10 小时（单块约 35s）。用户已批准"慢点就慢点"
 
 ---
 

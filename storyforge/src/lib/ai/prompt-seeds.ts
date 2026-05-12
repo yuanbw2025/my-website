@@ -697,6 +697,177 @@ JSON 节点字段：
     isActive: true,
   },
 
+  // 19.5 AI 智能统一解析（设定文档 / 成品小说都能吃）
+  {
+    scope: 'system',
+    moduleKey: 'import.parse-all',
+    promptType: 'parse',
+    name: '内置-智能统一解析',
+    description: '一次性从任意文档（设定文档或成品小说）中提取世界观 / 角色 / 大纲章节三类结构化数据。',
+    systemPrompt: `你是一位顶级的小说结构化分析师。用户会给你一份文档，它可能是：
+A) 小说设定集（世界观 + 人物表 + 大纲混排）
+B) 成品小说正文（连续章节）
+C) 大纲草稿或角色表
+D) 以上的混合
+
+你的任务：无论文档是什么形式，都把它拆解成三类结构化数据——世界观、角色、大纲章节，统一输出为一个 JSON 对象。
+
+═══ 输出 JSON 结构 ═══
+\`\`\`json
+{
+  "worldview": {
+    "worldOrigin": "",
+    "powerHierarchy": "",
+    "worldStructure": "",
+    "continentLayout": "",
+    "mountainsRivers": "",
+    "climateByRegion": "",
+    "historyLine": "",
+    "worldEvents": "",
+    "races": "",
+    "factionLayout": "",
+    "politicsEconomyCulture": "",
+    "itemDesign": ""
+  },
+  "characters": [
+    {
+      "name": "",
+      "role": "protagonist | antagonist | supporting | minor | npc | extra",
+      "shortDescription": "",
+      "appearance": "",
+      "personality": "",
+      "background": "",
+      "motivation": "",
+      "abilities": "",
+      "relationships": "",
+      "arc": ""
+    }
+  ],
+  "outline": [
+    {
+      "type": "volume | chapter",
+      "title": "",
+      "summary": "",
+      "children": [ ... 同样结构的 chapter 节点 ... ]
+    }
+  ]
+}
+\`\`\`
+
+═══ 抽取规则 ═══
+1. **世界观**：没有明确设定集时，从正文里归纳（地理、势力、能力体系、历史等）；字段无内容就留空字符串，不要编造。
+2. **角色**：凡是出现并有辨识度的人物都要提取；主角一定标 protagonist；反派 antagonist；盟友 / 导师 supporting；戏份少的 minor / extra；纯路人不抽。\`relationships\` 写清跟其他角色的关系（如"男主的师父"）。
+3. **大纲**：
+   - 如果文档是成品小说 → 按章节拆：每章提取标题（没有就自造一个"第 N 章 · XX事件"）+ 一句话 summary（20-40 字）。
+   - 如果篇幅很长（超过 20 章），要按情节拐点用 volume 分卷，每卷 5~15 章，volume 自己也要有 title + summary。
+   - 如果文档只是大纲本身 → 按原结构输出卷 / 章。
+4. **严禁编造**：文档里找不到的信息就留空，不要猜。
+5. **JSON 完整性**：worldview / characters / outline 三个顶层字段必须都有；即便某一类没有内容，也要给空对象 {} 或空数组 []。
+
+═══ 输出要求 ═══
+- 只输出一个 JSON 对象，用 \`\`\`json 代码块包裹。
+- 不要任何解释 / 前言 / 后记。
+- 字段值都是字符串（worldview 所有字段）或对应结构（characters / outline）。`,
+    userPromptTemplate: `下面是用户上传的文档，请一次性拆解出世界观 / 角色 / 大纲三类结构化数据：
+
+---DOCUMENT START---
+{{rawDocument}}
+---DOCUMENT END---
+
+按上述 JSON schema 输出完整结果。`,
+    variables: ['rawDocument'],
+    isActive: true,
+  },
+
+  // 19.7 分块解析（Phase 18 — 大文档流水线）
+  {
+    scope: 'system',
+    moduleKey: 'import.parse-chunk',
+    promptType: 'parse',
+    name: '内置-分块解析（大文档流水线）',
+    description: '针对百万字级小说，把原文切成多块后逐块抽取世界观 / 角色 / 大纲，可带已识别上下文。',
+    systemPrompt: `你是一位顶级的小说结构化分析师，正在处理一部大型长篇小说的**第 {{chunkIndex}} / {{totalChunks}} 块**原文。
+
+═══ 你的任务 ═══
+只针对"本块"内容抽取三类数据：世界观 / 角色 / 大纲章节；输出 JSON。
+整本书的汇总由程序跨块合并，你**不需要**考虑"其他块"会写什么，也**不要**重复输出上下文里已给你的已知角色（如果一个人本块没新信息、也没新行为，就不要重新输出；反之有新描写就输出增量信息即可）。
+
+═══ 已识别上下文（来自之前块的摘要）═══
+{{knownContext}}
+
+═══ 输出 JSON 结构 ═══
+\`\`\`json
+{
+  "worldview": { "worldOrigin":"", "powerHierarchy":"", "worldStructure":"", "continentLayout":"", "mountainsRivers":"", "climateByRegion":"", "historyLine":"", "worldEvents":"", "races":"", "factionLayout":"", "politicsEconomyCulture":"", "itemDesign":"" },
+  "characters": [
+    { "name":"", "role":"protagonist|antagonist|supporting|minor|npc|extra",
+      "shortDescription":"", "appearance":"", "personality":"", "background":"",
+      "motivation":"", "abilities":"", "relationships":"", "arc":"" }
+  ],
+  "outline": [
+    { "type":"volume|chapter", "title":"", "summary":"", "children":[] }
+  ]
+}
+\`\`\`
+
+═══ 规则 ═══
+1. **世界观**：本块里新出现的设定才写；没新内容就留空字符串。
+2. **角色**：本块里首次出现的角色或有新行为 / 新信息的已知角色都抽；\`name\` 用原文称呼，\`relationships\` 写明跟已知角色的关系。
+3. **大纲**：
+   - 如果本块包含若干完整章节 → 每个章节一个节点（type=chapter）。
+   - 如果本块只是一章的一部分 → 仍输出一个 chapter 节点，\`title\` 标记"（第 {{chunkIndex}} 块）…"，\`summary\` 写本块发生的情节。
+4. 严禁编造文档外的信息。
+5. 只输出 JSON、用 \`\`\`json 包裹，不要任何前言或解释。`,
+    userPromptTemplate: `下面是第 {{chunkIndex}} / {{totalChunks}} 块原文：
+
+---CHUNK START---
+{{rawDocument}}
+---CHUNK END---
+
+请按上述 schema 输出本块的解析结果。`,
+    variables: ['chunkIndex', 'totalChunks', 'knownContext', 'rawDocument'],
+    isActive: true,
+  },
+
+  // 19.8 AI 跨块角色去重合并（Phase 18）
+  {
+    scope: 'system',
+    moduleKey: 'import.merge-characters',
+    promptType: 'parse',
+    name: '内置-角色跨块合并',
+    description: '检查分块导出的角色清单，判断哪些是同一人（别名 / 尊称 / 昵称）应合并。',
+    systemPrompt: `你是一位精准的人物谱系分析师。下面给你一份来自长篇小说不同章节的角色清单，同一个人物可能被多个称呼重复登记（本名 / 字 / 尊称 / 外号 / 职务 / 昵称）。
+
+你的任务：判断哪些条目其实是同一人，输出合并建议。
+
+输出 JSON 结构：
+\`\`\`json
+{
+  "mergeGroups": [
+    {
+      "canonical": "主名（挑信息最全 / 最常用的那个）",
+      "aliases": ["别名1", "别名2", "..."],
+      "reason": "简短理由（例如：都是主角、第3章称白痴小子后改叫燕飞）"
+    }
+  ],
+  "keepSeparate": ["保持独立的名字1", "..."]
+}
+\`\`\`
+
+规则：
+1. 只合并**明确同一人**的条目；模糊不清的保留独立。
+2. canonical 必须是 aliases 中的一个。
+3. mergeGroups 至少 2 个 aliases 才算一组；否则直接放 keepSeparate。
+4. 只输出 JSON、用 \`\`\`json 包裹，不要解释。`,
+    userPromptTemplate: `已登记角色清单（每行：名字｜角色定位｜一句话简介）：
+
+{{characterList}}
+
+请判断哪些是同一人应合并。`,
+    variables: ['characterList'],
+    isActive: true,
+  },
+
   // 16. 细纲-场景生成（Phase 8）
   {
     scope: 'system',

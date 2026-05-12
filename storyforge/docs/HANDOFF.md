@@ -2,10 +2,56 @@
 
 > **本文档是 AI 助手换机/换会话时的唯一交接依据。**
 > 任何新 Claude / Sonnet / Gemini 会话第一件事必须完整读完此文档。
-> 最近更新：**Phase 1-11 全部完成** — v3 重构已落地。
-> 由 Opus 4.7 撰写、维护至 2026-05-07。
+> 最近更新：**Phase 18 大文档分块导入流水线已落地**（2026-05-11）。
+> 由 Opus 4.7 撰写，Sonnet 4.7 续写到 2026-05-11。
 
 ---
+
+## 0.1 最新进展速报（Phase 18 — 2026-05-11）
+
+### 背景问题
+上传《知北游》1.6M 字 txt 触发「AI 输出无法解析为 JSON」—— 根因是 AI 单次输出被 maxTokens 截断。
+旧流程：整篇文档一次性塞给 AI → JSON 必然截断。
+
+### 解决方案：分块流水线（断点续传 + 千万字级）
+- **旧路径已废弃**：`ImportDocPanel.tsx` 已完全重写为「上传 → 分块预估 → 用户确认 → 逐块串行解析 → 实时落库 → 最终角色合并 → 完成/失败报告」
+- **关键限制**：浏览器关闭后恢复需用户重新上传同一文件（chunk 原文只存在内存中的 `IN_MEM_CHUNK_TEXT`，DB 只存元数据 + 每块的 hash）
+- **可恢复**：基于 hash 匹配，用户上传后系统会自动识别未完成 session 并询问是否续跑
+- **AI 去重**：每 10 块 + 最终一次，调用 `import.merge-characters` 合并跨块人物
+
+### 新增/修改文件清单
+```
+src/lib/types/import-session.ts              ← 新增
+src/lib/types/import-session-data.ts         ← 新增（UnifiedParseResult，避免循环依赖）
+src/lib/types/prompt.ts                      ← +'import.parse-chunk' | 'import.merge-characters'
+src/lib/ai/prompt-seeds.ts                   ← +2 条 system seed
+src/lib/ai/adapters/import-adapter.ts        ← re-export UnifiedParseResult
+src/lib/db/schema.ts                         ← v9：+importSessions / +importLogs
+src/lib/import/chunker.ts                    ← 新增：3 层回退切块 + quickHash
+src/lib/import/pipeline.ts                   ← 新增：runSession/pause/cancel/retryFailed
+src/stores/import-session.ts                 ← 新增：Dexie CRUD + findUnfinished
+src/stores/import-status.ts                  ← 新增：pipeline phase/counts/activity（max 200）
+src/components/system/import/ImportStatusBar.tsx        ← 新增
+src/components/system/import/ImportProgressPanel.tsx    ← 新增：N 格进度矩阵
+src/components/system/import/ImportActivityLog.tsx      ← 新增
+src/components/system/import/ImportConfirmModal.tsx     ← 新增：事前预估（时长/token/费用）
+src/components/system/import/ImportReportModal.tsx      ← 新增：事后报告 + 重试失败块
+src/components/system/ImportDocPanel.tsx     ← 完全重写为新流水线入口
+vite.config.ts                               ← workbox maximumFileSizeToCacheInBytes: 5MiB
+docs/playbooks/PHASE-18-import-pipeline.md   ← 新增：完整架构说明
+PROGRESS.md                                  ← +Phase 18 章节
+```
+
+### 验收
+- ✅ `npx tsc --noEmit` 通过
+- ✅ `npm run build` 通过（PWA v1.2.0, 8 entries）
+- ⏳ 真实 1.6M 字 txt 端到端跑通 —— 待用户本地验证
+
+### 架构详文
+参见 [`docs/playbooks/PHASE-18-import-pipeline.md`](./playbooks/PHASE-18-import-pipeline.md)
+
+---
+
 
 ## 0. 给新会话的开场指令模板
 

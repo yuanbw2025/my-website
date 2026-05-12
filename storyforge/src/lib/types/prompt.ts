@@ -35,6 +35,9 @@ export type PromptModuleKey =
   | 'import.parse-character'
   | 'import.parse-worldview'
   | 'import.parse-outline'
+  | 'import.parse-all'
+  | 'import.parse-chunk'
+  | 'import.merge-characters'
 
 /** 模板可调参数定义（Phase 12） */
 export interface PromptParameter {

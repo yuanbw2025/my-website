@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { streamChat } from '../lib/ai/client'
 import { useAIConfigStore } from '../stores/ai-config'
-import type { ChatMessage } from '../lib/types'
+import type { AIConfig, ChatMessage } from '../lib/types'
 
 export interface UseAIStreamReturn {
   /** 当前累积的输出文本 */
@@ -10,13 +10,18 @@ export interface UseAIStreamReturn {
   isStreaming: boolean
   /** 错误信息 */
   error: string | null
-  /** 开始流式生成 */
-  start: (messages: ChatMessage[]) => Promise<string>
+  /**
+   * 开始流式生成。
+   * @param messages 聊天消息
+   * @param overrideConfig 临时覆盖的配置片段（例如导入面板需要 maxTokens=16384）
+   */
+  start: (messages: ChatMessage[], overrideConfig?: Partial<AIConfig>) => Promise<string>
   /** 停止生成 */
   stop: () => void
   /** 重置状态 */
   reset: () => void
 }
+
 
 /**
  * 流式 AI 输出 Hook
@@ -40,7 +45,10 @@ export function useAIStream(): UseAIStreamReturn {
     setError(null)
   }, [stop])
 
-  const start = useCallback(async (messages: ChatMessage[]): Promise<string> => {
+  const start = useCallback(async (
+    messages: ChatMessage[],
+    overrideConfig?: Partial<AIConfig>,
+  ): Promise<string> => {
     // 重置状态
     setOutput('')
     setError(null)
@@ -49,7 +57,11 @@ export function useAIStream(): UseAIStreamReturn {
     const controller = new AbortController()
     abortRef.current = controller
 
-    const config = useAIConfigStore.getState().config
+    const baseConfig = useAIConfigStore.getState().config
+    const config: AIConfig = overrideConfig
+      ? { ...baseConfig, ...overrideConfig }
+      : baseConfig
+
 
     if (!config.apiKey) {
       const errMsg = '请先在「设置」中配置 AI API Key'

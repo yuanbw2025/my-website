@@ -20,6 +20,7 @@ import type {
 import type { PromptTemplate } from '../types/prompt'
 import type { DetailedOutline } from '../types/detailed-outline'
 import type { ImportJob } from '../types/import-job'
+import type { ImportSession, ImportLog } from '../types/import-session'
 import type { PromptWorkflow } from '../types/workflow'
 
 class StoryForgeDB extends Dexie {
@@ -42,6 +43,8 @@ class StoryForgeDB extends Dexie {
   promptTemplates!: Table<PromptTemplate>
   detailedOutlines!: Table<DetailedOutline>
   importJobs!: Table<ImportJob>
+  importSessions!: Table<ImportSession>
+  importLogs!: Table<ImportLog>
   promptWorkflows!: Table<PromptWorkflow>
 
   constructor() {
@@ -93,6 +96,12 @@ class StoryForgeDB extends Dexie {
     // v8: 提示词工作流（Phase 16）
     this.version(8).stores({
       promptWorkflows: '++id, scope, isDefault, updatedAt',
+    })
+
+    // v9: 大文档分块导入流水线（Phase 18）
+    this.version(9).stores({
+      importSessions: '++id, projectId, status, updatedAt, fileHash',
+      importLogs: '++id, sessionId, chunkIndex, createdAt',
     })
   }
 }
