@@ -38,6 +38,8 @@ export type PromptModuleKey =
   | 'import.parse-all'
   | 'import.parse-chunk'
   | 'import.merge-characters'
+  // —— Phase 19 作品学习 ——
+  | 'master.analyze-chunk'
 
 /** 模板可调参数定义（Phase 12） */
 export interface PromptParameter {

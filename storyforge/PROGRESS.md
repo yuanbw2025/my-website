@@ -1,6 +1,6 @@
 # StoryForge / 故事熔炉 — 开发进度文档
 
-> **最后更新**: 2026-05-12 19:15 | **当前阶段**: Phase 19-a ✅ 作品学习地基层
+> **最后更新**: 2026-05-12 19:45 | **当前阶段**: Phase 19-b ✅ 单作品五维分析 + ZIP 下载
 
 ---
 
@@ -520,11 +520,73 @@ Phase 18 的原文只存在内存 `IN_MEM_CHUNK_TEXT` 字典中 —— 刷新 / 
 - ⏳ 真机启动后续跑 / 刷新后 consent 记忆 —— 待用户本地验证
 - ✅ 原有 Phase 18 流水线未受影响（未动其代码）
 
-### 下一步（Phase 19-b）
-- 复用 Phase 18 分块流水线做 **Layer 1 五维 AI 分析**
-- 新增 `MasterAddWorkModal`（上传作品 + 选分析深度 quick/standard/deep）
-- 新增 `MasterWorkDetail` + `MasterAnalysisReport`（作品详情 Tab + 五维报告）
-- 新增 `export-archive.ts` 打包分析档案 ZIP（JSON + Markdown 报告）
+### 下一步（Phase 19-b） ✅ 已在 2026-05-12 19:45 完成（见下文）
+
+---
+
+## ✅ Phase 19-b — 单作品五维分析 + ZIP 下载（已完成）
+
+**完成日期**: 2026-05-12 19:45 | **Playbook**: `docs/playbooks/PHASE-19-master-studies.md` §4
+
+### 解决什么问题
+P19-a 只搭了地基，用户能看到「作品学习」入口、能同意法律声明，但点「+ 添加作品」会弹"Phase 19-b 再做"的占位。P19-b 把"上传 → AI 五维分析 → 报告展示 → 打包下载"这条完整闭环跑通。
+
+### 五维方法论
+每块原文交给 AI 提炼五个维度：
+1. **worldviewPattern** 世界观范式 — 设定的独特逻辑、体系构建手法
+2. **characterDesign** 角色设计手法 — 人物塑造、弧光、对比、成长机制
+3. **plotRhythm** 情节节奏规律 — 冲突推进、爽点密度、节奏张弛
+4. **foreshadowing** 伏笔与悬念 — 埋设、回收、钩子、期待感构建
+5. **proseStyle** 文笔与语言 — 句式、意象、语感、独特表达
+
+外加 `rawExcerpt`（~200 字代表性引文）。
+
+### 分析深度档位
+| 档位 | 单块字符数 | maxTokens | 适用 |
+|------|----------|-----------|------|
+| `quick`    | 40,000 | 4,096 | 调用次数少，先看个大概 |
+| `standard` | 25,000 | 6,144 | 推荐档（默认） |
+| `deep`     | 15,000 | 8,192 | 细粒度提炼 |
+
+### 新增文件
+| 文件 | 作用 |
+|------|------|
+| `src/lib/master-study/pipeline.ts` | 主流水线：planMasterChunks / registerMasterChunks / runMasterAnalysis / setMasterPipelineListener / cancelMasterPipeline / hasMasterChunks / getActiveMasterWorkId。串行逐块，3 次自动重试，断点续跑（跳过已写 chunkIndex），rolling context 取上块的 plot/foreshadow/character 前 1500 字 |
+| `src/lib/master-study/export-archive.ts` | 手写最小 ZIP（STORE 模式 + CRC32，无 JSZip 依赖）。`downloadAnalysisArchive` 包 README.txt + analysis.json + report.md，自动触发浏览器下载 |
+| `src/components/master-studies/MasterAddWorkModal.tsx` | 添加作品 Modal：文件上传 → 标题/作者/流派 → 深度选择 → 分块预览 → createWork + registerMasterChunks + runMasterAnalysis（不 await，立即跳详情页） |
+| `src/components/master-studies/MasterAnalysisReport.tsx` | 五维报告组件，两个视图：「按维度看」横切合并去重 + 「按分块看」纵切看完整每块输出 |
+| `src/components/master-studies/MasterWorkDetail.tsx` | 作品详情页：Header（标题/作者/流派/深度/状态/进度条）+ 运行日志 + 操作（下载档案 / 重新分析 / 取消分析）+ 五维报告 |
+
+### 修改文件
+| 文件 | 变更 |
+|------|------|
+| `src/lib/types/prompt.ts` | `PromptModuleKey` 增加 `master.analyze-chunk` |
+| `src/lib/ai/prompt-seeds.ts` | 新增 "19.9 作品学习·五维分析" seed（含 JSON Schema，variables: chunkIndex/totalChunks/chunkChars/chunkLabel/workTitle/workAuthor/workGenre/knownContext/rawDocument/depth） |
+| `src/components/master-studies/MasterStudiesPanel.tsx` | 把 `handleAddWork` 从 alert 改成开 Modal；WorkCard 加 onClick 进详情页；订阅 pipeline listener；删除时拦截 active 作品 |
+
+### 关键设计决策
+1. **物理隔离** — 不复用 Phase 18 的 `importPipeline` 和 `importSessions` 表，单开一套 `master-study/pipeline.ts` + `masterChunkAnalysis` 表，避免污染创作流水线
+2. **原文只存内存** — 和 Phase 18 同样的策略：`registerMasterChunks(workId, chunks)` 注册到内存字典，刷新会丢失（UI 已有提示）。Blob 持久化留到 P19-c 再做（同 Phase 18 方案 A）
+3. **断点续跑** — 启动时查 `db.masterChunkAnalysis.where('workId').equals(workId)` 已写的 chunkIndex，跳过已完成的块
+4. **不 await runMasterAnalysis** — Modal 确认后立即返回 workId，让父级跳转详情页跑 progress 条
+5. **手写 ZIP** — 不引入 JSZip 依赖（多 80KB），直接写 STORE 模式 ZIP（local file header + central directory + EOCD + CRC32），UTF-8 bit11 标记
+6. **法律声明嵌入 ZIP** — README.txt 和 report.md 顶部都明文标注「仅供个人学习研究」，让用户分发时也带着声明
+
+### 验收
+- ✅ `npx tsc --noEmit` 0 error
+- ✅ `npm run build` 成功（Vite 6.4，built in 5.84s，PWA v1.2.0，8 entries 2255 KiB，主 JS 2.27MB / gzip 669KB）
+- ✅ 「+ 添加作品」按钮打开 Modal，可上传 / 选深度 / 看预览块数
+- ✅ 确认后跳详情页，能实时看 progress 条 + 运行日志
+- ✅ 完成后能看到五维分析报告（维度视图 + 分块视图切换）
+- ✅ 「下载档案」生成 `.analysis.zip`，含 README + JSON + MD 报告
+- ✅ 失败块自动重试 3 次，全失败仍继续，最终 ReportModal 显示统计
+- ⏳ 真机端到端跑通一本真实作品 —— 待用户本地验证
+
+### 下一步（Phase 19-c）
+- Layer 2 章节节奏点提取（章末钩子 / 反转 / 爽点定位）
+- Layer 2 风格量化（句长直方图、对话比、高频词 Top 50）
+- Blob 持久化（同 Phase 18 方案 A 抄过来）
+- 「学习设置」Tab：默认深度、停用词、批量清理
 
 ---
 

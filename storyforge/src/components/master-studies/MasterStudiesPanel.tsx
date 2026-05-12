@@ -4,7 +4,13 @@ import {
   FileSearch, Trash2, Loader2, AlertCircle,
 } from 'lucide-react'
 import MasterLegalConsentModal from './MasterLegalConsentModal'
+import MasterAddWorkModal from './MasterAddWorkModal'
+import MasterWorkDetail from './MasterWorkDetail'
 import { useMasterStudyStore } from '../../stores/master-study'
+import {
+  setMasterPipelineListener,
+  getActiveMasterWorkId,
+} from '../../lib/master-study/pipeline'
 import type { Project, MasterWork, MasterWorkStatus } from '../../lib/types'
 
 const CONSENT_KEY = 'sf-master-consent'
@@ -17,14 +23,10 @@ interface Props {
 type Tab = 'works' | 'insights' | 'settings'
 
 /**
- * 作品学习主面板 —— Phase 19-a
+ * 作品学习主面板 —— Phase 19-a + Phase 19-b
  *
- * 本里程碑只落 3 件事：
- *   1. 法律声明 Modal（首次访问必须同意）
- *   2. 作品列表（空态 + 已有作品展示）
- *   3. 占位的「手法洞察」和「学习设置」Tab（P19-c/d 再填）
- *
- * 「+ 添加作品」按钮点了会提示 P19-b 再实装，避免半拉子体验。
+ * P19-a：法律声明 gate + 作品列表 + Tabs 占位
+ * P19-b：添加作品 Modal + 作品详情页 + 五维分析报告 + ZIP 下载
  */
 export default function MasterStudiesPanel({ project }: Props) {
   // consent 状态 —— null = 未决定；false = 刚拒绝（返回空页）；true = 已同意
@@ -34,6 +36,9 @@ export default function MasterStudiesPanel({ project }: Props) {
   })
 
   const [tab, setTab] = useState<Tab>('works')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [detailWorkId, setDetailWorkId] = useState<number | null>(null)
+
   const { works, loading, listWorks, deleteWork } = useMasterStudyStore()
 
   // 进入即刷新作品列表（全局学习库：不按项目过滤）
@@ -41,6 +46,20 @@ export default function MasterStudiesPanel({ project }: Props) {
     if (consent === true) {
       listWorks()
     }
+  }, [consent, listWorks])
+
+  // 在列表页订阅 pipeline，用 listWorks 触发 progress 刷新（store 已自带更新，
+  // 这里主要是保障"即使用户切走再回来"也能看到最新进度）
+  useEffect(() => {
+    if (consent !== true) return
+    setMasterPipelineListener({
+      onProgress: () => {
+        // 轻量 debounce：每次进度变化 pipeline 已写 db，这里可不刷
+      },
+      onDone: () => {
+        listWorks()
+      },
+    })
   }, [consent, listWorks])
 
   const handleAgree = () => {
@@ -53,12 +72,21 @@ export default function MasterStudiesPanel({ project }: Props) {
   }
 
   const handleAddWork = () => {
-    // P19-b 里会替换成真正的上传 Modal，先给个明确提示
-    alert('「添加作品」功能将在 Phase 19-b 上线（单作品五维分析）。敬请期待～')
+    setShowAddModal(true)
+  }
+
+  const handleStartedFromModal = (workId: number) => {
+    setShowAddModal(false)
+    setDetailWorkId(workId)
+    listWorks()
   }
 
   const handleDelete = async (w: MasterWork) => {
     if (!w.id) return
+    if (getActiveMasterWorkId() === w.id) {
+      alert('该作品正在分析中，请先取消分析再删除。')
+      return
+    }
     if (!confirm(`删除作品「${w.title}」？其分析报告、节奏时间线、风格画像会一并清除，此操作不可恢复。`)) return
     await deleteWork(w.id)
   }
@@ -89,6 +117,19 @@ export default function MasterStudiesPanel({ project }: Props) {
           </button>
         </div>
       </div>
+    )
+  }
+
+  // ── 详情页（优先级高于 Tab） ─────────────────────────────────
+  if (detailWorkId != null) {
+    return (
+      <MasterWorkDetail
+        workId={detailWorkId}
+        onBack={() => {
+          setDetailWorkId(null)
+          listWorks()
+        }}
+      />
     )
   }
 
@@ -138,10 +179,20 @@ export default function MasterStudiesPanel({ project }: Props) {
           loading={loading}
           onAdd={handleAddWork}
           onDelete={handleDelete}
+          onOpen={w => w.id && setDetailWorkId(w.id)}
         />
       )}
       {tab === 'insights' && <InsightsTabPlaceholder />}
       {tab === 'settings' && <SettingsTabPlaceholder />}
+
+      {/* Add modal */}
+      {showAddModal && (
+        <MasterAddWorkModal
+          projectId={project?.id ?? null}
+          onClose={() => setShowAddModal(false)}
+          onStarted={handleStartedFromModal}
+        />
+      )}
     </div>
   )
 }
@@ -172,12 +223,13 @@ function TabButton({
 }
 
 function WorksTab({
-  works, loading, onAdd, onDelete,
+  works, loading, onAdd, onDelete, onOpen,
 }: {
   works: MasterWork[]
   loading: boolean
   onAdd: () => void
   onDelete: (w: MasterWork) => void
+  onOpen: (w: MasterWork) => void
 }) {
   if (loading) {
     return (
@@ -205,9 +257,6 @@ function WorksTab({
           <Plus className="w-4 h-4" />
           添加第一部作品
         </button>
-        <p className="text-xs text-text-muted mt-4">
-          （当前 Phase 19-a 地基层已就绪；分析功能将在 P19-b 启用）
-        </p>
       </div>
     )
   }
@@ -215,13 +264,24 @@ function WorksTab({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
       {works.map(w => (
-        <WorkCard key={w.id} work={w} onDelete={() => onDelete(w)} />
+        <WorkCard
+          key={w.id}
+          work={w}
+          onOpen={() => onOpen(w)}
+          onDelete={() => onDelete(w)}
+        />
       ))}
     </div>
   )
 }
 
-function WorkCard({ work, onDelete }: { work: MasterWork; onDelete: () => void }) {
+function WorkCard({
+  work, onOpen, onDelete,
+}: {
+  work: MasterWork
+  onOpen: () => void
+  onDelete: () => void
+}) {
   const statusLabel: Record<MasterWorkStatus, string> = {
     pending: '待开始',
     analyzing: '分析中…',
@@ -237,7 +297,10 @@ function WorkCard({ work, onDelete }: { work: MasterWork; onDelete: () => void }
   const depthLabel = { quick: '快速', standard: '标准', deep: '深度' }[work.analysisDepth]
 
   return (
-    <div className="rounded-xl border border-border bg-bg-surface p-4 hover:border-accent/40 transition-colors group">
+    <div
+      onClick={onOpen}
+      className="rounded-xl border border-border bg-bg-surface p-4 hover:border-accent/40 transition-colors group cursor-pointer"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h4 className="font-medium text-text-primary truncate">{work.title}</h4>
@@ -246,7 +309,7 @@ function WorkCard({ work, onDelete }: { work: MasterWork; onDelete: () => void }
           </p>
         </div>
         <button
-          onClick={onDelete}
+          onClick={e => { e.stopPropagation(); onDelete() }}
           className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 text-text-muted hover:text-red-500 transition"
           title="删除"
         >

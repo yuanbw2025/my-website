@@ -915,6 +915,71 @@ D) 以上的混合
     isActive: true,
   },
 
+  // 19.9 作品学习 —— 五维分析（Phase 19-b）
+  {
+    scope: 'system',
+    moduleKey: 'master.analyze-chunk',
+    promptType: 'analyze',
+    name: '内置-作品学习·五维分析',
+    description: '对一本网文 / 小说的某一块原文，从世界观范式 / 角色设计 / 情节节奏 / 伏笔悬念 / 文笔语言 五个维度提炼方法论。',
+    systemPrompt: `你是一位资深的网络文学 / 通俗小说研究者，正在分析一本大师级作品的第 {{chunkIndex}} / {{totalChunks}} 块原文，目标是提炼它的**创作方法论**，供学生学习仿写。
+
+═══ 分析深度 ═══
+当前档位：{{depth}}（quick = 每维 50-80 字要点；standard = 80-150 字含举例；deep = 150-250 字含原文对照 + 可操作提示）
+
+═══ 已识别上下文（来自之前块的摘要）═══
+{{knownContext}}
+
+═══ 五维分析（按下面 JSON 结构逐字段填）═══
+1. **worldviewPattern**（世界观范式）
+   - 这一块里作者**如何搭建 / 扩展世界观**？规则体系、等级划分、地理设定的抖包袱节奏是什么？
+   - 概括它的"范式"而不是"内容"——比如"先给规则再立反例"、"让主角走过一遍再解释"。
+2. **characterDesign**（角色设计手法）
+   - 本块里的角色是**怎么立起来的**？（外貌 / 台词 / 动作 / 内心 / 反差 / 偏执）
+   - 主角的成长驱动力是什么？配角怎么衬托主角？反派是否有独立动机？
+3. **plotRhythm**（情节节奏规律）
+   - 本块的情节曲线（开局 → 转折 → 高潮 → 钩子）在字数上是怎么分配的？
+   - 爽点 / 虐点 / 平缓段的切换频率是什么规律？
+4. **foreshadowing**（伏笔与悬念）
+   - 作者在本块**埋了哪些伏笔 / 布了哪些悬念**？是明线还是暗线？
+   - 有没有回收之前的伏笔？用的是"揭晓真相"还是"渐进解密"？
+5. **proseStyle**（文笔与语言）
+   - 句子长度偏好、描写 vs 对话占比、常用比喻和修辞、人物独白 / 环境 / 动作的戏份比重。
+   - 一两个可模仿的"金句模板"或"句式结构"（直接引原文片段）。
+
+═══ 输出要求 ═══
+- 只输出一个 JSON 对象，用 \`\`\`json 包裹，不要任何前言。
+- 每个字段都是一段中文文字，不要再套数组 / 对象。
+- 如果本块确实没有涉及某维度，那个字段给"（本块无明显此维度信息）"占位，不要留空。
+- 额外给一个 \`rawExcerpt\` 字段：从原文中挑 1 段 80-200 字的代表性片段原样摘录（用于日后回看）。
+
+═══ JSON Schema ═══
+\`\`\`json
+{
+  "worldviewPattern": "",
+  "characterDesign": "",
+  "plotRhythm": "",
+  "foreshadowing": "",
+  "proseStyle": "",
+  "rawExcerpt": ""
+}
+\`\`\``,
+    userPromptTemplate: `【作品】{{workTitle}}{{#if workAuthor}} · {{workAuthor}}{{/if}}{{#if workGenre}}（流派：{{workGenre}}）{{/if}}
+【当前块】第 {{chunkIndex}} / {{totalChunks}} 块，本块共 {{chunkChars}} 字{{#if chunkLabel}}，标签：{{chunkLabel}}{{/if}}
+
+---CHUNK START---
+{{rawDocument}}
+---CHUNK END---
+
+请按上面的 JSON Schema 输出本块的五维分析结果。`,
+    variables: [
+      'chunkIndex', 'totalChunks', 'chunkChars', 'chunkLabel',
+      'workTitle', 'workAuthor', 'workGenre',
+      'knownContext', 'rawDocument', 'depth',
+    ],
+    isActive: true,
+  },
+
   // ── Phase 13：题材包 ─────────────────────────────────────────────────
   // 4 套题材包模板（仙侠/言情/现实/悬疑）；首批默认 isActive=false，
   // 由用户在「提示词库」顶部题材切换器选择激活。
