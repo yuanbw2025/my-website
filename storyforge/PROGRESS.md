@@ -1,6 +1,6 @@
 # StoryForge / 故事熔炉 — 开发进度文档
 
-> **最后更新**: 2026-05-12 16:35 | **当前阶段**: Phase 18 ✅ + 方案 A Blob 持久化 ✅
+> **最后更新**: 2026-05-12 19:15 | **当前阶段**: Phase 19-a ✅ 作品学习地基层
 
 ---
 
@@ -482,6 +482,49 @@ Phase 18 的原文只存在内存 `IN_MEM_CHUNK_TEXT` 字典中 —— 刷新 / 
 
 ### 后续（Phase 19 候选）
 用户批准后开启 Phase 19「大师作品学习模式」——把导入流水线升级为"拆解白金作家作品、学习世界观/角色/情节设计思路"的功能。
+
+---
+
+## ✅ Phase 19-a — 作品学习地基层（已完成）
+
+**完成日期**: 2026-05-12 | **Playbook**: `docs/playbooks/PHASE-19-master-studies.md`
+
+### 解决什么问题
+把"拆解白金作家作品 → 提炼创作方法论 → 学习库反哺创作"做成一个独立的四层系统，
+与创作数据物理隔离。Phase 19 分 4 个里程碑（a/b/c/d），本里程碑先把地基搭起来。
+
+### 19-a 已落地内容
+| 类别 | 改动 |
+|------|------|
+| 类型 | 新增 `src/lib/types/master-study.ts` — `MasterWork` / `MasterChunkAnalysis` / `MasterChapterBeat` / `MasterStyleMetrics` / `MasterInsight` + `MasterAnalysisDepth` / `BeatType` |
+| 类型导出 | `src/lib/types/index.ts` 追加 `export * from './master-study'` |
+| DB schema | `schema.ts` v11：新增 5 张独立表 `masterWorks / masterChunkAnalysis / masterChapterBeats / masterStyleMetrics / masterInsights`（不污染创作 19 张表） |
+| Store | 新增 `src/stores/master-study.ts` — `useMasterStudyStore`，提供 works/insights CRUD、删除级联清分析数据 + Blob |
+| 面板 | 新增 `src/components/master-studies/MasterStudiesPanel.tsx` — 法律声明 gate + Tabs（作品列表 / 手法洞察 / 学习设置）+ 作品卡片 + 空态 |
+| Modal | 新增 `src/components/master-studies/MasterLegalConsentModal.tsx` — 强制用户阅读并同意，结果存 `localStorage['sf-master-consent']` |
+| 侧边栏 | `sidebar-tree.ts` 新增一级菜单 `'master-studies'`（GraduationCap 图标），放在「创作区」与「提示词库」之间 |
+| 路由 | `WorkspacePage.tsx` 挂载 `<MasterStudiesPanel>` |
+
+### 法律声明 Modal 内容要点
+- 功能仅供个人学习 / 研究使用
+- 上传作品**只存本地 IndexedDB**，不上传服务器、不分享给他人
+- AI 调用经过用户自己的 API Key，文本按供应商隐私政策处理
+- 分析结果二次传播 / 商用由用户自行承担法律责任
+- 建议仅分析合法持有副本或公共领域作品
+
+### 验收
+- ✅ `npx tsc --noEmit` 0 error
+- ✅ `npm run build` 成功（Vite 6.4，built in 5.53s，PWA v1.2.0，8 entries 2219 KiB）
+- ✅ 侧边栏出现「📚 作品学习」一级菜单
+- ✅ 首次点击弹法律声明 Modal，同意后进入作品列表页（空态 + 占位 Tabs）
+- ⏳ 真机启动后续跑 / 刷新后 consent 记忆 —— 待用户本地验证
+- ✅ 原有 Phase 18 流水线未受影响（未动其代码）
+
+### 下一步（Phase 19-b）
+- 复用 Phase 18 分块流水线做 **Layer 1 五维 AI 分析**
+- 新增 `MasterAddWorkModal`（上传作品 + 选分析深度 quick/standard/deep）
+- 新增 `MasterWorkDetail` + `MasterAnalysisReport`（作品详情 Tab + 五维报告）
+- 新增 `export-archive.ts` 打包分析档案 ZIP（JSON + Markdown 报告）
 
 ---
 

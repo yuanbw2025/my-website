@@ -23,6 +23,13 @@ import type { ImportJob } from '../types/import-job'
 import type { ImportSession, ImportLog } from '../types/import-session'
 import type { ImportFileBlob } from '../types/import-file'
 import type { PromptWorkflow } from '../types/workflow'
+import type {
+  MasterWork,
+  MasterChunkAnalysis,
+  MasterChapterBeat,
+  MasterStyleMetrics,
+  MasterInsight,
+} from '../types/master-study'
 
 class StoryForgeDB extends Dexie {
   projects!: Table<Project>
@@ -48,6 +55,13 @@ class StoryForgeDB extends Dexie {
   importLogs!: Table<ImportLog>
   importFiles!: Table<ImportFileBlob, number>
   promptWorkflows!: Table<PromptWorkflow>
+
+  // Phase 19 —— 作品学习系统（与创作数据物理隔离）
+  masterWorks!: Table<MasterWork, number>
+  masterChunkAnalysis!: Table<MasterChunkAnalysis, number>
+  masterChapterBeats!: Table<MasterChapterBeat, number>
+  masterStyleMetrics!: Table<MasterStyleMetrics, number>
+  masterInsights!: Table<MasterInsight, number>
 
   constructor() {
     super('storyforge')
@@ -111,6 +125,17 @@ class StoryForgeDB extends Dexie {
     //      没用 ++ 是因为要手动用 session.id 做主键。
     this.version(10).stores({
       importFiles: 'sessionId, fileHash, createdAt',
+    })
+
+    // v11: 作品学习系统（Phase 19 — 2026-05-12）
+    //      5 张独立表，不掺进创作 19 张表的 schema；
+    //      genre 索引留着跨作品归纳（Layer 3）时按流派筛用。
+    this.version(11).stores({
+      masterWorks: '++id, projectId, genre, status, updatedAt',
+      masterChunkAnalysis: '++id, workId, chunkIndex',
+      masterChapterBeats: '++id, workId, chapterIndex, type',
+      masterStyleMetrics: '++id, workId',
+      masterInsights: '++id, genre, updatedAt',
     })
   }
 }

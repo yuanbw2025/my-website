@@ -4,6 +4,7 @@ import {
   UserCircle, UsersRound, User, Footprints, Network,
   Ruler, BookOpen, ListTree, FilePen, PenTool, Eye,
   FileCog, History, Upload, Download, Settings,
+  GraduationCap,
 } from 'lucide-react'
 
 /**
@@ -33,6 +34,9 @@ export type SidebarModule =
   | 'chapters-list'         // 占位 (P8)
   | 'editor'
   | 'foreshadow'
+
+  // 作品学习（一级）
+  | 'master-studies'
 
   // 提示词库（一级）
   | 'prompts'
@@ -135,6 +139,12 @@ export const NAV_TREE: TreeSection[] = [
       leaf('editor',           '正文',     PenTool),
       leaf('foreshadow',       '伏笔',     Eye),
     ],
+  },
+  {
+    sectionId: 'learn',
+    label: '作品学习',
+    icon: GraduationCap,
+    rootLeaf: leaf('master-studies', '作品学习', GraduationCap),
   },
   {
     sectionId: 'prompts',
