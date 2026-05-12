@@ -1,6 +1,6 @@
 # StoryForge / 故事熔炉 — 开发进度文档
 
-> **最后更新**: 2026-05-11 21:45 | **当前阶段**: Phase 18 ✅ 大文档分块导入流水线上线
+> **最后更新**: 2026-05-12 16:35 | **当前阶段**: Phase 18 ✅ + 方案 A Blob 持久化 ✅
 
 ---
 
@@ -440,8 +440,48 @@ storyforge/src/
 - **事后汇报**：ReportModal 显示成功/失败块数、累计入库计数、失败明细与错误信息、可选重试
 
 ### 已知限制
-- 浏览器关闭后页面内存里的原文丢失，续跑需要重新上传同一文件（UI 提示 + hash 比对）
+- ~~浏览器关闭后页面内存里的原文丢失，续跑需要重新上传同一文件~~ —— **已由方案 A 解决**（见下文）
 - 串行处理：1000 块文档约需 10 小时（单块约 35s）。用户已批准"慢点就慢点"
+
+---
+
+## ✅ Phase 18 方案 A — 原文 Blob 持久化到 IndexedDB（已完成）
+
+**完成日期**: 2026-05-12 | **触发需求**: Phase 18 留下的糙点 "浏览器关了下次要重传文件"，用户要求彻底抹平。
+
+### 解决什么问题
+Phase 18 的原文只存在内存 `IN_MEM_CHUNK_TEXT` 字典中 —— 刷新 / 关闭浏览器后丢失。
+虽然 session 元数据 + 已入库数据仍在 DB，但续跑必须让用户再传一次同样的文件。
+
+### 解决方案：方案 A（Blob 持久化）
+1. 上传时把原始 File 以 Blob 形式存到 IndexedDB 新表 `importFiles`（主键 = `sessionId`，1:1 关联 session）
+2. 启动时调 `navigator.storage.persist()` 防止浏览器 GC 回收 Blob
+3. 打开导入面板发现未完成 session → 自动从 Blob 读回 → 用原 filename 包 File → `extractTextFromFile()` → `chunkDocument()` → `registerChunkTexts()` 注册内存 → 直接「立即续跑」
+4. 切块数量比对不一致时回退为「请重新上传」，不会错位
+5. session 完成 / 用户放弃时 `deleteBlob` 释放空间
+
+### 容量评估
+| 文档规模 | 字符数 | UTF-8 Blob | IndexedDB 占用 |
+|---|---|---|---|
+| 典型长篇 | 160 万 | ~3 MB | 忽略 |
+| 千万字大长篇 | 1000 万 | 20-30 MB | 远低于浏览器默认额度（几百 MB） |
+
+### 新增/修改文件
+| 文件 | 变更 |
+|------|------|
+| `src/lib/types/import-file.ts` | **新增** `ImportFileBlob` 类型 |
+| `src/lib/types/index.ts` | 导出 ImportFileBlob |
+| `src/lib/db/schema.ts` | v10：新增 `importFiles` 表（主键 sessionId，索引 fileHash / createdAt） |
+| `src/stores/import-session.ts` | 新增 `saveBlob / loadBlob / deleteBlob` 三个方法 |
+| `src/components/system/ImportDocPanel.tsx` | 启动申请 persist 权限 + 扫描未完成 session 时自动从 Blob 恢复 + 创建 session 时 saveBlob + 完成/放弃时 deleteBlob + UI 区分「立即续跑 / 用当前文件续跑 / 本地存档丢失」三态 |
+
+### 验收
+- ✅ `npx tsc --noEmit` 通过
+- ✅ `npm run build` 通过（PWA v1.2.0, 8 entries, 2203 KiB）
+- ⏳ 真实关闭浏览器后续跑 —— 待用户本地验证
+
+### 后续（Phase 19 候选）
+用户批准后开启 Phase 19「大师作品学习模式」——把导入流水线升级为"拆解白金作家作品、学习世界观/角色/情节设计思路"的功能。
 
 ---
 

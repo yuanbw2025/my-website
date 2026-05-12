@@ -2,12 +2,41 @@
 
 > **本文档是 AI 助手换机/换会话时的唯一交接依据。**
 > 任何新 Claude / Sonnet / Gemini 会话第一件事必须完整读完此文档。
-> 最近更新：**Phase 18 大文档分块导入流水线已落地**（2026-05-11）。
-> 由 Opus 4.7 撰写，Sonnet 4.7 续写到 2026-05-11。
+> 最近更新：**Phase 18 方案 A（原文 Blob 持久化）已落地**（2026-05-12）。
+> 由 Opus 4.7 撰写，Sonnet 4.7 续写到 2026-05-12。
 
 ---
 
-## 0.1 最新进展速报（Phase 18 — 2026-05-11）
+## 0.0 最新进展速报（Phase 18 方案 A — 2026-05-12）
+
+### 解决的糙点
+Phase 18 原文只存在内存 `IN_MEM_CHUNK_TEXT`，刷新浏览器就没了；续跑要求用户重新上传同一文件。
+
+### 方案
+Dexie v10 新增 `importFiles` 表（主键 = sessionId），上传时把原始 File 作为 Blob 写入；面板打开发现未完成 session 自动 `loadBlob` → 包 File → `extractTextFromFile` → `chunkDocument` → `registerChunkTexts` → 显示「立即续跑」按钮。启动时调 `navigator.storage.persist()` 防 GC。容量估算：千万字 ≈ 20-30 MB，远低于浏览器额度。
+
+### 新增/修改文件
+```
+src/lib/types/import-file.ts                  ← 新增 ImportFileBlob
+src/lib/types/index.ts                        ← export * from './import-file'
+src/lib/db/schema.ts                          ← v10：importFiles: 'sessionId, fileHash, createdAt'
+src/stores/import-session.ts                  ← +saveBlob / +loadBlob / +deleteBlob
+src/components/system/ImportDocPanel.tsx      ← Blob 恢复流程 + persist 权限 + 三态续跑 UI
+PROGRESS.md                                   ← 新章节「Phase 18 方案 A」
+docs/HANDOFF.md                               ← 本文件
+```
+
+### 验收
+- ✅ `npx tsc --noEmit` 通过
+- ✅ `npm run build` 通过（PWA v1.2.0, 8 entries, 2203 KiB）
+- ⏳ 真实关 / 开浏览器后续跑 —— 待用户本地验证
+
+### 下一步候选
+用户已点头但未开工：**Phase 19 「大师作品学习模式」** —— 把导入流水线升级为"拆解白金作家作品、学习其世界观/角色/情节设计思路"的工具。完整架构见本次会话讨论记录。
+
+---
+
+## 0.1 上一次速报（Phase 18 — 2026-05-11）
 
 ### 背景问题
 上传《知北游》1.6M 字 txt 触发「AI 输出无法解析为 JSON」—— 根因是 AI 单次输出被 maxTokens 截断。

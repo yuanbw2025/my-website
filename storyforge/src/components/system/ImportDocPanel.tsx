@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Upload, Sparkles, AlertTriangle, FileText, Wand2, Info,
-  PauseCircle, PlayCircle, StopCircle, History,
+  PauseCircle, PlayCircle, StopCircle, History, HardDrive,
 } from 'lucide-react'
 import {
   extractTextFromFile, ACCEPT_ATTR, FILE_LIMIT_HINTS,
@@ -26,10 +26,15 @@ interface Props { project: Project }
 const DEFAULT_CHUNK_SIZE = 50000
 
 /**
- * v3 §6 Phase 18 — 大文档分块解析导入（重写版）
+ * v3 §6 Phase 18 — 大文档分块解析导入（重写版 + 方案 A 持久化）
  *
  * 用户只要上传一个文件 → 预览确认 → AI 串行分块解析 → 实时入库 → 汇报结果。
  * 支持百万～千万字文档，断点续跑，自动重试，跨块角色合并。
+ *
+ * 2026-05-12 增强：
+ *   · 上传时把原文 Blob 存到 IndexedDB（importFiles 表）
+ *   · 打开面板发现未完成任务时，自动从 Blob 恢复原文 → 直接续跑，不再需要重传文件
+ *   · 调 navigator.storage.persist() 防止浏览器 GC 掉 Blob
  */
 export default function ImportDocPanel({ project }: Props) {
   const [filename, setFilename] = useState('')
@@ -46,18 +51,75 @@ export default function ImportDocPanel({ project }: Props) {
   // 报告 modal + 未完成会话
   const [reportSession, setReportSession] = useState<ImportSession | null>(null)
   const [unfinished, setUnfinished] = useState<ImportSession | null>(null)
+  /** 当前未完成任务的 Blob 是否已恢复到内存（决定"立即续跑"是否可点） */
+  const [blobRestored, setBlobRestored] = useState(false)
+  const [restoringBlob, setRestoringBlob] = useState(false)
 
   const status = useImportStatusStore()
   const phase = status.phase
   const isRunning = phase === 'running' || phase === 'merging' || phase === 'preparing'
   const isPaused = phase === 'paused'
 
-  // ── 初始：扫描项目内未完成会话 ─────────────────────────────
+  // ── 启动时：申请持久存储权限（一次性，浏览器会记住） ─────
+  useEffect(() => {
+    if (navigator.storage?.persist) {
+      navigator.storage.persisted().then(already => {
+        if (!already) {
+          navigator.storage.persist().catch(() => {/* 用户拒绝也无所谓，后面还能跑 */})
+        }
+      }).catch(() => {})
+    }
+  }, [])
+
+  // ── 初始：扫描项目内未完成会话，并尝试从 Blob 恢复 ────────
   useEffect(() => {
     let cancelled = false
     const scan = async () => {
       const s = await useImportSessionStore.getState().findUnfinished(project.id!)
-      if (!cancelled) setUnfinished(s)
+      if (cancelled || !s?.id) {
+        setUnfinished(s || null)
+        setBlobRestored(false)
+        return
+      }
+      setUnfinished(s)
+      // 如果 in-memory 里已经有原文，说明本会话没刷过，直接标记已恢复
+      if (hasChunkTexts(s.id)) {
+        setBlobRestored(true)
+        return
+      }
+      // 否则尝试从 IndexedDB 的 Blob 恢复
+      setRestoringBlob(true)
+      try {
+        const row = await useImportSessionStore.getState().loadBlob(s.id)
+        if (cancelled) return
+        if (row?.blob) {
+          // 重新提取 → 切块 → 注册到内存
+          // 包成 File 以复用现有抽取器（保留 filename 识别扩展名）
+          const file = new File([row.blob], row.filename, { type: row.blob.type })
+          const result = await extractTextFromFile(file)
+          if (cancelled) return
+          // 用 session 原 chunkSize 切
+          const replan = chunkDocument(result.text, { targetChars: s.chunkSize })
+          if (replan.length === s.totalChunks) {
+            registerChunkTexts(s.id, replan.map(p => ({ index: p.index, text: p.text })))
+            setBlobRestored(true)
+          } else {
+            // 切块数量对不上（chunker 逻辑改了 / 文件不同）—— 标记未恢复，用户手动处理
+            console.warn(
+              '[import] Blob 恢复后切块数对不上：',
+              `原 ${s.totalChunks} vs 新 ${replan.length}`,
+            )
+            setBlobRestored(false)
+          }
+        } else {
+          setBlobRestored(false)
+        }
+      } catch (err) {
+        console.error('[import] 从 Blob 恢复失败：', err)
+        setBlobRestored(false)
+      } finally {
+        if (!cancelled) setRestoringBlob(false)
+      }
     }
     scan()
     return () => { cancelled = true }
@@ -78,6 +140,9 @@ export default function ImportDocPanel({ project }: Props) {
   }, [phase, status.sessionId])
 
   // ── 文件上传 ──────────────────────────────────────────────
+  /** 暂存最近一次上传的原始 File（创建 session 时存到 importFiles） */
+  const lastUploadedFile = useRef<File | null>(null)
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     e.target.value = ''
@@ -88,6 +153,7 @@ export default function ImportDocPanel({ project }: Props) {
     setRawText('')
     setPlans(null)
     setLoadingFile(true)
+    lastUploadedFile.current = f
     try {
       const result = await extractTextFromFile(f)
       setRawText(result.text)
@@ -100,6 +166,7 @@ export default function ImportDocPanel({ project }: Props) {
       setExtractInfo(parts.join(' · '))
     } catch (err) {
       setFilename('')
+      lastUploadedFile.current = null
       setFileError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoadingFile(false)
@@ -131,10 +198,11 @@ export default function ImportDocPanel({ project }: Props) {
     useImportStatusStore.getState().reset()
     useImportStatusStore.getState().setPhase('preparing')
 
+    const fileHash = quickHash(rawText)
     const sessionData: Omit<ImportSession, 'id' | 'createdAt' | 'updatedAt'> = {
       projectId: project.id!,
       filename: filename || '未命名文档',
-      fileHash: quickHash(rawText),
+      fileHash,
       totalChars: rawText.length,
       totalChunks: plans.length,
       chunkSize,
@@ -155,8 +223,22 @@ export default function ImportDocPanel({ project }: Props) {
     const sessionId = await useImportSessionStore.getState().create(sessionData)
     registerChunkTexts(sessionId, plans.map(p => ({ index: p.index, text: p.text })))
 
+    // 存原文 Blob —— 优先用原始 File（保留 Word/PDF 原格式，下次恢复一致）
+    // 如果用户是粘贴文本，退化为 text/plain Blob
+    try {
+      const fileBlob = lastUploadedFile.current
+        ? lastUploadedFile.current
+        : new Blob([rawText], { type: 'text/plain;charset=utf-8' })
+      const saveName = lastUploadedFile.current?.name || (filename || '粘贴内容.txt')
+      await useImportSessionStore.getState().saveBlob(sessionId, saveName, fileBlob, fileHash)
+    } catch (err) {
+      // 存 Blob 失败不应阻塞主流程（本次内存里原文还在，依然能跑完）
+      console.warn('[import] saveBlob 失败（本次跑不受影响，但下次刷新将无法自动续跑）：', err)
+    }
+
     // 刷新未完成列表（新 session 本身就是未完成态）
     setUnfinished(null)
+    setBlobRestored(false)
     autoReportShown.current = null
     setReportSession(null)
 
@@ -166,12 +248,11 @@ export default function ImportDocPanel({ project }: Props) {
     })
   }
 
-  // ── 续跑入口 ──────────────────────────────────────────────
+  // ── 续跑入口（Blob 已恢复 → 直接跑） ─────────────────────
   const handleResume = async () => {
     if (!unfinished?.id) return
-    // 原文在内存里还在吗？
     if (!hasChunkTexts(unfinished.id)) {
-      alert('⚠ 页面已刷新或浏览器已重开，内存里的原文丢失了。\n请重新上传同一文件，再点"开始解析"即可从断点续跑。')
+      alert('⚠ 原文丢失且 Blob 恢复失败。请重新上传同一文件后再点"用当前文件续跑"。')
       return
     }
     autoReportShown.current = null
@@ -179,10 +260,9 @@ export default function ImportDocPanel({ project }: Props) {
     await runSession({ sessionId: unfinished.id, projectId: project.id! })
   }
 
-  // ── 继续上一个（用当前上传的文件填上去） ────────────────
+  // ── 用当前上传的文件续跑（作为兜底） ─────────────────────
   const handleResumeWithUploaded = async () => {
     if (!unfinished?.id || !rawText) return
-    // 如果 hash 能对上就用这次上传的文本覆盖 in-memory 原文，从断点续跑
     const newHash = quickHash(rawText)
     if (newHash !== unfinished.fileHash) {
       const ok = confirm(
@@ -193,15 +273,23 @@ export default function ImportDocPanel({ project }: Props) {
       )
       if (!ok) return
     }
-    // 重新切块得到原文
     const p = chunkDocument(rawText, { targetChars: unfinished.chunkSize })
-    // 如果块数对得上才能 registerChunkTexts
     if (p.length !== unfinished.totalChunks) {
       alert(`⚠ 重新切块得到 ${p.length} 块，与原任务的 ${unfinished.totalChunks} 块不一致，无法续跑。\n建议：「清理」该任务后重新开始解析。`)
       return
     }
     registerChunkTexts(unfinished.id, p.map(c => ({ index: c.index, text: c.text })))
-    setUnfinished(null)
+    // 同时把新上传的文件作为 Blob 覆盖存档（下次就不必再传了）
+    try {
+      const fileBlob = lastUploadedFile.current
+        ? lastUploadedFile.current
+        : new Blob([rawText], { type: 'text/plain;charset=utf-8' })
+      const saveName = lastUploadedFile.current?.name || (filename || '粘贴内容.txt')
+      await useImportSessionStore.getState().saveBlob(
+        unfinished.id, saveName, fileBlob, unfinished.fileHash,
+      )
+    } catch {/* 静默失败 */}
+    setBlobRestored(true)
     autoReportShown.current = null
     setReportSession(null)
     await runSession({ sessionId: unfinished.id, projectId: project.id! })
@@ -220,15 +308,17 @@ export default function ImportDocPanel({ project }: Props) {
   }
   const handleCloseReport = () => {
     setReportSession(null)
-    // done 的会话：清内存原文释放内存
+    // done 的会话：清内存原文 + Blob 存档释放空间
     if (reportSession?.id && reportSession.status === 'done') {
       clearChunkTexts(reportSession.id)
+      useImportSessionStore.getState().deleteBlob(reportSession.id).catch(() => {})
     }
   }
   const handleDiscardSession = async () => {
     if (!reportSession?.id) return
     if (!confirm('确认清理本次会话记录？已入库的解析数据不会被删除。')) return
     clearChunkTexts(reportSession.id)
+    await useImportSessionStore.getState().deleteBlob(reportSession.id).catch(() => {})
     await useImportSessionStore.getState().deleteSession(reportSession.id)
     setReportSession(null)
     useImportStatusStore.getState().reset()
@@ -302,7 +392,7 @@ export default function ImportDocPanel({ project }: Props) {
           </div>
           <div className="mt-2 text-[11px] text-text-muted leading-relaxed">
             ⚠️ 大文档会自动按「章节边界」或「段落 / 字符数」切块，每块约 {chunkSize.toLocaleString()} 字，AI 串行处理。<br/>
-            ⚠️ 页面刷新 / 关闭浏览器会丢内存里的原文，续跑时请重新上传同一份文件。
+            ✨ <strong>上传后原文会自动存档到浏览器本地 IndexedDB</strong>，即使关闭浏览器，下次打开可<strong>一键续跑</strong>，无需重新上传。
           </div>
         </div>
       </div>
@@ -320,8 +410,20 @@ export default function ImportDocPanel({ project }: Props) {
                 unfinished.chunks.filter(c => c.status !== 'done').length
               } 块未解析（共 {unfinished.totalChunks} 块 · 状态：{unfinished.status}）。
             </div>
+            {restoringBlob && (
+              <div className="mt-1.5 text-[11px] text-text-muted flex items-center gap-1">
+                <HardDrive className="w-3 h-3 animate-pulse" />
+                正在从本地存档恢复原文...
+              </div>
+            )}
+            {!restoringBlob && blobRestored && (
+              <div className="mt-1.5 text-[11px] text-accent flex items-center gap-1">
+                <HardDrive className="w-3 h-3" />
+                已从本地存档恢复原文，可直接续跑
+              </div>
+            )}
             <div className="flex items-center gap-2 mt-2">
-              {hasChunkTexts(unfinished.id!) ? (
+              {blobRestored ? (
                 <button
                   onClick={handleResume}
                   className="flex items-center gap-1 px-3 py-1.5 bg-warn text-white text-xs rounded hover:bg-warn/90"
@@ -335,9 +437,11 @@ export default function ImportDocPanel({ project }: Props) {
                 >
                   <PlayCircle className="w-3.5 h-3.5" /> 用当前文件续跑
                 </button>
-              ) : (
-                <span className="text-xs text-text-muted">请先在下方重新上传同一文件</span>
-              )}
+              ) : !restoringBlob ? (
+                <span className="text-xs text-text-muted">
+                  ⚠ 本地存档丢失（可能已清理浏览器数据），请在下方重新上传同一文件
+                </span>
+              ) : null}
               <button
                 onClick={() => {
                   setReportSession(unfinished)
@@ -350,8 +454,10 @@ export default function ImportDocPanel({ project }: Props) {
                 onClick={async () => {
                   if (!confirm('确认放弃这个未完成任务？已入库数据不会被删除。')) return
                   await useImportSessionStore.getState().deleteSession(unfinished.id!)
+                  await useImportSessionStore.getState().deleteBlob(unfinished.id!).catch(() => {})
                   clearChunkTexts(unfinished.id!)
                   setUnfinished(null)
+                  setBlobRestored(false)
                 }}
                 className="px-3 py-1.5 text-xs text-text-muted hover:text-error rounded"
               >
@@ -394,7 +500,12 @@ export default function ImportDocPanel({ project }: Props) {
           )}
           <textarea
             value={rawText}
-            onChange={e => { setRawText(e.target.value); setPlans(null) }}
+            onChange={e => {
+              setRawText(e.target.value)
+              setPlans(null)
+              // 粘贴输入 ≠ 文件上传，清掉 File 引用避免下次误把旧 File 当原文存
+              lastUploadedFile.current = null
+            }}
             placeholder="把文档内容粘贴在这里，或上方点「上传文件」——AI 会自己判断是设定集 / 成品小说 / 大纲，哪怕千万字也没事。"
             rows={10}
             className="w-full px-3 py-2 bg-bg-base border border-border rounded text-sm text-text-primary font-mono resize-y focus:outline-none focus:border-accent"

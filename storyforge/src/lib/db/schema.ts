@@ -21,6 +21,7 @@ import type { PromptTemplate } from '../types/prompt'
 import type { DetailedOutline } from '../types/detailed-outline'
 import type { ImportJob } from '../types/import-job'
 import type { ImportSession, ImportLog } from '../types/import-session'
+import type { ImportFileBlob } from '../types/import-file'
 import type { PromptWorkflow } from '../types/workflow'
 
 class StoryForgeDB extends Dexie {
@@ -45,6 +46,7 @@ class StoryForgeDB extends Dexie {
   importJobs!: Table<ImportJob>
   importSessions!: Table<ImportSession>
   importLogs!: Table<ImportLog>
+  importFiles!: Table<ImportFileBlob, number>
   promptWorkflows!: Table<PromptWorkflow>
 
   constructor() {
@@ -102,6 +104,13 @@ class StoryForgeDB extends Dexie {
     this.version(9).stores({
       importSessions: '++id, projectId, status, updatedAt, fileHash',
       importLogs: '++id, sessionId, chunkIndex, createdAt',
+    })
+
+    // v10: 导入原文 Blob 持久化（Phase 18 方案 A — 2026-05-12）
+    //      key = sessionId（与 importSessions 主键一致）。
+    //      没用 ++ 是因为要手动用 session.id 做主键。
+    this.version(10).stores({
+      importFiles: 'sessionId, fileHash, createdAt',
     })
   }
 }

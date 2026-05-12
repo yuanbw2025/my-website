@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { db } from '../lib/db/schema'
 import type { ImportSession, ImportLog, ChunkState } from '../lib/types/import-session'
+import type { ImportFileBlob } from '../lib/types/import-file'
 
 interface ImportSessionStore {
   /** 当前激活的 session（null = 没跑任何任务） */
@@ -29,7 +30,16 @@ interface ImportSessionStore {
   deleteSession: (sessionId: number) => Promise<void>
   /** 取 session 的日志（给 Activity Log 回放） */
   listLogs: (sessionId: number, limit?: number) => Promise<ImportLog[]>
+
+  // ── Phase 18 方案 A：Blob 持久化 ────────────────────────────
+  /** 把上传的 File / Blob 作为原文存档（免得浏览器关了要重传） */
+  saveBlob: (sessionId: number, filename: string, blob: Blob, fileHash: string) => Promise<void>
+  /** 读取 Blob 存档 */
+  loadBlob: (sessionId: number) => Promise<ImportFileBlob | null>
+  /** 删除 Blob 存档（session 完成 / 放弃时） */
+  deleteBlob: (sessionId: number) => Promise<void>
 }
+
 
 const now = () => Date.now()
 
@@ -103,5 +113,30 @@ export const useImportSessionStore = create<ImportSessionStore>((set, get) => ({
       .where('sessionId').equals(sessionId)
       .reverse().sortBy('createdAt')
     return rows.slice(0, limit)
+  },
+
+  saveBlob: async (sessionId, filename, blob, fileHash) => {
+    const row: ImportFileBlob = {
+      sessionId,
+      filename,
+      fileSize: blob.size,
+      fileHash,
+      blob,
+      createdAt: now(),
+    }
+    await db.importFiles.put(row)
+  },
+
+  loadBlob: async (sessionId) => {
+    const row = (await db.importFiles.get(sessionId)) || null
+    return row
+  },
+
+  deleteBlob: async (sessionId) => {
+    try {
+      await db.importFiles.delete(sessionId)
+    } catch {
+      // ignore
+    }
   },
 }))
