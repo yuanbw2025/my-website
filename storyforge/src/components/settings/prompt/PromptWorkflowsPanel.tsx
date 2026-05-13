@@ -17,6 +17,13 @@ import { renderPrompt } from '../../../lib/ai/prompt-engine'
 import { extractJSON } from '../../../lib/ai/adapters/import-adapter'
 import type { PromptWorkflow, PromptWorkflowStep, SaveTarget } from '../../../lib/types/workflow'
 import type { Project, CharacterRole } from '../../../lib/types'
+import {
+  ALL_MODULE_KEYS_FOR_WORKFLOW,
+  SAVE_TARGET_PRESETS,
+  saveTargetToValue,
+  valueToSaveTarget,
+  targetLabel,
+} from './workflow-helpers'
 
 interface Props {
   project?: Project
@@ -362,23 +369,6 @@ function WorkflowRunner({ workflow, project, onClose }: RunnerProps) {
     }
   }
 
-  const targetLabel = (target: SaveTarget): string => {
-    if (target.type === 'create-characters') return '角色库（批量创建）'
-    if (target.type === 'create-outline-nodes') return '大纲（批量创建）'
-    if (target.type === 'create-foreshadows') return '伏笔库（批量创建）'
-    const fieldMap: Record<string, string> = {
-      worldOrigin: '世界起源', powerHierarchy: '力量层次',
-      historyLine: '世界历史线', summary: '世界观摘要',
-      logline: '一句话故事', concept: '故事概念', theme: '主题',
-      centralConflict: '核心冲突', mainPlot: '故事主线',
-      writingStyle: '写作风格', toneAndMood: '基调氛围',
-    }
-    const label = fieldMap[(target as { field?: string }).field || ''] || (target as { field?: string }).field || ''
-    if (target.type === 'worldview-field') return `世界观.${label}`
-    if (target.type === 'storyCore-field') return `故事.${label}`
-    if (target.type === 'creativeRules-field') return `创作规则.${label}`
-    return ''
-  }
   const [results, setResults] = useState<Map<string, StepResult>>(() => {
     const m = new Map<string, StepResult>()
     workflow.steps.forEach(s => m.set(s.stepId, { stepId: s.stepId, output: '', status: 'pending' }))
@@ -705,32 +695,6 @@ function StepCard({
 
 // ── 工作流编辑器（用户工作流可深度编辑） ───────────────────────────────────
 
-const ALL_MODULE_KEYS_FOR_WORKFLOW = [
-  'worldview.dimension', 'character.generate', 'character.dimension',
-  'outline.volume', 'outline.chapter',
-  'chapter.content', 'chapter.continue', 'chapter.polish', 'chapter.expand', 'chapter.de-ai',
-  'foreshadow.generate', 'story.generate', 'rules.generate', 'detail.scene',
-  'geography.concept-map', 'geography.image-map-prompt',
-] as const
-
-const SAVE_TARGET_PRESETS = [
-  { label: '不自动保存（仅复制）', value: '' },
-  { label: '世界观.世界起源', value: 'worldview-field:worldOrigin' },
-  { label: '世界观.力量层次', value: 'worldview-field:powerHierarchy' },
-  { label: '世界观.世界历史线', value: 'worldview-field:historyLine' },
-  { label: '世界观.世界观摘要', value: 'worldview-field:summary' },
-  { label: '故事.一句话故事', value: 'storyCore-field:logline' },
-  { label: '故事.故事概念', value: 'storyCore-field:concept' },
-  { label: '故事.主题', value: 'storyCore-field:theme' },
-  { label: '故事.核心冲突', value: 'storyCore-field:centralConflict' },
-  { label: '故事.故事主线', value: 'storyCore-field:mainPlot' },
-  { label: '创作规则.写作风格', value: 'creativeRules-field:writingStyle' },
-  { label: '创作规则.基调氛围', value: 'creativeRules-field:toneAndMood' },
-  { label: '⚡ 批量创建：角色库（要求 AI 输出 JSON 数组）', value: 'create-characters:_' },
-  { label: '⚡ 批量创建：大纲节点（要求 AI 输出 JSON 数组）', value: 'create-outline-nodes:_' },
-  { label: '⚡ 批量创建：伏笔（要求 AI 输出 JSON 数组）', value: 'create-foreshadows:_' },
-] as const
-
 function WorkflowEditor({ workflow, onClose }: { workflow: PromptWorkflow; onClose: () => void }) {
   const saveWorkflow = useWorkflowStore(s => s.save)
   const removeWorkflow = useWorkflowStore(s => s.remove)
@@ -783,23 +747,6 @@ function WorkflowEditor({ workflow, onClose }: { workflow: PromptWorkflow; onClo
     await saveWorkflow(draft)
     setDirty(false)
     alert('已保存')
-  }
-
-  const saveTargetToValue = (st?: SaveTarget): string => {
-    if (!st) return ''
-    if (st.type === 'create-characters' || st.type === 'create-outline-nodes' || st.type === 'create-foreshadows') {
-      return `${st.type}:_`
-    }
-    return `${st.type}:${(st as { field: string }).field}`
-  }
-
-  const valueToSaveTarget = (v: string): SaveTarget | undefined => {
-    if (!v) return undefined
-    const [type, field] = v.split(':')
-    if (type === 'create-characters' || type === 'create-outline-nodes' || type === 'create-foreshadows') {
-      return { type } as SaveTarget
-    }
-    return { type: type as 'worldview-field' | 'storyCore-field' | 'creativeRules-field', field, mode: 'replace' }
   }
 
   return (
