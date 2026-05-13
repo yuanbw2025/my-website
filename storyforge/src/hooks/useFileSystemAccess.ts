@@ -1,5 +1,11 @@
 import { useCallback, useState } from 'react'
 
+// File System Access API：showDirectoryPicker 在 lib.dom.d.ts 中覆盖不完整，这里补充一个最小窗口接口
+interface ShowDirectoryPickerOptions { mode?: 'read' | 'readwrite' }
+interface WindowWithFSA extends Window {
+  showDirectoryPicker?: (opts?: ShowDirectoryPickerOptions) => Promise<FileSystemDirectoryHandle>
+}
+
 export interface FSAHandle {
   directoryHandle: FileSystemDirectoryHandle
   path: string
@@ -25,15 +31,21 @@ export function useFileSystemAccess() {
       return null
     }
     try {
-      const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' })
+      const picker = (window as WindowWithFSA).showDirectoryPicker
+      if (!picker) {
+        alert('你的浏览器不支持 File System Access API，请使用 Chrome 或 Edge。')
+        return null
+      }
+      const dirHandle = await picker({ mode: 'readwrite' })
       const fsaHandle: FSAHandle = {
         directoryHandle: dirHandle,
         path: dirHandle.name,
       }
       setHandle(fsaHandle)
       return fsaHandle
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
+    } catch (err: unknown) {
+      const e = err as { name?: string }
+      if (e?.name !== 'AbortError') {
         console.error('[FSA] 选择目录失败:', err)
       }
       return null
@@ -48,7 +60,7 @@ export function useFileSystemAccess() {
       setWriting(true)
       try {
         const fileHandle = await target.directoryHandle.getFileHandle(filename, { create: true })
-        const writable = await (fileHandle as any).createWritable()
+        const writable = await fileHandle.createWritable()
         await writable.write(content)
         await writable.close()
         return true

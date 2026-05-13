@@ -1,6 +1,9 @@
 import { useMemo, useRef, useEffect, useState } from 'react'
-import { stratify, tree } from 'd3-hierarchy'
+import { stratify, tree, type HierarchyPointNode } from 'd3-hierarchy'
 import type { Location } from '../../lib/types'
+
+type NodeDatum = Location & { id: string; parentId: string | null }
+type PointNode = HierarchyPointNode<NodeDatum>
 
 const TYPE_EMOJI: Record<string, string> = {
   continent: '🌍', country: '🏯', city: '🏙️', sect: '⚔️',
@@ -37,7 +40,7 @@ export default function LocationTreeMap({ locations }: Props) {
     if (locations.length === 0) return null
 
     // 添加虚拟根节点
-    const allNodes: (Location & { id: string; parentId: string | null })[] = [
+    const allNodes: NodeDatum[] = [
       { id: '__root__', name: '世界', type: 'continent', description: '', significance: '', parentId: null, order: 0 },
       ...locations.map(l => ({
         ...l,
@@ -46,7 +49,7 @@ export default function LocationTreeMap({ locations }: Props) {
     ]
 
     try {
-      const root = stratify<(typeof allNodes)[0]>()
+      const root = stratify<NodeDatum>()
         .id(d => d.id)
         .parentId(d => d.parentId)(allNodes)
 
@@ -55,9 +58,9 @@ export default function LocationTreeMap({ locations }: Props) {
       const innerW = width - margin.left - margin.right
       const innerH = height - margin.top - margin.bottom
 
-      const layout = tree<(typeof allNodes)[0]>().size([innerW, innerH])
-      layout(root)
-      return { root, margin }
+      const layout = tree<NodeDatum>().size([innerW, innerH])
+      const laidOut = layout(root)
+      return { root: laidOut, margin }
     } catch {
       return null
     }
@@ -87,24 +90,28 @@ export default function LocationTreeMap({ locations }: Props) {
       <svg ref={svgRef} width={width} height={height}>
         <g transform={`translate(${margin.left},${margin.top})`}>
           {/* 连接线 */}
-          {root.links().map((link, i) => (
-            <line
-              key={i}
-              x1={(link.source as any).x}
-              y1={(link.source as any).y}
-              x2={(link.target as any).x}
-              y2={(link.target as any).y}
-              stroke="rgba(255,255,255,0.1)"
-              strokeWidth={1.5}
-            />
-          ))}
+          {root.links().map((link, i) => {
+            const source = link.source as PointNode
+            const target = link.target as PointNode
+            return (
+              <line
+                key={i}
+                x1={source.x}
+                y1={source.y}
+                x2={target.x}
+                y2={target.y}
+                stroke="rgba(255,255,255,0.1)"
+                strokeWidth={1.5}
+              />
+            )
+          })}
 
           {/* 节点 */}
           {root.descendants().map((node, i) => {
             const d = node.data
             if (d.id === '__root__') return null
-            const cx = (node as any).x
-            const cy = (node as any).y
+            const cx = node.x
+            const cy = node.y
             const color = NODE_COLORS[d.type] ?? '#94a3b8'
 
             return (

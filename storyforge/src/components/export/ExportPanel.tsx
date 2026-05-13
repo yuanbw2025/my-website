@@ -6,7 +6,7 @@ import {
 import { exportProjectJSON, downloadJSON, importProjectJSON, type ProjectExportData } from '../../lib/export/json-export'
 import { exportProjectMarkdown, exportProjectTXT, downloadTextFile } from '../../lib/export/text-export'
 import { exportToGist, validateGitHubPAT } from '../../lib/export/gist-export'
-import { useFileSystemAccess, isFSASupported } from '../../hooks/useFileSystemAccess'
+import { useFileSystemAccess, isFSASupported, type FSAHandle } from '../../hooks/useFileSystemAccess'
 import type { Project } from '../../lib/types'
 
 interface Props {
@@ -99,7 +99,7 @@ export default function ExportPanel({ project, onImported }: Props) {
     await handleSaveToFolder(fsaHandle)
   }
 
-  const handleSaveToFolder = async (fsaHandle?: any) => {
+  const handleSaveToFolder = async (fsaHandle?: FSAHandle) => {
     try {
       showStatus('loading', '正在写入本地文件夹...')
       const data = await exportProjectJSON(project.id!)

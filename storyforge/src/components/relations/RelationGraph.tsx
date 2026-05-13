@@ -1,5 +1,7 @@
-import { useRef, useEffect, useCallback, useMemo } from 'react'
+import { useRef, useEffect, useCallback, useMemo, type ComponentRef } from 'react'
 import ForceGraph2D from 'react-force-graph-2d'
+
+type ForceGraphHandle = ComponentRef<typeof ForceGraph2D>
 import { useCharacterRelationStore } from '../../stores/character-relation'
 import { useCharacterStore } from '../../stores/character'
 
@@ -26,6 +28,13 @@ const RELATION_LABELS: Record<string, string> = {
 interface GraphNode { id: string; name: string; role: string; color: string }
 interface GraphLink { source: string; target: string; type: string; bidirectional: boolean; label: string; color: string }
 
+// react-force-graph-2d 在运行时会把 GraphNode / GraphLink 附加上 x/y 坐标属性
+type PositionedNode = GraphNode & { x: number; y: number }
+type PositionedLink = GraphLink & {
+  source: PositionedNode
+  target: PositionedNode
+}
+
 const ROLE_COLORS: Record<string, string> = {
   protagonist: '#6366f1',
   antagonist:  '#ef4444',
@@ -39,7 +48,7 @@ interface Props {
 }
 
 export default function RelationGraph({ width = 700, height = 480 }: Props) {
-  const graphRef = useRef<any>(null)
+  const graphRef = useRef<ForceGraphHandle | undefined>(undefined)
   const { characters } = useCharacterStore()
   const { relations } = useCharacterRelationStore()
 
@@ -70,8 +79,9 @@ export default function RelationGraph({ width = 700, height = 480 }: Props) {
     }
   }, [graphData.nodes.length])
 
-  const drawNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const label = node.name as string
+  const drawNode = useCallback((rawNode: unknown, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const node = rawNode as PositionedNode
+    const label = node.name
     const fontSize = Math.max(10, 14 / globalScale)
     const r = Math.max(6, 18 / globalScale)
 
@@ -92,7 +102,8 @@ export default function RelationGraph({ width = 700, height = 480 }: Props) {
     ctx.fillText(label, node.x, node.y + r + fontSize * 0.8)
   }, [])
 
-  const drawLink = useCallback((link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+  const drawLink = useCallback((rawLink: unknown, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const link = rawLink as PositionedLink
     const start = link.source
     const end = link.target
     if (!start || !end || !start.x || !end.x) return
@@ -109,10 +120,10 @@ export default function RelationGraph({ width = 700, height = 480 }: Props) {
     const midY = (start.y + end.y) / 2
     const fontSize = Math.max(8, 10 / globalScale)
     ctx.font = `${fontSize}px PingFang SC, sans-serif`
-    ctx.fillStyle = (link.color as string) + 'cc'
+    ctx.fillStyle = link.color + 'cc'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(link.label as string, midX, midY)
+    ctx.fillText(link.label, midX, midY)
   }, [])
 
   if (characters.length === 0) {
@@ -143,7 +154,7 @@ export default function RelationGraph({ width = 700, height = 480 }: Props) {
         nodeCanvasObjectMode={() => 'replace'}
         linkCanvasObject={drawLink}
         linkCanvasObjectMode={() => 'replace'}
-        linkDirectionalArrowLength={(link: any) => (link.bidirectional ? 0 : Math.max(3, 6))}
+        linkDirectionalArrowLength={(link: object) => ((link as GraphLink).bidirectional ? 0 : Math.max(3, 6))}
         linkDirectionalArrowRelPos={0.85}
         cooldownTicks={100}
         onEngineStop={() => graphRef.current?.zoomToFit(400, 40)}

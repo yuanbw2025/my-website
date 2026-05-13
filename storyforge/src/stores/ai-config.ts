@@ -122,14 +122,6 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
     })
 
     try {
-      console.log(`[AI Test] 正在测试连接...`, {
-        provider: config.provider,
-        baseUrl,
-        url,
-        model: config.model,
-        hasKey: !!config.apiKey,
-      })
-
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -144,8 +136,6 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
 
       const duration = Date.now() - startTime
       const bodyText = await response.text()
-
-      console.log(`[AI Test] 收到响应`, { status: response.status, duration, body: bodyText.slice(0, 500) })
 
       if (response.ok) {
         updateLog(log.id, { status: 'success', statusCode: response.status, duration, responseBody: bodyText.slice(0, 200) })
@@ -191,7 +181,6 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
         errorMsg = error.message || '未知错误'
       }
 
-      console.error(`[AI Test] 连接失败`, { error: error.message, duration })
       updateLog(log.id, { status: 'error', duration, errorMessage: errorMsg })
       return { ok: false, message: `❌ ${errorMsg}`, duration }
     }
