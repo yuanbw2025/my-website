@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Upload, Sparkles, AlertTriangle, FileText, Wand2, Info,
-  PauseCircle, PlayCircle, StopCircle, History, HardDrive,
+  AlertTriangle, Info,
+  PauseCircle, PlayCircle, StopCircle,
 } from 'lucide-react'
-import {
-  extractTextFromFile, ACCEPT_ATTR, FILE_LIMIT_HINTS,
-} from '../../lib/doc-parser'
+import { extractTextFromFile, FILE_LIMIT_HINTS } from '../../lib/doc-parser'
 import { chunkDocument, quickHash, type ChunkPlan } from '../../lib/import/chunker'
 import {
   runSession, pausePipeline, cancelPipeline, retryFailedChunks,
@@ -18,6 +16,8 @@ import ImportReportModal from './import/ImportReportModal'
 import ImportStatusBar from './import/ImportStatusBar'
 import ImportProgressPanel from './import/ImportProgressPanel'
 import ImportActivityLog from './import/ImportActivityLog'
+import ImportUnfinishedBanner from './import/ImportUnfinishedBanner'
+import ImportUploadZone from './import/ImportUploadZone'
 import type { Project } from '../../lib/types'
 import type { ImportSession, ChunkState } from '../../lib/types/import-session'
 
@@ -399,139 +399,44 @@ export default function ImportDocPanel({ project }: Props) {
 
       {/* 未完成会话提示 */}
       {unfinished && phase === 'idle' && (
-        <div className="bg-warn/5 border border-warn/30 rounded-xl p-4 flex items-start gap-3">
-          <History className="w-5 h-5 text-warn mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
-            <div className="text-sm font-semibold text-warn mb-1">
-              发现未完成的解析任务
-            </div>
-            <div className="text-xs text-text-secondary leading-relaxed">
-              文件「<strong>{unfinished.filename}</strong>」还剩 {
-                unfinished.chunks.filter(c => c.status !== 'done').length
-              } 块未解析（共 {unfinished.totalChunks} 块 · 状态：{unfinished.status}）。
-            </div>
-            {restoringBlob && (
-              <div className="mt-1.5 text-[11px] text-text-muted flex items-center gap-1">
-                <HardDrive className="w-3 h-3 animate-pulse" />
-                正在从本地存档恢复原文...
-              </div>
-            )}
-            {!restoringBlob && blobRestored && (
-              <div className="mt-1.5 text-[11px] text-accent flex items-center gap-1">
-                <HardDrive className="w-3 h-3" />
-                已从本地存档恢复原文，可直接续跑
-              </div>
-            )}
-            <div className="flex items-center gap-2 mt-2">
-              {blobRestored ? (
-                <button
-                  onClick={handleResume}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-warn text-white text-xs rounded hover:bg-warn/90"
-                >
-                  <PlayCircle className="w-3.5 h-3.5" /> 立即续跑
-                </button>
-              ) : rawText.trim() ? (
-                <button
-                  onClick={handleResumeWithUploaded}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-warn text-white text-xs rounded hover:bg-warn/90"
-                >
-                  <PlayCircle className="w-3.5 h-3.5" /> 用当前文件续跑
-                </button>
-              ) : !restoringBlob ? (
-                <span className="text-xs text-text-muted">
-                  ⚠ 本地存档丢失（可能已清理浏览器数据），请在下方重新上传同一文件
-                </span>
-              ) : null}
-              <button
-                onClick={() => {
-                  setReportSession(unfinished)
-                }}
-                className="px-3 py-1.5 text-xs text-text-secondary hover:bg-bg-hover rounded"
-              >
-                查看详情
-              </button>
-              <button
-                onClick={async () => {
-                  if (!confirm('确认放弃这个未完成任务？已入库数据不会被删除。')) return
-                  await useImportSessionStore.getState().deleteSession(unfinished.id!)
-                  await useImportSessionStore.getState().deleteBlob(unfinished.id!).catch(() => {})
-                  clearChunkTexts(unfinished.id!)
-                  setUnfinished(null)
-                  setBlobRestored(false)
-                }}
-                className="px-3 py-1.5 text-xs text-text-muted hover:text-error rounded"
-              >
-                放弃
-              </button>
-            </div>
-          </div>
-        </div>
+        <ImportUnfinishedBanner
+          unfinished={unfinished}
+          restoringBlob={restoringBlob}
+          blobRestored={blobRestored}
+          hasRawText={!!rawText.trim()}
+          onResume={handleResume}
+          onResumeWithUploaded={handleResumeWithUploaded}
+          onShowDetail={() => setReportSession(unfinished)}
+          onDiscard={async () => {
+            if (!confirm('确认放弃这个未完成任务？已入库数据不会被删除。')) return
+            await useImportSessionStore.getState().deleteSession(unfinished.id!)
+            await useImportSessionStore.getState().deleteBlob(unfinished.id!).catch(() => {})
+            clearChunkTexts(unfinished.id!)
+            setUnfinished(null)
+            setBlobRestored(false)
+          }}
+        />
       )}
 
       {/* 上传区 */}
       {phase === 'idle' && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs text-text-secondary">文档内容</label>
-            <label className={`flex items-center gap-1 px-2 py-1 text-xs rounded cursor-pointer ${
-              loadingFile ? 'text-text-muted bg-bg-hover' : 'text-accent hover:bg-accent/10'
-            }`}>
-              <Upload className="w-3 h-3" />
-              {loadingFile ? '正在提取...' : '上传文件'}
-              <input
-                type="file"
-                accept={ACCEPT_ATTR}
-                disabled={loadingFile}
-                className="hidden"
-                onChange={handleFile}
-              />
-            </label>
-          </div>
-          {fileError && (
-            <div className="mb-1.5 px-2 py-1.5 bg-error/10 border border-error/30 rounded text-xs text-error flex items-start gap-1.5">
-              <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" /> {fileError}
-            </div>
-          )}
-          {filename && !fileError && (
-            <p className="text-xs text-text-muted mb-1.5 flex items-center gap-1">
-              <FileText className="w-3 h-3" /> {filename}
-              {extractInfo && <span className="ml-1 opacity-70">· {extractInfo}</span>}
-            </p>
-          )}
-          <textarea
-            value={rawText}
-            onChange={e => {
-              setRawText(e.target.value)
-              setPlans(null)
-              // 粘贴输入 ≠ 文件上传，清掉 File 引用避免下次误把旧 File 当原文存
-              lastUploadedFile.current = null
-            }}
-            placeholder="把文档内容粘贴在这里，或上方点「上传文件」——AI 会自己判断是设定集 / 成品小说 / 大纲，哪怕千万字也没事。"
-            rows={10}
-            className="w-full px-3 py-2 bg-bg-base border border-border rounded text-sm text-text-primary font-mono resize-y focus:outline-none focus:border-accent"
-          />
-
-          {/* 预切块预览 */}
-          {previewPlans && previewPlans.length > 0 && (
-            <div className="mt-2 text-xs text-text-muted flex items-center gap-1">
-              <Wand2 className="w-3 h-3 text-accent" />
-              预计拆成 <strong className="text-accent">{previewPlans.length}</strong> 块
-              （每块约 {chunkSize.toLocaleString()} 字 · 共 {rawText.length.toLocaleString()} 字）
-            </div>
-          )}
-
-          {/* 开始按钮 */}
-          <div className="mt-3 flex items-center gap-2">
-            <button
-              onClick={handleStart}
-              disabled={!rawText.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-sm rounded hover:bg-accent-hover disabled:opacity-50"
-            >
-              <Sparkles className="w-4 h-4" />
-              开始解析
-            </button>
-          </div>
-        </div>
+        <ImportUploadZone
+          filename={filename}
+          rawText={rawText}
+          loadingFile={loadingFile}
+          fileError={fileError}
+          extractInfo={extractInfo}
+          chunkSize={chunkSize}
+          previewPlans={previewPlans}
+          onFile={handleFile}
+          onRawTextChange={text => {
+            setRawText(text)
+            setPlans(null)
+            // 粘贴输入 ≠ 文件上传，清掉 File 引用避免下次误把旧 File 当原文存
+            lastUploadedFile.current = null
+          }}
+          onStart={handleStart}
+        />
       )}
 
       {/* 运行时：进度面板 + 活动日志 */}
