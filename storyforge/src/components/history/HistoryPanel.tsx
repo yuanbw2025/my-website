@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, ChevronDown, ChevronRight, Clock } from 'lucide-react'
-import { useHistoryStore } from '../../stores/history'
+import { useHistoryStore } from '../../stores/project-singletons'
 import type { Project, HistoricalEvent } from '../../lib/types'
 import { nanoid } from '../../lib/utils/id'
 

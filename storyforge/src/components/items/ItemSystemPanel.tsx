@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, ChevronDown, ChevronRight, Gem } from 'lucide-react'
-import { useItemSystemStore } from '../../stores/item-system'
+import { useItemSystemStore } from '../../stores/project-singletons'
 import type { Project, Item, ItemType } from '../../lib/types'
 import { nanoid } from '../../lib/utils/id'
 

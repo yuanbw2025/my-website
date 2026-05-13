@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, X, Sparkles } from 'lucide-react'
-import { useCreativeRulesStore } from '../../stores/creative-rules'
+import { useCreativeRulesStore } from '../../stores/project-singletons'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildRulesGeneratePrompt } from '../../lib/ai/adapters/rules-adapter'

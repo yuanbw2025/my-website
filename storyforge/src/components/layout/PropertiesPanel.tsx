@@ -3,7 +3,7 @@ import { useOutlineStore } from '../../stores/outline'
 import { useChapterStore } from '../../stores/chapter'
 import { useCharacterStore } from '../../stores/character'
 import { useCharacterRelationStore } from '../../stores/character-relation'
-import { useGeographyStore } from '../../stores/geography'
+import { useGeographyStore } from '../../stores/project-singletons'
 import { useForeshadowStore } from '../../stores/foreshadow'
 import type { SidebarModule } from './Sidebar'
 
