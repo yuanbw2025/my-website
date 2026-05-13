@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "storyforge"],
       "port": 5175
+    },
+    {
+      "name": "yuntype",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "yuntype", "--", "--port", "5176"],
+      "port": 5176
     }
   ]
 }
