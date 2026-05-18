@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, BookOpen, Flame, Settings, Github, X, ChevronDown } from 'lucide-react'
 import { useProjectStore } from '../stores/project'
+import WelcomeGuide from '../components/guide/WelcomeGuide'
 import {
   GENRE_OPTIONS, PROJECT_STATUS_LABELS,
   type ProjectStatus, type CreateProjectInput,
@@ -83,6 +84,11 @@ export default function HomePage() {
 
   return (
     <div data-theme="forge" className="min-h-screen bg-bg-base relative overflow-hidden">
+      {/* E3: 新手引导 */}
+      <WelcomeGuide
+        onGoSettings={() => navigate('/workspace/settings')}
+      />
+
       {/* 顶栏 */}
       <header className="border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 bg-bg-base/90 backdrop-blur-sm z-20">
         <div className="flex items-center gap-2.5">

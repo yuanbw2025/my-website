@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Save, FileText, Eye, ClipboardList } from 'lucide-react'
+import { Save, FileText, Eye, ClipboardList, CheckSquare, Square } from 'lucide-react'
 import { useChapterStore } from '../../stores/chapter'
 import { useOutlineStore } from '../../stores/outline'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useCharacterStore } from '../../stores/character'
 import { useStateCardStore } from '../../stores/state-card'
+import { useEmotionBeatStore } from '../../stores/emotion-beat'
 import { useAIStream } from '../../hooks/useAIStream'
 import { useAutoSave } from '../../hooks/useAutoSave'
 import { useBeforeUnload } from '../../hooks/useBeforeUnload'
@@ -15,6 +16,7 @@ import { htmlToPlainText, plainTextToHtml, countWords } from '../../lib/utils/ht
 import AIStreamOutput from '../shared/AIStreamOutput'
 import StateDiffModal from '../state/StateDiffModal'
 import RichEditor, { type RichEditorHandle } from './RichEditor'
+import EmotionBeatCard from './EmotionBeatCard'
 import type { Project, StateDiffItem } from '../../lib/types'
 
 interface Props {
@@ -27,7 +29,8 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   const { nodes } = useOutlineStore()
   const { worldview, storyCore, powerSystem } = useWorldviewStore()
   const { characters } = useCharacterStore()
-  const { loadAll: loadStateCards, buildStateContext, applyDiffs } = useStateCardStore()
+  const { cards: stateCards, loadAll: loadStateCards, buildStateContext, buildSelectiveStateContext, applyDiffs } = useStateCardStore()
+  const { buildBeatContext } = useEmotionBeatStore()
 
   // content 为 HTML 字符串；旧数据是纯文本，RichEditor 内部会自动包装
   const [content, setContent] = useState('')
@@ -38,6 +41,9 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   const [customInstruction, setCustomInstruction] = useState('')
   const [extracting, setExtracting] = useState(false)
   const [pendingDiffs, setPendingDiffs] = useState<StateDiffItem[] | null>(null)
+  // A2: 按需召回 — 手动额外勾选/取消的状态卡 ID
+  const [extraStateIds, setExtraStateIds] = useState<number[]>([])
+  const [showStatePreview, setShowStatePreview] = useState(false)
   const ai = useAIStream()
   const stateAI = useAIStream()
   const editorRef = useRef<RichEditorHandle>(null)
@@ -86,6 +92,19 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   const worldCtx = [memo, buildWorldContext(worldview, storyCore, powerSystem)].filter(Boolean).join('\n\n')
   const charCtx = buildCharacterContext(characters)
 
+  // A2: 按需召回 — 根据章节大纲+标题+已有文本筛选相关状态卡
+  const selectiveState = useMemo(() => {
+    if (!stateCards.length) return { text: '', matchedIds: [] as number[], allIds: [] as number[] }
+    const refParts: string[] = []
+    if (outlineNode?.title) refParts.push(outlineNode.title)
+    if (outlineNode?.summary) refParts.push(outlineNode.summary)
+    if (currentChapter?.title) refParts.push(currentChapter.title)
+    if (plainText) refParts.push(plainText.slice(-2000))
+    const ref = refParts.join(' ')
+    if (!ref.trim()) return { text: buildStateContext(), matchedIds: stateCards.map(c => c.id!), allIds: stateCards.map(c => c.id!) }
+    return buildSelectiveStateContext(ref, extraStateIds)
+  }, [stateCards, outlineNode?.title, outlineNode?.summary, currentChapter?.title, plainText, extraStateIds, buildSelectiveStateContext, buildStateContext])
+
   const handleCreateFromOutline = async () => {
     if (!outlineNodeId) return
     const node = nodes.find(n => n.id === outlineNodeId)
@@ -97,18 +116,33 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   }
 
   // AI 操作 —— 所有 AI 交互都基于纯文本
+  // 构建包含状态表 + 情感节拍的完整世界观上下文
+  const buildFullWorldCtx = () => {
+    const parts = [worldCtx]
+    if (selectiveState.text) parts.push(selectiveState.text)
+    if (currentChapter?.id) {
+      const beatCtx = buildBeatContext(currentChapter.id)
+      if (beatCtx) parts.push(beatCtx)
+    }
+    return parts.filter(Boolean).join('\n\n')
+  }
+
   const handleGenerate = () => {
     if (!outlineNode) return
     const prevChapter = chapters.filter(c => c.order < (currentChapter?.order || 0)).pop()
     const prevEnding = htmlToPlainText(prevChapter?.content || '').slice(-500)
-    const messages = buildChapterContentPrompt(outlineNode.title, outlineNode.summary, worldCtx, charCtx, prevEnding)
+    const fullCtx = buildFullWorldCtx()
+    console.log(`[ChapterEditor] 生成正文 — 注入 ${selectiveState.matchedIds.length}/${selectiveState.allIds.length} 张状态卡`)
+    const messages = buildChapterContentPrompt(outlineNode.title, outlineNode.summary, fullCtx, charCtx, prevEnding)
     setAIAction('generate')
     ai.start(messages)
   }
 
   const handleContinue = () => {
     if (!plainText || !outlineNode) return
-    const messages = buildContinuePrompt(plainText, outlineNode.summary, worldCtx)
+    const fullCtx = buildFullWorldCtx()
+    console.log(`[ChapterEditor] 续写 — 注入 ${selectiveState.matchedIds.length}/${selectiveState.allIds.length} 张状态卡`)
+    const messages = buildContinuePrompt(plainText, outlineNode.summary, fullCtx)
     setAIAction('continue')
     ai.start(messages)
   }
@@ -250,11 +284,67 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
 
       {/* 上下文查看器 */}
       {showContext && (
-        <div className="mb-3 p-3 bg-bg-elevated border border-border rounded-lg text-xs text-text-muted max-h-48 overflow-y-auto whitespace-pre-wrap">
+        <div className="mb-3 p-3 bg-bg-elevated border border-border rounded-lg text-xs text-text-muted max-h-64 overflow-y-auto">
           <p className="font-medium text-text-secondary mb-1">📋 发送给 AI 的上下文：</p>
-          {worldCtx && <p>【世界观】{worldCtx.slice(0, 500)}...</p>}
-          {charCtx && <p>【角色】{charCtx.slice(0, 300)}...</p>}
-          {outlineNode && <p>【章节大纲】{outlineNode.title}：{outlineNode.summary}</p>}
+          <div className="whitespace-pre-wrap">
+            {worldCtx && <p>【世界观】{worldCtx.slice(0, 500)}...</p>}
+            {charCtx && <p>【角色】{charCtx.slice(0, 300)}...</p>}
+            {outlineNode && <p>【章节大纲】{outlineNode.title}：{outlineNode.summary}</p>}
+          </div>
+
+          {/* A2: 状态卡注入预览 */}
+          {stateCards.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-border">
+              <div className="flex items-center justify-between mb-1">
+                <p className="font-medium text-text-secondary">
+                  📋 状态卡注入（{selectiveState.matchedIds.length}/{selectiveState.allIds.length}）
+                </p>
+                <button onClick={() => setShowStatePreview(!showStatePreview)}
+                  className="text-accent hover:text-accent-hover text-xs">
+                  {showStatePreview ? '收起' : '展开调整'}
+                </button>
+              </div>
+              {showStatePreview && (
+                <div className="space-y-1 mt-1">
+                  {stateCards.map(card => {
+                    const isMatched = selectiveState.matchedIds.includes(card.id!)
+                    const isExtra = extraStateIds.includes(card.id!)
+                    return (
+                      <label key={card.id} className="flex items-center gap-1.5 cursor-pointer hover:bg-bg-hover rounded px-1 py-0.5">
+                        <button
+                          onClick={() => {
+                            if (isExtra) {
+                              setExtraStateIds(extraStateIds.filter(id => id !== card.id))
+                            } else if (!isMatched) {
+                              setExtraStateIds([...extraStateIds, card.id!])
+                            } else {
+                              // 已自动匹配的，不允许取消（用户可通过不勾选来忽略）
+                            }
+                          }}
+                          className="flex-shrink-0"
+                        >
+                          {isMatched || isExtra
+                            ? <CheckSquare className="w-3.5 h-3.5 text-accent" />
+                            : <Square className="w-3.5 h-3.5 text-text-muted" />
+                          }
+                        </button>
+                        <span className={`px-1 py-0.5 rounded text-[10px] ${
+                          card.category === 'character' ? 'bg-blue-500/10 text-blue-400' :
+                          card.category === 'location' ? 'bg-green-500/10 text-green-400' :
+                          card.category === 'item' ? 'bg-yellow-500/10 text-yellow-400' :
+                          card.category === 'faction' ? 'bg-purple-500/10 text-purple-400' :
+                          'bg-red-500/10 text-red-400'
+                        }`}>{card.category === 'character' ? '角色' : card.category === 'location' ? '地点' : card.category === 'item' ? '物品' : card.category === 'faction' ? '势力' : '事件'}</span>
+                        <span className={isMatched || isExtra ? 'text-text-primary' : 'text-text-muted'}>{card.entityName}</span>
+                        {isMatched && !isExtra && <span className="text-[10px] text-accent/60">自动匹配</span>}
+                        {isExtra && <span className="text-[10px] text-warning">手动添加</span>}
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -292,6 +382,22 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
       </div>
 
       {/* AI 输出 */}
+      {/* A3: 情感节拍卡 */}
+      {outlineNode && currentChapter?.id && (
+        <EmotionBeatCard
+          projectId={project.id!}
+          chapterId={currentChapter.id}
+          chapterTitle={outlineNode.title || currentChapter.title}
+          chapterSummary={outlineNode.summary || ''}
+          worldContext={worldCtx}
+          characterContext={charCtx}
+          prevChapterEnding={(() => {
+            const prev = chapters.filter(c => c.order < (currentChapter?.order || 0)).pop()
+            return htmlToPlainText(prev?.content || '').slice(-500)
+          })()}
+        />
+      )}
+
       {(ai.output || ai.isStreaming || ai.error) && (
         <div className="mb-3">
           <AIStreamOutput output={ai.output} isStreaming={ai.isStreaming} error={ai.error} tokenUsage={ai.tokenUsage}

@@ -27,8 +27,11 @@ interface StateCardStore {
   /** 批量应用 diff（用于章后审核确认） */
   applyDiffs: (projectId: number, diffs: StateDiffItem[], chapterId?: number) => Promise<void>
 
-  /** 构建用于 AI 注入的状态表文本 */
+  /** 构建用于 AI 注入的状态表文本（全量） */
   buildStateContext: () => string
+
+  /** 按需召回：只注入与参考文本相关的状态卡 */
+  buildSelectiveStateContext: (referenceText: string, extraIds?: number[]) => { text: string; matchedIds: number[]; allIds: number[] }
 }
 
 export const useStateCardStore = create<StateCardStore>((set, get) => ({
@@ -172,5 +175,78 @@ export const useStateCardStore = create<StateCardStore>((set, get) => ({
     }
 
     return parts.join('\n')
+  },
+
+  buildSelectiveStateContext: (referenceText: string, extraIds?: number[]) => {
+    const { cards } = get()
+    if (!cards.length) {
+      console.log('[StateCard] buildSelectiveStateContext: 无状态卡')
+      return { text: '', matchedIds: [], allIds: [] }
+    }
+
+    const allIds = cards.map(c => c.id!).filter(Boolean)
+    const refLower = referenceText.toLowerCase()
+    const extraSet = new Set(extraIds || [])
+
+    // 匹配规则：实体名出现在参考文本中，或者字段值中有关键词出现在参考文本中
+    const matched: StateCard[] = []
+    const matchedIds: number[] = []
+
+    for (const card of cards) {
+      // 强制包含用户手动勾选的
+      if (card.id && extraSet.has(card.id)) {
+        matched.push(card)
+        matchedIds.push(card.id)
+        continue
+      }
+
+      // 实体名匹配
+      if (refLower.includes(card.entityName.toLowerCase())) {
+        matched.push(card)
+        if (card.id) matchedIds.push(card.id)
+        continue
+      }
+
+      // 字段值匹配（如位置名、物品名等出现在文本中）
+      const fields = parseFields(card.fields)
+      const fieldMatch = fields.some(f =>
+        f.value.length >= 2 && refLower.includes(f.value.toLowerCase())
+      )
+      if (fieldMatch) {
+        matched.push(card)
+        if (card.id) matchedIds.push(card.id)
+      }
+    }
+
+    // 如果匹配为空，回退到全量注入
+    if (matched.length === 0) {
+      console.log('[StateCard] selectiveContext: 无匹配，回退全量注入', cards.length, '张')
+      return { text: get().buildStateContext(), matchedIds: allIds, allIds }
+    }
+
+    console.log(`[StateCard] selectiveContext: 匹配 ${matched.length}/${cards.length} 张卡片`)
+
+    const LABELS: Record<StateCategory, string> = {
+      character: '角色', location: '地点', item: '物品', faction: '势力', event: '事件',
+    }
+
+    const grouped = new Map<StateCategory, StateCard[]>()
+    for (const c of matched) {
+      const list = grouped.get(c.category) || []
+      list.push(c)
+      grouped.set(c.category, list)
+    }
+
+    const parts: string[] = ['【当前状态表（按需召回）】']
+    for (const [cat, catCards] of grouped) {
+      parts.push(`\n[${LABELS[cat]}]`)
+      for (const card of catCards) {
+        const fields = parseFields(card.fields)
+        const fieldStr = fields.map(f => `${f.key}：${f.value}`).join(' | ')
+        parts.push(`- ${card.entityName} | ${fieldStr}`)
+      }
+    }
+
+    return { text: parts.join('\n'), matchedIds, allIds }
   },
 }))

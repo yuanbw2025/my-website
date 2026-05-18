@@ -29,6 +29,7 @@ import type {
   MasterStyleMetrics,
   MasterInsight,
   StateCard,
+  EmotionBeatCard,
 } from '../types'
 
 class StoryForgeDB extends Dexie {
@@ -65,6 +66,9 @@ class StoryForgeDB extends Dexie {
 
   // A1 —— 状态表（角色/地点/物品/势力状态追踪）
   stateCards!: Table<StateCard, number>
+
+  // A3 —— 情感节拍卡
+  emotionBeatCards!: Table<EmotionBeatCard, number>
 
   constructor() {
     super('storyforge')
@@ -144,6 +148,11 @@ class StoryForgeDB extends Dexie {
     // v12: 状态表 — 角色/地点/物品/势力状态追踪（A1）
     this.version(12).stores({
       stateCards: '++id, projectId, category, entityName, lastChapterId',
+    })
+
+    // v13: 情感节拍卡（A3）
+    this.version(13).stores({
+      emotionBeatCards: '++id, projectId, chapterId',
     })
   }
 }

@@ -12,6 +12,7 @@ import { useItemSystemStore } from '../stores/project-singletons'
 import { useCreativeRulesStore } from '../stores/project-singletons'
 import { useCharacterRelationStore } from '../stores/character-relation'
 import { useReferenceStore } from '../stores/reference'
+import { useEmotionBeatStore } from '../stores/emotion-beat'
 import { useAutoBackup } from '../hooks/useAutoBackup'
 import { PanelRight } from 'lucide-react'
 import Sidebar, { type SidebarModule } from '../components/layout/Sidebar'
@@ -92,6 +93,7 @@ export default function WorkspacePage() {
         useCreativeRulesStore.getState().loadAll(pid),
         useCharacterRelationStore.getState().loadAll(pid),
         useReferenceStore.getState().loadAll(pid),
+        useEmotionBeatStore.getState().loadAll(pid),
       ])
 
       setLoading(false)
