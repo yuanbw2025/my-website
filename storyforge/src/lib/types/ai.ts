@@ -51,17 +51,14 @@ export const PROVIDER_MODELS: Record<string, { value: string; label: string; des
   ],
   // Gemini 模型列表（2026-05-11 通过 Google API 实际拉取校验）
   gemini: [
-    { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (Preview)', desc: '最新最强预览版' },
-    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview)', desc: '3 代 Pro 预览版' },
-    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)', desc: '3 代 Flash，快速' },
-    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', desc: '轻量快速' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', desc: '稳定版，支持思考' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', desc: '稳定版，免费额度高' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash ⭐', desc: '推荐，稳定且免费额度高' },
     { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', desc: '轻量稳定版' },
-    { value: 'gemini-pro-latest', label: 'Gemini Pro Latest', desc: '自动跟随最新 Pro' },
-    { value: 'gemini-flash-latest', label: 'Gemini Flash Latest', desc: '自动跟随最新 Flash' },
-    { value: 'gemini-flash-lite-latest', label: 'Gemini Flash-Lite Latest', desc: '自动跟随最新 Flash-Lite' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: '老版稳定' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', desc: '最强稳定版，支持思考' },
+    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)', desc: '⚠️ 预览版，高峰期可能 503' },
+    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', desc: '⚠️ 预览版' },
+    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview)', desc: '⚠️ 预览版，可能不稳定' },
+    { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (Preview)', desc: '⚠️ 预览版，可能不稳定' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: '老版' },
   ],
   poe: [
     { value: 'GPT-4o', label: 'GPT-4o' },
@@ -101,7 +98,7 @@ export const PROVIDER_PRESETS: Record<string, Partial<AIConfig>> = {
   },
   gemini: {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.5-flash',
   },
   poe: {
     baseUrl: 'https://api.poe.com/v1',

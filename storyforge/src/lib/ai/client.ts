@@ -81,21 +81,38 @@ export async function* streamChat(
   const startTime = Date.now()
 
   try {
-    const response = await fetch(req.url, {
-      method: 'POST',
-      headers: req.headers,
-      body: req.body,
-      signal,
-    })
+    // 自动重试：遇到 429（频率限制）或 503（服务不可用）时，最多重试 2 次
+    let response: Response | null = null
+    const MAX_RETRIES = 2
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      response = await fetch(req.url, {
+        method: 'POST',
+        headers: req.headers,
+        body: req.body,
+        signal,
+      })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      const duration = Date.now() - startTime
-      updateLog(log.id, { status: 'error', statusCode: response.status, duration, errorMessage: errorText.slice(0, 200) })
-      throw new AIError(response.status, errorText)
+      if (response.ok) break
+
+      // 429/503 可重试
+      if ((response!.status === 429 || response!.status === 503) && attempt < MAX_RETRIES) {
+        const wait = (attempt + 1) * 2000 // 2s, 4s
+        console.warn(`[AI] HTTP ${response!.status}，${wait / 1000}s 后重试（${attempt + 1}/${MAX_RETRIES}）`)
+        await new Promise(r => setTimeout(r, wait))
+        continue
+      }
+
+      break
     }
 
-    const reader = response.body!.getReader()
+    if (!response!.ok) {
+      const errorText = await response!.text()
+      const duration = Date.now() - startTime
+      updateLog(log.id, { status: 'error', statusCode: response!.status, duration, errorMessage: errorText.slice(0, 200) })
+      throw new AIError(response!.status, errorText)
+    }
+
+    const reader = response!.body!.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
     let usage: TokenUsage | undefined
@@ -112,7 +129,7 @@ export async function* streamChat(
         if (line.startsWith('data: ')) {
           const data = line.slice(6).trim()
           if (data === '[DONE]') {
-            const logUpdate: Record<string, unknown> = { status: 'success', statusCode: response.status, duration: Date.now() - startTime }
+            const logUpdate: Record<string, unknown> = { status: 'success', statusCode: response!.status, duration: Date.now() - startTime }
             if (usage) logUpdate.usage = usage
             if (result && usage) result.usage = usage
             updateLog(log.id, logUpdate)
@@ -137,7 +154,7 @@ export async function* streamChat(
       }
     }
 
-    const logUpdate: Record<string, unknown> = { status: 'success', statusCode: response.status, duration: Date.now() - startTime }
+    const logUpdate: Record<string, unknown> = { status: 'success', statusCode: response!.status, duration: Date.now() - startTime }
     if (usage) logUpdate.usage = usage
     if (result && usage) result.usage = usage
     updateLog(log.id, logUpdate)
@@ -166,7 +183,7 @@ export async function chat(
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new AIError(response.status, errorText)
+    throw new AIError(response!.status, errorText)
   }
 
   const json = await response.json()
