@@ -71,6 +71,19 @@ export default function AIStreamOutput({
           <div className="text-error text-sm">
             <p className="font-medium mb-1">⚠️ 生成失败</p>
             <p className="text-text-muted">{error}</p>
+            {error.includes('Failed to fetch') && (
+              <p className="mt-2 text-xs text-warning bg-warning/5 p-2 rounded">
+                💡 可能的解决方法：<br />
+                1. 检查网络连接是否正常<br />
+                2. 在「设置」中点击「切换到本地代理」按钮<br />
+                3. 确认 Base URL 是否正确
+              </p>
+            )}
+            {error.includes('API Key') && (
+              <p className="mt-2 text-xs text-warning bg-warning/5 p-2 rounded">
+                💡 请在「设置」中检查 API Key 是否正确填写
+              </p>
+            )}
           </div>
         ) : hasOutput ? (
           <div className="text-text-primary text-sm leading-relaxed whitespace-pre-wrap">

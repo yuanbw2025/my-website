@@ -69,7 +69,8 @@ export function useAIStream(): UseAIStreamReturn {
       : baseConfig
 
     if (!config.apiKey) {
-      const errMsg = '请先在「设置」中配置 AI API Key'
+      const errMsg = '请先在左侧栏底部「⚙️ 设置」中配置 AI API Key，选择服务商并填入密钥'
+      console.warn('[AI] 未配置 API Key，provider:', config.provider)
       setError(errMsg)
       setIsStreaming(false)
       return ''
