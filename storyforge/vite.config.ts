@@ -70,6 +70,24 @@ export default defineConfig({
         rewrite: (path: string) => path.replace(/^\/deepseek-proxy/, ''),
         secure: true,
       },
+      '/openai-proxy': {
+        target: 'https://api.openai.com',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/openai-proxy/, ''),
+        secure: true,
+      },
+      '/kimi-proxy': {
+        target: 'https://api.moonshot.cn',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/kimi-proxy/, ''),
+        secure: true,
+      },
+      '/claude-proxy': {
+        target: 'https://api.anthropic.com',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/claude-proxy/, ''),
+        secure: true,
+      },
     },
   },
   build: {
