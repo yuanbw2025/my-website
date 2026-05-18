@@ -200,16 +200,20 @@ export default function AIConfigPanel() {
             <div>
               <label className="block text-sm text-text-secondary mb-1.5">
                 Max Tokens: {config.maxTokens}
+                <span className="text-text-muted font-normal ml-1">（≈{Math.round(config.maxTokens * 0.6)}字）</span>
               </label>
               <input
                 type="range"
                 min={1024}
-                max={16384}
+                max={65536}
                 step={1024}
                 value={config.maxTokens}
                 onChange={(e) => setConfig({ maxTokens: Number(e.target.value) })}
                 className="w-full accent-accent"
               />
+              <div className="flex justify-between text-[10px] text-text-muted mt-0.5">
+                <span>1K</span><span>16K</span><span>32K</span><span>64K</span>
+              </div>
             </div>
           </div>
 
