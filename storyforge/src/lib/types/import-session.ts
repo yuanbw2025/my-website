@@ -13,6 +13,9 @@
 
 import type { UnifiedParseResult } from './import-session-data'
 
+/** 导入目标 */
+export type ImportTarget = 'project' | 'reference'
+
 /** 会话状态 */
 export type ImportSessionStatus =
   | 'pending'    // 已创建、还没跑
@@ -73,6 +76,8 @@ export interface ImportSession {
   merged: UnifiedParseResult
   /** 滚动上下文（~1500 字已识别角色 + 关键词），AI 续跑时塞回 prompt */
   rollingContext: string
+  /** 导入目标：写入当前项目 还是 项目参考 */
+  importTarget: ImportTarget
   /** 整体状态 */
   status: ImportSessionStatus
   /** 失败时的终结错误信息 */

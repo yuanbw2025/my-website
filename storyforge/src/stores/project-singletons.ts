@@ -29,6 +29,7 @@ export const useGeographyStore = createProjectSingletonStore<'geography', Geogra
   defaults: {
     overview: '',
     locations: '[]',
+    worldMapData: '',
   },
 })
 

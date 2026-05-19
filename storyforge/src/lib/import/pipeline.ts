@@ -35,7 +35,8 @@ import {
 import {
   mergeUnified, buildRollingContext, normalizeUnified, buildFinalReport,
 } from './unified-merge'
-import { applyChunkResult } from './chunk-writer'
+import { applyChunkResult, type ApplyChunkCounts } from './chunk-writer'
+import { useReferenceStore } from '../../stores/reference'
 import { chatWithAbort } from './chat-with-abort'
 import { runCharacterMerge } from './character-merge'
 
@@ -158,6 +159,33 @@ export async function runSession(args: {
     const doneCount = fresh.chunks.filter(c => c.status === 'done').length
 
     const report = buildFinalReport(fresh)
+
+    // 项目参考模式：把累积的 merged 数据写入 references 表
+    if (fresh.importTarget === 'reference' && doneCount > 0) {
+      try {
+        await useReferenceStore.getState().addReference({
+          projectId,
+          title: fresh.filename.replace(/\.[^.]+$/, ''),
+          author: '',
+          type: 'story',
+          note: `从「${fresh.filename}」导入 · ${fresh.totalChars.toLocaleString()} 字`,
+          url: '',
+          importedData: {
+            worldview: fresh.merged?.worldview,
+            characters: fresh.merged?.characters,
+            outline: fresh.merged?.outline,
+            writingTechniques: fresh.merged?.writingTechniques,
+            sourceFilename: fresh.filename,
+            importedAt: Date.now(),
+          },
+        })
+        statusStore.pushActivity('success', '📚 已保存到「项目参考」')
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        statusStore.pushActivity('error', `保存项目参考失败：${msg}`)
+      }
+    }
+
     await sessionStore.patch(sessionId, {
       status: failedCount === 0 ? 'done' : 'failed',
       finalReport: report,
@@ -240,8 +268,21 @@ async function runChunk(
         signal: activeController?.signal,
       })
 
-      // 入库
-      const counts = await applyChunkResult(projectId, result)
+      // 入库（仅"导入当前项目"时写入项目表；"导入项目参考"只累积到 merged）
+      let counts: ApplyChunkCounts
+      if (session.importTarget === 'reference') {
+        // 项目参考模式：不写项目表，只统计
+        const wvFields = result.worldview ? Object.keys(result.worldview).filter(k => {
+          const v = result.worldview![k]; return typeof v === 'string' && v.trim()
+        }).length : 0
+        counts = {
+          worldviewFields: wvFields,
+          characters: Array.isArray(result.characters) ? result.characters.length : 0,
+          outlineNodes: Array.isArray(result.outline) ? result.outline.length : 0,
+        }
+      } else {
+        counts = await applyChunkResult(projectId, result)
+      }
 
       // 更新 session.merged 和 rollingContext
       const merged = mergeUnified(session.merged || {}, result)

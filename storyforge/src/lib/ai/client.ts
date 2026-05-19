@@ -31,21 +31,19 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
   if (config.provider === 'poe') {
     // Poe: 不传额外参数
   } else if (config.provider === 'deepseek') {
-    // DeepSeek 官方文档: https://api.deepseek.com, model = deepseek-v4-flash / deepseek-v4-pro
-    // V4 Pro 和 Reasoner 支持 thinking 深度思考模式
     const isThinkingModel = config.model.includes('v4-pro')
     if (isThinkingModel) {
       body.thinking = { type: 'enabled' }
       body.reasoning_effort = 'high'
-      // 思考模式下不传 temperature（DeepSeek 文档未在 thinking 示例中包含 temperature）
     } else {
       if (config.temperature !== undefined) body.temperature = config.temperature
     }
-    if (config.maxTokens !== undefined) body.max_tokens = config.maxTokens
+    // maxTokens > 0 才传，0 = 不限制（由模型自身决定）
+    if (config.maxTokens && config.maxTokens > 0) body.max_tokens = config.maxTokens
   } else {
-    // 其他 provider 正常传 temperature 和 max_tokens
     if (config.temperature !== undefined) body.temperature = config.temperature
-    if (config.maxTokens !== undefined) body.max_tokens = config.maxTokens
+    // maxTokens > 0 才传，0 = 不限制（由模型自身决定）
+    if (config.maxTokens && config.maxTokens > 0) body.max_tokens = config.maxTokens
   }
 
   return {

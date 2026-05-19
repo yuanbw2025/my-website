@@ -1,0 +1,293 @@
+/**
+ * WorldMapPanel — 世界地图主面板
+ * 顶层容器：AI 生成按钮 + Canvas + 属性编辑器
+ */
+
+import { useState, useEffect, useCallback } from 'react'
+import { Sparkles, Loader2, RefreshCw, Map } from 'lucide-react'
+import { useGeographyStore } from '../../stores/project-singletons'
+import { useWorldviewStore } from '../../stores/worldview'
+import { useAIStream } from '../../hooks/useAIStream'
+import {
+  buildWorldMapPrompt,
+  cleanMapJSON,
+  computeSourceHash,
+} from '../../lib/ai/adapters/world-map-adapter'
+import { nanoid } from '../../lib/utils/id'
+import type { Project, Location } from '../../lib/types'
+import type { WorldMapData, MapMarker } from '../../lib/types/world-map'
+import WorldMapCanvas from './WorldMapCanvas'
+import MapMarkerEditor from './MapMarkerEditor'
+
+interface Props {
+  project: Project
+}
+
+/** 创建空的 WorldMapData */
+
+export default function WorldMapPanel({ project }: Props) {
+  const { geography, save } = useGeographyStore()
+  const { worldview } = useWorldviewStore()
+  const ai = useAIStream()
+
+  const [mapData, setMapData] = useState<WorldMapData | null>(null)
+  const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null)
+  const [showEditor, setShowEditor] = useState(false)
+
+  // 从 geography.worldMapData 加载地图数据
+  useEffect(() => {
+    if (geography?.worldMapData) {
+      try {
+        const parsed = JSON.parse(geography.worldMapData) as WorldMapData
+        setMapData(parsed)
+      } catch {
+        setMapData(null)
+      }
+    } else {
+      setMapData(null)
+    }
+  }, [geography?.worldMapData])
+
+  // 持久化地图数据到 IndexedDB
+  const persistMapData = useCallback(
+    async (data: WorldMapData) => {
+      setMapData(data)
+      await save({
+        projectId: project.id!,
+        worldMapData: JSON.stringify(data),
+      })
+    },
+    [project.id, save],
+  )
+
+  // ── AI 生成地图 ─────────────────────────────────────────
+  const handleGenerate = async () => {
+    // 收集世界观 + 地理信息
+    const overview = geography?.overview || ''
+    let locations: Location[] = []
+    try {
+      locations = JSON.parse(geography?.locations || '[]')
+    } catch { /* empty */ }
+
+    const messages = buildWorldMapPrompt(worldview, overview, locations)
+    const result = await ai.start(messages, { maxTokens: 16384 })
+
+    if (!result) return
+
+    try {
+      const cleaned = cleanMapJSON(result)
+      const parsed = JSON.parse(cleaned) as WorldMapData
+
+      // 补充缺失字段
+      parsed.version = (mapData?.version || 0) + 1
+      parsed.sourceHash = computeSourceHash(overview + JSON.stringify(locations))
+      if (!parsed.width) parsed.width = 1200
+      if (!parsed.height) parsed.height = 800
+
+      // 确保所有 marker 有 id
+      for (const m of parsed.markers) {
+        if (!m.id) m.id = nanoid()
+        if (!m.importance) m.importance = 3
+      }
+
+      await persistMapData(parsed)
+    } catch (err) {
+      console.error('Failed to parse AI map JSON:', err)
+    }
+  }
+
+  // ── 交互回调 ─────────────────────────────────────────────
+  const handleSelectMarker = useCallback((marker: MapMarker | null) => {
+    setSelectedMarker(marker)
+    setShowEditor(!!marker)
+  }, [])
+
+  const handleMarkerDragEnd = useCallback(
+    (markerId: string, newX: number, newY: number) => {
+      if (!mapData) return
+      const updated: WorldMapData = {
+        ...mapData,
+        markers: mapData.markers.map(m =>
+          m.id === markerId ? { ...m, x: newX, y: newY } : m,
+        ),
+      }
+      persistMapData(updated)
+    },
+    [mapData, persistMapData],
+  )
+
+  const handleDoubleClickEmpty = useCallback(
+    (x: number, y: number) => {
+      if (!mapData) return
+      const newMarker: MapMarker = {
+        id: nanoid(),
+        name: '新地点',
+        x,
+        y,
+        type: 'custom',
+        importance: 3,
+        userAdded: true,
+      }
+      const updated: WorldMapData = {
+        ...mapData,
+        markers: [...mapData.markers, newMarker],
+      }
+      persistMapData(updated)
+      setSelectedMarker(newMarker)
+      setShowEditor(true)
+    },
+    [mapData, persistMapData],
+  )
+
+  const handleUpdateMarker = useCallback(
+    (markerId: string, changes: Partial<MapMarker>) => {
+      if (!mapData) return
+      const updated: WorldMapData = {
+        ...mapData,
+        markers: mapData.markers.map(m =>
+          m.id === markerId ? { ...m, ...changes } : m,
+        ),
+      }
+      persistMapData(updated)
+      // 同步 selectedMarker
+      const found = updated.markers.find(m => m.id === markerId)
+      if (found) setSelectedMarker(found)
+    },
+    [mapData, persistMapData],
+  )
+
+  const handleDeleteMarker = useCallback(
+    (markerId: string) => {
+      if (!mapData) return
+      const updated: WorldMapData = {
+        ...mapData,
+        markers: mapData.markers.filter(m => m.id !== markerId),
+      }
+      persistMapData(updated)
+      setSelectedMarker(null)
+      setShowEditor(false)
+    },
+    [mapData, persistMapData],
+  )
+
+
+  // ── 渲染 ─────────────────────────────────────────────────
+  return (
+    <div className="h-full flex flex-col">
+      {/* 工具栏 */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+          <Map className="w-5 h-5" />
+          世界地图
+        </h2>
+        <div className="flex items-center gap-2">
+          {mapData && (
+            <span className="text-xs text-text-muted">
+              v{mapData.version} · {mapData.markers.length} 标记 · {mapData.regions.length} 区域
+            </span>
+          )}
+          <button
+            onClick={handleGenerate}
+            disabled={ai.isStreaming}
+            className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
+          >
+            {ai.isStreaming ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                AI 生成中...
+              </>
+            ) : mapData ? (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                重新生成
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                AI 生成地图
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* AI 错误提示 */}
+      {ai.error && (
+        <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
+          {ai.error}
+        </div>
+      )}
+
+      {/* AI 流式输出进度 */}
+      {ai.isStreaming && (
+        <div className="mb-3 p-3 bg-accent/10 border border-accent/20 rounded-lg">
+          <div className="flex items-center gap-2 text-sm text-accent mb-1">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            AI 正在设计世界地图...
+          </div>
+          <div className="text-xs text-text-muted max-h-20 overflow-y-auto font-mono">
+            {ai.output.slice(0, 200)}
+            {ai.output.length > 200 && '...'}
+          </div>
+        </div>
+      )}
+
+      {/* 主内容区域 */}
+      <div className="flex-1 flex min-h-0">
+        {mapData ? (
+          <>
+            {/* Canvas 地图 */}
+            <div className="flex-1 min-w-0">
+              <WorldMapCanvas
+                data={mapData}
+                selectedMarkerId={selectedMarker?.id || null}
+                onSelectMarker={handleSelectMarker}
+                onMarkerDragEnd={handleMarkerDragEnd}
+                onDoubleClickEmpty={handleDoubleClickEmpty}
+              />
+            </div>
+
+            {/* 属性编辑面板 */}
+            {showEditor && selectedMarker && (
+              <MapMarkerEditor
+                marker={selectedMarker}
+                onUpdate={handleUpdateMarker}
+                onDelete={handleDeleteMarker}
+                onClose={() => {
+                  setShowEditor(false)
+                  setSelectedMarker(null)
+                }}
+              />
+            )}
+          </>
+        ) : (
+          /* 空状态 */
+          !ai.isStreaming && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center max-w-md">
+                <Map className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-text-primary mb-2">还没有世界地图</h3>
+                <p className="text-sm text-text-muted mb-6 leading-relaxed">
+                  点击「AI 生成地图」，系统会根据你在世界观和地理环境中填写的内容，
+                  自动生成一张包含大陆、山脉、河流、城市的奇幻世界地图。
+                  <br />
+                  <span className="text-text-secondary mt-1 inline-block">
+                    💡 提示：先在「自然环境」和「地理环境」中填写越详细，生成效果越好
+                  </span>
+                </p>
+                <button
+                  onClick={handleGenerate}
+                  disabled={ai.isStreaming}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  AI 生成地图
+                </button>
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  )
+}

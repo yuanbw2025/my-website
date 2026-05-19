@@ -9,8 +9,16 @@ import { useWorkflowStore } from './stores/workflow'
 import { ensureSchema } from './lib/db/ensure-schema'
 import './index.css'
 
-// 从 localStorage 恢复主题
-const savedTheme = localStorage.getItem('storyforge-theme') || 'midnight'
+// 从 localStorage 恢复主题（兼容旧主题名迁移）
+let savedTheme = localStorage.getItem('storyforge-theme') || 'forge'
+const THEME_MIGRATE: Record<string, string> = {
+  work: 'forge', midnight: 'forge', ocean: 'forge', graphite: 'forge',
+  mist: 'paper', parchment: 'paper',
+}
+if (THEME_MIGRATE[savedTheme]) {
+  savedTheme = THEME_MIGRATE[savedTheme]
+  localStorage.setItem('storyforge-theme', savedTheme)
+}
 document.documentElement.setAttribute('data-theme', savedTheme)
 
 // 当前代码必须存在的表（每次新增表都要在这里登记）

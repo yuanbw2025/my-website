@@ -99,7 +99,7 @@ export const NAV_TREE: TreeSection[] = [
     label: '著作信息',
     children: [
       leaf('info',       '项目概况', FileText),
-      leaf('references', '参考书目', Library),
+      leaf('references', '项目参考', Library),
     ],
   },
   {

@@ -22,9 +22,9 @@ const PROVIDER_OPTIONS: { value: AIProvider; label: string; cors: boolean; hint:
 ]
 
 const THEME_OPTIONS = [
-  { value: 'work', label: '🔨 工作', desc: '深色暖黑，专注生产' },
-  { value: 'forge', label: '🔥 熔炉', desc: '暖棕火光，仪式感' },
-  { value: 'paper', label: '📄 纸张', desc: '浅色米白，沉浸写作' },
+  { value: 'forge',  label: '熔炉',   emoji: '🔥', desc: '暗夜琥珀 · 火光余烬', swatches: ['#1A0F0A', '#D97757', '#C8A155'] },
+  { value: 'scroll', label: '古卷',   emoji: '📜', desc: '旧纸染黄 · 铁胆墨香', swatches: ['#E5D5A8', '#7B3A1A', '#8B5E1A'] },
+  { value: 'paper',  label: '纸与墨', emoji: '🖊', desc: '素纸如雪 · 墨迹清朗', swatches: ['#FAF7F0', '#B85C3F', '#8A7E6A'] },
 ]
 
 export default function AIConfigPanel() {
@@ -37,7 +37,7 @@ export default function AIConfigPanel() {
   // 订阅日志变化
   const logs = useSyncExternalStore(subscribeLogs, getLogs)
 
-  const currentTheme = localStorage.getItem('storyforge-theme') || 'work'
+  const currentTheme = localStorage.getItem('storyforge-theme') || 'forge'
   const currentProviderInfo = PROVIDER_OPTIONS.find((p) => p.value === config.provider)
 
   const handleTest = async () => {
@@ -199,21 +199,39 @@ export default function AIConfigPanel() {
             </div>
             <div>
               <label className="block text-sm text-text-secondary mb-1.5">
-                Max Tokens: {config.maxTokens}
-                <span className="text-text-muted font-normal ml-1">（≈{Math.round(config.maxTokens * 0.6)}字）</span>
+                Max Tokens:
+                {config.maxTokens === 0
+                  ? <span className="text-accent font-normal ml-1">不限制（模型最大）</span>
+                  : <><span className="ml-1">{config.maxTokens}</span><span className="text-text-muted font-normal ml-1">（≈{Math.round(config.maxTokens * 0.6)}字）</span></>
+                }
               </label>
-              <input
-                type="range"
-                min={1024}
-                max={65536}
-                step={1024}
-                value={config.maxTokens}
-                onChange={(e) => setConfig({ maxTokens: Number(e.target.value) })}
-                className="w-full accent-accent"
-              />
-              <div className="flex justify-between text-[10px] text-text-muted mt-0.5">
-                <span>1K</span><span>16K</span><span>32K</span><span>64K</span>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-text-secondary whitespace-nowrap cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.maxTokens === 0}
+                    onChange={(e) => setConfig({ maxTokens: e.target.checked ? 0 : 8192 })}
+                    className="accent-accent"
+                  />
+                  不限
+                </label>
+                {config.maxTokens > 0 && (
+                  <input
+                    type="range"
+                    min={1024}
+                    max={65536}
+                    step={1024}
+                    value={config.maxTokens}
+                    onChange={(e) => setConfig({ maxTokens: Number(e.target.value) })}
+                    className="w-full accent-accent"
+                  />
+                )}
               </div>
+              {config.maxTokens > 0 && (
+                <div className="flex justify-between text-[10px] text-text-muted mt-0.5">
+                  <span>1K</span><span>16K</span><span>32K</span><span>64K</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -295,24 +313,54 @@ export default function AIConfigPanel() {
       {/* 主题切换 */}
       <div className="bg-bg-surface border border-border rounded-xl p-5">
         <h3 className="text-base font-semibold text-text-primary mb-4">主题</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {THEME_OPTIONS.map((theme) => (
-            <button
-              key={theme.value}
-              onClick={() => handleThemeChange(theme.value)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-all text-left ${
-                currentTheme === theme.value
-                  ? 'border-accent bg-accent/10'
-                  : 'border-border hover:border-border-hover hover:bg-bg-hover'
-              }`}
-            >
-              <span className="text-lg">{theme.label.split(' ')[0]}</span>
-              <div>
-                <p className="text-sm text-text-primary font-medium">{theme.label.split(' ').slice(1).join(' ')}</p>
-                <p className="text-xs text-text-muted">{theme.desc}</p>
-              </div>
-            </button>
-          ))}
+        <div className="flex flex-col gap-3">
+          {THEME_OPTIONS.map((theme) => {
+            const isActive = currentTheme === theme.value
+            return (
+              <button
+                key={theme.value}
+                onClick={() => handleThemeChange(theme.value)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                  isActive
+                    ? 'border-accent bg-accent/10'
+                    : 'border-border hover:border-border-hover hover:bg-bg-hover'
+                }`}
+              >
+                {/* 色块预览 */}
+                <div className="flex items-end gap-1 flex-shrink-0">
+                  {theme.swatches.map((c, j) => (
+                    <div
+                      key={j}
+                      style={{
+                        width: j === 0 ? 28 : 18,
+                        height: j === 0 ? 28 : 18,
+                        background: c,
+                        borderRadius: j === 0 ? 6 : 4,
+                        border: '1px solid rgba(0,0,0,0.08)',
+                        marginBottom: j === 0 ? 0 : 5,
+                        flexShrink: 0,
+                      }}
+                    />
+                  ))}
+                </div>
+                {/* 文字 */}
+                <div className="flex-1">
+                  <p className="text-sm text-text-primary font-medium leading-none mb-1">
+                    {theme.emoji} {theme.label}
+                  </p>
+                  <p className="text-xs text-text-muted">{theme.desc}</p>
+                </div>
+                {/* 选中标记 */}
+                {isActive && (
+                  <div className="w-5 h-5 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

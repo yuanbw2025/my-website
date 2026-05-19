@@ -21,6 +21,7 @@ export function mergeUnified(
     worldview: { ...(acc.worldview || {}) },
     characters: [...(acc.characters || [])],
     outline: [...(acc.outline || [])],
+    writingTechniques: { ...(acc.writingTechniques || {}) },
   }
   if (fresh.worldview) {
     for (const [k, v] of Object.entries(fresh.worldview)) {
@@ -39,6 +40,15 @@ export function mergeUnified(
   }
   if (Array.isArray(fresh.outline)) {
     for (const n of fresh.outline) out.outline!.push(n)
+  }
+  // 写作技法：每个字段追加拼接
+  if (fresh.writingTechniques && typeof fresh.writingTechniques === 'object') {
+    for (const [k, v] of Object.entries(fresh.writingTechniques)) {
+      if (typeof v === 'string' && v.trim()) {
+        const cur = (out.writingTechniques as Record<string, string>)[k] || ''
+        ;(out.writingTechniques as Record<string, string>)[k] = cur ? `${cur}\n\n${v.trim()}` : v.trim()
+      }
+    }
   }
   return out
 }
@@ -86,6 +96,8 @@ export function normalizeUnified(raw: unknown): UnifiedParseResult {
     worldview: r.worldview && typeof r.worldview === 'object' ? r.worldview : {},
     characters: Array.isArray(r.characters) ? r.characters : [],
     outline: Array.isArray(r.outline) ? r.outline : [],
+    writingTechniques: r.writingTechniques && typeof r.writingTechniques === 'object'
+      ? r.writingTechniques : {},
   }
 }
 
@@ -107,7 +119,7 @@ export function buildFinalReport(session: ImportSession): string {
     `· 文件总字数：${session.totalChars.toLocaleString()} 字`,
     `· 分块：${session.totalChunks} 块（每块约 ${session.chunkSize.toLocaleString()} 字）`,
     `· 成功：${done} 块；失败：${failed} 块`,
-    `· 累计入库：世界观字段 ${totalWv}、角色 ${totalChars}（合并前）、大纲节点 ${totalOl}`,
+    `· 累计入库：世界观字段 ${totalWv}、角色 ${totalChars}（合并前）、大纲节点 ${totalOl}、写作技法已分析`,
   ]
   if (failed > 0) {
     lines.push('')

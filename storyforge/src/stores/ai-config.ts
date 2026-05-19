@@ -66,7 +66,7 @@ function loadConfig(): AIConfig {
     model: 'deepseek-chat',
     baseUrl: 'https://api.deepseek.com/v1',
     temperature: 0.7,
-    maxTokens: 16384,
+    maxTokens: 0,
   }
 }
 

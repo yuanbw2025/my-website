@@ -191,6 +191,7 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
 - 背景故事
 - 核心动机
 - 能力/技能
+- 人物关系（与已有角色或势力的关系）
 - 角色弧光（成长线）{{#if userHint}}
 
 用户要求：{{userHint}}{{/if}}`,
@@ -710,7 +711,7 @@ B) 成品小说正文（连续章节）
 C) 大纲草稿或角色表
 D) 以上的混合
 
-你的任务：无论文档是什么形式，都把它拆解成三类结构化数据——世界观、角色、大纲章节，统一输出为一个 JSON 对象。
+你的任务：无论文档是什么形式，都把它拆解成四类结构化数据——世界观、角色、大纲章节、写作技法，统一输出为一个 JSON 对象。
 
 ═══ 输出 JSON 结构 ═══
 \`\`\`json
@@ -750,7 +751,21 @@ D) 以上的混合
       "summary": "",
       "children": [ ... 同样结构的 chapter 节点 ... ]
     }
-  ]
+  ],
+  "writingTechniques": {
+    "narrativeStyle": "叙事视角与手法（第几人称、全知/限知、时间线安排等）",
+    "proseStyle": "文笔风格（语言特色、修辞手法、句式偏好、节奏感）",
+    "openingTechnique": "开篇技法分析（黄金三章如何设计：悬念/冲突/人设/世界观的展开方式、第一章钩子、前三章节奏）",
+    "plotStructure": "情节结构与套路（起承转合模式、伏笔回收、悬念设置与解答的规律）",
+    "climaxDesign": "高潮设计（上架高潮如何设计、卷末高潮、全书高潮的编排方式、情绪峰值安排）",
+    "pacingControl": "节奏控制（快慢交替、张弛有度的手法、文戏武戏比例、过渡章节处理）",
+    "characterCraft": "人物塑造手法（如何让角色鲜活：行为展示性格、内心独白、反差萌、成长弧光设计）",
+    "dialogueTechnique": "对话技巧（个性化台词、潜台词、对话推动剧情、信息传递方式）",
+    "conflictEscalation": "冲突设计与升级模式（矛盾层层递进、敌人体系、打脸套路、实力提升节奏）",
+    "emotionalBeats": "爽点与情绪节拍设计（读者情绪曲线、爽点密度与分布、泪点催泪技法）",
+    "foreshadowing": "伏笔与回收（伏笔设置位置、回收时机、暗线设计）",
+    "otherTechniques": "其他值得学习的写作技巧（独特亮点、创新手法）"
+  }
 }
 \`\`\`
 
@@ -761,20 +776,28 @@ D) 以上的混合
    - 如果文档是成品小说 → 按章节拆：每章提取标题（没有就自造一个"第 N 章 · XX事件"）+ 一句话 summary（20-40 字）。
    - 如果篇幅很长（超过 20 章），要按情节拐点用 volume 分卷，每卷 5~15 章，volume 自己也要有 title + summary。
    - 如果文档只是大纲本身 → 按原结构输出卷 / 章。
-4. **严禁编造**：文档里找不到的信息就留空，不要猜。
-5. **JSON 完整性**：worldview / characters / outline 三个顶层字段必须都有；即便某一类没有内容，也要给空对象 {} 或空数组 []。
+4. **写作技法**（极其重要！这是参考价值的核心）：
+   - 必须深入分析作者的写作手法，而不是简单概括。
+   - **黄金三章**：具体描述前三章如何吸引读者（用了什么钩子？如何在开头植入矛盾？如何在不拖沓的前提下交代世界观和角色？）。
+   - **高潮设计**：分析关键高潮（尤其是前30章的"上架高潮"、每卷结尾的大高潮）是如何铺垫和引爆的。
+   - **情节套路**：总结出可复用的情节套路（如"扮猪吃老虎"、"绝境反转"、"打脸升级"等模式）。
+   - **节奏控制**：分析快节奏段落和慢节奏段落是如何穿插的。
+   - 每个字段都要写出具体的、可操作的分析，带具体例子（引用章节号/情节点），不要泛泛而谈。
+   - 如果文档不是成品小说（如设定集/大纲），写作技法部分可留空。
+5. **严禁编造**：文档里找不到的信息就留空，不要猜。
+6. **JSON 完整性**：worldview / characters / outline / writingTechniques 四个顶层字段必须都有。
 
 ═══ 输出要求 ═══
 - 只输出一个 JSON 对象，用 \`\`\`json 代码块包裹。
 - 不要任何解释 / 前言 / 后记。
-- 字段值都是字符串（worldview 所有字段）或对应结构（characters / outline）。`,
-    userPromptTemplate: `下面是用户上传的文档，请一次性拆解出世界观 / 角色 / 大纲三类结构化数据：
+- 字段值都是字符串（worldview、writingTechniques 所有字段）或对应结构（characters / outline）。`,
+    userPromptTemplate: `下面是用户上传的文档，请一次性拆解出世界观 / 角色 / 大纲 / 写作技法四类结构化数据：
 
 ---DOCUMENT START---
 {{rawDocument}}
 ---DOCUMENT END---
 
-按上述 JSON schema 输出完整结果。`,
+按上述 JSON schema 输出完整结果。注意写作技法分析要深入具体，带上具体的章节/情节举例。`,
     variables: ['rawDocument'],
     isActive: true,
   },
@@ -806,7 +829,13 @@ D) 以上的混合
   ],
   "outline": [
     { "type":"volume|chapter", "title":"", "summary":"", "children":[] }
-  ]
+  ],
+  "writingTechniques": {
+    "narrativeStyle":"", "proseStyle":"", "openingTechnique":"",
+    "plotStructure":"", "climaxDesign":"", "pacingControl":"",
+    "characterCraft":"", "dialogueTechnique":"", "conflictEscalation":"",
+    "emotionalBeats":"", "foreshadowing":"", "otherTechniques":""
+  }
 }
 \`\`\`
 
@@ -816,8 +845,13 @@ D) 以上的混合
 3. **大纲**：
    - 如果本块包含若干完整章节 → 每个章节一个节点（type=chapter）。
    - 如果本块只是一章的一部分 → 仍输出一个 chapter 节点，\`title\` 标记"（第 {{chunkIndex}} 块）…"，\`summary\` 写本块发生的情节。
-4. 严禁编造文档外的信息。
-5. 只输出 JSON、用 \`\`\`json 包裹，不要任何前言或解释。`,
+4. **写作技法**：分析本块体现的写作手法。重点关注：
+   - 如果本块是开头（chunkIndex=1）→ 重点分析黄金三章技法（开篇钩子、悬念设置、角色引入方式）
+   - 如果本块含高潮段落 → 分析高潮铺垫与引爆方式
+   - 分析本块的叙事节奏、情绪节拍、对话技巧、冲突设计等
+   - 只写本块观察到的技法，没有的留空字符串
+5. 严禁编造文档外的信息。
+6. 只输出 JSON、用 \`\`\`json 包裹，不要任何前言或解释。`,
     userPromptTemplate: `下面是第 {{chunkIndex}} / {{totalChunks}} 块原文：
 
 ---CHUNK START---

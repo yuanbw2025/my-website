@@ -7,12 +7,17 @@ export type CharacterRole =
   | 'npc'            // NPC（紧凑列表展示）
   | 'extra'          // 路人（表格行：姓名/出场时间/章节/作用/结局）
 
+/** 阵营 */
+export type CharacterAlignment = 'good' | 'evil'
+
 /** 角色 */
 export interface Character {
   id?: number
   projectId: number
   name: string
   role: CharacterRole
+  /** 阵营：正派/反派 */
+  alignment?: CharacterAlignment
   shortDescription: string   // 一句话简介
   appearance: string         // 外貌
   personality: string        // 性格

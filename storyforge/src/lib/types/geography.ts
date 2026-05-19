@@ -28,6 +28,7 @@ export interface Geography {
   projectId: number
   overview: string          // 世界地理总述
   locations: string         // Location[] JSON string
+  worldMapData?: string     // WorldMapData JSON string（Phase 20）
   createdAt: number
   updatedAt: number
 }

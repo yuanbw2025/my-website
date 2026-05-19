@@ -51,12 +51,13 @@ export default function AIFieldCard({
   const [userOverride, setUserOverride] = useState<string | null>(null)
   const ai = useAIStream()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     ai.reset()
     setParameterValues({})
     setSystemOverride(null)
     setUserOverride(null)
-  }, [resetKey, ai])
+  }, [resetKey])
 
   const handleGenerate = () => {
     const opts: AIFieldRunOptions = {

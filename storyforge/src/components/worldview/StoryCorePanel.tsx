@@ -1,42 +1,65 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Sparkles } from 'lucide-react'
 import { useWorldviewStore } from '../../stores/worldview'
-import AIFieldCard from '../shared/AIFieldCard'
+import { useAIStream } from '../../hooks/useAIStream'
 import { buildStoryGeneratePrompt } from '../../lib/ai/adapters/story-adapter'
+import AIStreamOutput from '../shared/AIStreamOutput'
+import PromptRunPanel from '../shared/PromptRunPanel'
 import type { Project } from '../../lib/types'
 
-interface Props {
-  project: Project
+// ── 字段定义 ──────────────────────────────────────────────────
+
+interface FieldDef {
+  key: string
+  emoji: string
+  label: string
+  description: string
+  dimension: string
+  saveKey: string
 }
 
-/** v3 §2.1 — 故事设计（7 字段，每个带 AI 生成） */
+const FIELDS: FieldDef[] = [
+  { key: 'logline',         emoji: '📜', label: '一句话故事',   description: '用一句话讲清楚你的故事是什么。',                      dimension: '一句话故事（logline）',       saveKey: 'logline' },
+  { key: 'concept',         emoji: '💡', label: '故事概念',     description: "独特设定或反差点：'如果……会怎么样？'",                 dimension: '故事概念（high concept）',    saveKey: 'concept' },
+  { key: 'theme',           emoji: '🎯', label: '故事主题',     description: '想探讨的人性/价值观主题。',                            dimension: '故事主题',                    saveKey: 'theme' },
+  { key: 'centralConflict', emoji: '⚔️', label: '核心冲突',     description: '主角面对的最大矛盾（外在 + 内在）。',                  dimension: '核心冲突',                    saveKey: 'centralConflict' },
+  { key: 'plotPattern',     emoji: '📊', label: '故事模式',     description: '线性 / 莲花地图 / 多线并行 / 蒙太奇 等。',            dimension: '故事模式',                    saveKey: 'plotPattern' },
+  { key: 'mainPlot',        emoji: '🛤', label: '故事主线',     description: '核心情节线 — 主角的目标与阻碍。',                      dimension: '故事主线',                    saveKey: 'mainPlot' },
+  { key: 'subPlots',        emoji: '🎼', label: '故事复线',     description: '副线情节（情感线 / 配角线 / 暗线 / 悬念线）。',        dimension: '故事复线',                    saveKey: 'subPlots' },
+]
+
+// ── 主面板 ─────────────────────────────────────────────────────
+
+interface Props { project: Project }
+
 export default function StoryCorePanel({ project }: Props) {
   const { storyCore, worldview, saveStoryCore, loadAll } = useWorldviewStore()
 
-  const [logline, setLogline] = useState('')
-  const [concept, setConcept] = useState('')
-  const [theme, setTheme] = useState('')
-  const [centralConflict, setCentralConflict] = useState('')
-  const [plotPattern, setPlotPattern] = useState('')
-  const [mainPlot, setMainPlot] = useState('')
-  const [subPlots, setSubPlots] = useState('')
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [activeKey, setActiveKey] = useState(FIELDS[0].key)
+  // 跟踪哪些字段正在 streaming（用于侧边栏小圆点）
+  const [streamingKeys, setStreamingKeys] = useState<Set<string>>(new Set())
 
   useEffect(() => { loadAll(project.id!) }, [project.id, loadAll])
 
   useEffect(() => {
     if (!storyCore) return
-    setLogline(storyCore.logline || '')
-    setConcept(storyCore.concept || '')
-    setTheme(storyCore.theme || '')
-    setCentralConflict(storyCore.centralConflict || '')
-    setPlotPattern(storyCore.plotPattern || '')
-    setMainPlot(storyCore.mainPlot || storyCore.storyLines || '')
-    setSubPlots(storyCore.subPlots || '')
+    setValues({
+      logline:         storyCore.logline || '',
+      concept:         storyCore.concept || '',
+      theme:           storyCore.theme || '',
+      centralConflict: storyCore.centralConflict || '',
+      plotPattern:     storyCore.plotPattern || '',
+      mainPlot:        storyCore.mainPlot || storyCore.storyLines || '',
+      subPlots:        storyCore.subPlots || '',
+    })
   }, [storyCore])
 
-  const save = (patch: Partial<typeof storyCore>) =>
-    saveStoryCore({ projectId: project.id!, ...patch })
+  const save = (key: string, v: string) => {
+    const field = FIELDS.find(f => f.key === key)!
+    saveStoryCore({ projectId: project.id!, [field.saveKey]: v })
+  }
 
-  /** 拼世界观摘要供 AI 上下文 */
   const worldCtx = (): string => {
     if (!worldview) return ''
     const parts: string[] = []
@@ -45,73 +68,233 @@ export default function StoryCorePanel({ project }: Props) {
     return parts.join('\n')
   }
 
-  const mkBuilder = (dimension: string) =>
-    (hint: string, options?: { parameterValues?: Record<string, unknown>; overrides?: { systemPrompt?: string; userPromptTemplate?: string } }) =>
-      buildStoryGeneratePrompt(dimension, project.name, project.genre || '', worldCtx(), hint, options)
+  const handleStreamingChange = useCallback((key: string, streaming: boolean) => {
+    setStreamingKeys(prev => {
+      const next = new Set(prev)
+      if (streaming) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }, [])
 
   return (
-    <div className="max-w-4xl p-6 space-y-4">
-      <div>
-        <h2 className="text-xl font-bold text-text-primary mb-1">📖 故事设计</h2>
-        <p className="text-sm text-text-muted">7 个维度勾勒故事核心 — 每个都可以一键 AI 生成。</p>
+    <div className="flex gap-4 max-w-5xl">
+      {/* ── 左侧导航 ── */}
+      <div className="w-40 shrink-0 space-y-0.5 pt-1">
+        {FIELDS.map(f => {
+          const active = activeKey === f.key
+          const hasContent = !!values[f.key]
+          const isFieldStreaming = streamingKeys.has(f.key)
+          return (
+            <button
+              key={f.key}
+              onClick={() => setActiveKey(f.key)}
+              className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-all ${
+                active
+                  ? 'bg-accent/8 border-l-2 border-accent'
+                  : 'hover:bg-bg-hover border-l-2 border-transparent'
+              }`}
+            >
+              <span className="text-base shrink-0">{f.emoji}</span>
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm font-medium truncate ${active ? 'text-accent' : 'text-text-primary'}`}>
+                  {f.label}
+                </p>
+                {hasContent && (
+                  <p className="text-[10px] text-text-muted truncate">
+                    {values[f.key].slice(0, 12)}…
+                  </p>
+                )}
+              </div>
+              {isFieldStreaming && !active && (
+                <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0" />
+              )}
+            </button>
+          )
+        })}
       </div>
 
-      <AIFieldCard
-        label="📜 一句话故事"
-        description="用一句话讲清楚你的故事是什么。"
-        value={logline} onChange={setLogline} onSave={v => save({ logline: v })}
-        moduleKey="story.generate"
-        buildMessages={mkBuilder('一句话故事（logline）')}
-        rows={2} resetKey="logline"
+      {/* ── 右侧：所有字段同时渲染，hidden 控制显示 ── */}
+      <div className="flex-1 min-w-0">
+        {FIELDS.map(f => (
+          <div key={f.key} className={activeKey === f.key ? '' : 'hidden'}>
+            <FieldEditor
+              field={f}
+              value={values[f.key] || ''}
+              onChange={v => {
+                setValues(prev => ({ ...prev, [f.key]: v }))
+                save(f.key, v)
+              }}
+              project={project}
+              worldCtx={worldCtx}
+              onStreamingChange={streaming => handleStreamingChange(f.key, streaming)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── 单字段编辑器（各自独立的 AI 流） ──────────────────────────
+
+function FieldEditor({
+  field, value, onChange, project, worldCtx, onStreamingChange,
+}: {
+  field: FieldDef
+  value: string
+  onChange: (v: string) => void
+  project: Project
+  worldCtx: () => string
+  onStreamingChange: (streaming: boolean) => void
+}) {
+  const [hint, setHint] = useState('')
+  const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
+  const [systemOverride, setSystemOverride] = useState<string | null>(null)
+  const [userOverride, setUserOverride] = useState<string | null>(null)
+  const ai = useAIStream()
+
+  // 通知父组件 streaming 状态
+  useEffect(() => {
+    onStreamingChange(ai.isStreaming)
+  }, [ai.isStreaming, onStreamingChange])
+
+  const handleGenerate = () => {
+    const opts = {
+      parameterValues: Object.keys(parameterValues).length > 0 ? parameterValues : undefined,
+      overrides: (systemOverride != null || userOverride != null) ? {
+        systemPrompt: systemOverride ?? undefined,
+        userPromptTemplate: userOverride ?? undefined,
+      } : undefined,
+    }
+    const messages = buildStoryGeneratePrompt(
+      field.dimension, project.name, project.genre || '', worldCtx(), hint, opts,
+    )
+    ai.start(messages)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 标题 + 描述 */}
+      <div>
+        <h2 className="text-xl font-bold text-text-primary mb-0.5">
+          {field.emoji} {field.label}
+        </h2>
+        <p className="text-sm text-text-muted">{field.description}</p>
+      </div>
+
+      {/* 内容区 — 行内编辑 */}
+      <div className="bg-bg-surface border border-border rounded-lg p-4">
+        <InlineTextarea
+          value={value}
+          onChange={onChange}
+          placeholder={`点击填写${field.label}…`}
+        />
+      </div>
+
+      {/* AI 生成区 */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <input
+            value={hint}
+            onChange={e => setHint(e.target.value)}
+            placeholder="补充提示（可选）"
+            className="flex-1 px-2 py-1.5 bg-bg-surface border border-border rounded text-xs text-text-primary focus:outline-none focus:border-accent"
+          />
+          <button
+            onClick={handleGenerate}
+            disabled={ai.isStreaming}
+            className="flex items-center gap-1.5 px-3 py-2 bg-bg-elevated text-text-secondary text-sm rounded-md hover:text-accent disabled:opacity-50 transition-colors border border-border hover:border-accent/50"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> AI 生成
+          </button>
+        </div>
+
+        <PromptRunPanel
+          moduleKey="story.generate"
+          parameterValues={parameterValues}
+          onParamChange={setParameterValues}
+          systemOverride={systemOverride}
+          onSystemOverrideChange={setSystemOverride}
+          userOverride={userOverride}
+          onUserOverrideChange={setUserOverride}
+        />
+
+        {(ai.output || ai.isStreaming || ai.error) && (
+          <AIStreamOutput
+            output={ai.output}
+            isStreaming={ai.isStreaming}
+            error={ai.error}
+            tokenUsage={ai.tokenUsage}
+            onStop={ai.stop}
+            onAccept={(text: string) => {
+              onChange(text)
+              ai.reset()
+            }}
+            onRetry={handleGenerate}
+            moduleKey="story.generate"
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── InlineTextarea ──────────────────────────────────────────────
+
+function InlineTextarea({
+  value, onChange, placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => { setDraft(value) }, [value])
+
+  const resize = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.max(32, el.scrollHeight) + 'px'
+  }, [])
+
+  useEffect(() => { if (editing) resize() }, [editing, resize])
+
+  const commit = () => {
+    setEditing(false)
+    if (draft !== value) onChange(draft)
+  }
+
+  if (editing) {
+    return (
+      <textarea
+        ref={ref}
+        value={draft}
+        onChange={e => { setDraft(e.target.value); resize() }}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Escape') { setDraft(value); setEditing(false) } }}
+        placeholder={placeholder}
+        className="w-full bg-transparent border border-accent/30 rounded px-2 py-1 text-sm text-text-primary outline-none resize-none"
+        autoFocus
       />
-      <AIFieldCard
-        label="💡 故事概念"
-        description="独特设定或反差点：'如果……会怎么样？'"
-        value={concept} onChange={setConcept} onSave={v => save({ concept: v })}
-        moduleKey="story.generate"
-        buildMessages={mkBuilder('故事概念（high concept）')}
-        rows={3} resetKey="concept"
-      />
-      <AIFieldCard
-        label="🎯 故事主题"
-        description="想探讨的人性/价值观主题。"
-        value={theme} onChange={setTheme} onSave={v => save({ theme: v })}
-        moduleKey="story.generate"
-        buildMessages={mkBuilder('故事主题')}
-        rows={3} resetKey="theme"
-      />
-      <AIFieldCard
-        label="⚔️ 核心冲突"
-        description="主角面对的最大矛盾（外在 + 内在）。"
-        value={centralConflict} onChange={setCentralConflict} onSave={v => save({ centralConflict: v })}
-        moduleKey="story.generate"
-        buildMessages={mkBuilder('核心冲突')}
-        rows={4} resetKey="conflict"
-      />
-      <AIFieldCard
-        label="📊 故事模式"
-        description="线性 / 莲花地图 / 多线并行 / 蒙太奇 等。"
-        value={plotPattern} onChange={setPlotPattern} onSave={v => save({ plotPattern: v })}
-        moduleKey="story.generate"
-        buildMessages={mkBuilder('故事模式')}
-        rows={3} resetKey="pattern"
-      />
-      <AIFieldCard
-        label="🛤 故事主线"
-        description="核心情节线 — 主角的目标与阻碍。"
-        value={mainPlot} onChange={setMainPlot} onSave={v => save({ mainPlot: v })}
-        moduleKey="story.generate"
-        buildMessages={mkBuilder('故事主线')}
-        rows={5} resetKey="main"
-      />
-      <AIFieldCard
-        label="🎼 故事复线"
-        description="副线情节（情感线 / 配角线 / 暗线 / 悬念线）。"
-        value={subPlots} onChange={setSubPlots} onSave={v => save({ subPlots: v })}
-        moduleKey="story.generate"
-        buildMessages={mkBuilder('故事复线')}
-        rows={4} resetKey="sub"
-      />
+    )
+  }
+
+  if (!value) {
+    return (
+      <div onClick={() => setEditing(true)} className="text-sm text-text-muted/40 cursor-text py-0.5">
+        {placeholder || '点击编辑…'}
+      </div>
+    )
+  }
+
+  return (
+    <div onClick={() => setEditing(true)} className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap cursor-text py-0.5">
+      {value}
     </div>
   )
 }

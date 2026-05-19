@@ -10,7 +10,7 @@ interface Props {
   /** 单块估算用时（秒），给总时预估用 */
   estSecondsPerChunk?: number
   onChunkSizeChange: (size: number) => void
-  onConfirm: () => void
+  onConfirm: (target: 'project' | 'reference') => void
   onCancel: () => void
 }
 
@@ -150,6 +150,21 @@ export default function ImportConfirmModal({
           </div>
         </div>
 
+        {/* 导入目标说明 */}
+        <div className="px-5 py-3 border-t border-border bg-bg-elevated/50">
+          <div className="text-xs text-text-muted mb-2">解析完成后，数据将写入：</div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-bg-base border border-accent/30 rounded-lg p-2.5">
+              <div className="font-medium text-accent mb-0.5">📥 导入当前项目</div>
+              <div className="text-text-muted leading-relaxed">直接填入当前项目的世界观、角色、大纲等模块</div>
+            </div>
+            <div className="bg-bg-base border border-purple-400/30 rounded-lg p-2.5">
+              <div className="font-medium text-purple-400 mb-0.5">📚 导入项目参考</div>
+              <div className="text-text-muted leading-relaxed">存入「项目参考」页面，作为创作参照，不影响当前项目</div>
+            </div>
+          </div>
+        </div>
+
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border bg-bg-base">
           <button
@@ -159,10 +174,16 @@ export default function ImportConfirmModal({
             取消
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm('reference')}
+            className="flex items-center gap-1.5 px-4 py-2 bg-purple-500/80 text-white text-sm rounded hover:bg-purple-500 transition-colors"
+          >
+            📚 导入项目参考
+          </button>
+          <button
+            onClick={() => onConfirm('project')}
             className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-sm rounded hover:bg-accent-hover"
           >
-            <Wand2 className="w-4 h-4" /> 开始解析（{stats.totalChunks} 块）
+            <Wand2 className="w-4 h-4" /> 导入当前项目（{stats.totalChunks} 块）
           </button>
         </div>
       </div>
