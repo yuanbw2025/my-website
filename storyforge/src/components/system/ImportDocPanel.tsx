@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle, Info,
-  PauseCircle, PlayCircle, StopCircle,
+  PauseCircle, PlayCircle, StopCircle, RotateCcw, FileBarChart2,
 } from 'lucide-react'
 import { extractTextFromFile, FILE_LIMIT_HINTS } from '../../lib/doc-parser'
 import { chunkDocument, quickHash, type ChunkPlan } from '../../lib/import/chunker'
@@ -450,6 +450,51 @@ export default function ImportDocPanel({ project }: Props) {
             <div className="bg-error/10 border border-error/30 rounded-xl p-3 text-sm text-error">
               <AlertTriangle className="inline w-4 h-4 mr-1" />
               {status.fatalError}
+            </div>
+          )}
+
+          {/* 完成/失败后的操作按钮栏 */}
+          {(phase === 'done' || phase === 'failed') && (
+            <div className="bg-bg-surface border border-border rounded-xl p-4 space-y-3">
+              {status.failedChunks > 0 && (
+                <div className="bg-warn/10 border border-warn/30 rounded-lg p-3 flex items-center justify-between gap-3">
+                  <div className="text-sm text-warn flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>{status.failedChunks} 个块解析失败，可重新尝试</span>
+                  </div>
+                  <button
+                    onClick={handleRetryFailed}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-warn text-white text-sm rounded hover:bg-warn/90 shrink-0"
+                  >
+                    <RotateCcw className="w-4 h-4" /> 重试失败块
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    if (!status.sessionId) return
+                    const s = await useImportSessionStore.getState().load(status.sessionId)
+                    if (s) setReportSession(s)
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs text-text-secondary hover:text-accent hover:bg-accent/10 rounded border border-border"
+                >
+                  <FileBarChart2 className="w-3.5 h-3.5" /> 查看解析报告
+                </button>
+                <button
+                  onClick={() => {
+                    if (status.sessionId) {
+                      clearChunkTexts(status.sessionId)
+                      useImportSessionStore.getState().deleteBlob(status.sessionId).catch(() => {})
+                    }
+                    useImportStatusStore.getState().reset()
+                    setReportSession(null)
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs text-text-muted hover:text-text-secondary hover:bg-bg-hover rounded border border-border"
+                >
+                  重新开始
+                </button>
+              </div>
             </div>
           )}
         </div>
