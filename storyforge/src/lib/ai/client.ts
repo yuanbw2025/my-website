@@ -21,8 +21,11 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
     stream,
   }
 
-  // 流式请求时要求返回 token 用量（OpenAI / DeepSeek 等兼容 provider 支持）
-  if (stream) {
+  // 流式请求时要求返回 token 用量
+  // stream_options 仅 OpenAI / DeepSeek / Qwen 等兼容 provider 支持
+  // 智谱 GLM / 文心 / Poe / Gemini 等不支持，传了会报参数错误
+  const NO_STREAM_OPTIONS: Set<string> = new Set(['glm', 'wenxin', 'poe', 'gemini', 'ollama'])
+  if (stream && !NO_STREAM_OPTIONS.has(config.provider)) {
     body.stream_options = { include_usage: true }
   }
 
