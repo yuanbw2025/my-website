@@ -43,6 +43,12 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
     }
     // maxTokens > 0 才传，0 = 不限制（由模型自身决定）
     if (config.maxTokens && config.maxTokens > 0) body.max_tokens = config.maxTokens
+  } else if (config.provider === 'glm') {
+    // 智谱 GLM：temperature 范围 (0, 1]，超出会报 1210
+    if (config.temperature !== undefined) {
+      body.temperature = Math.min(Math.max(config.temperature, 0.01), 1.0)
+    }
+    if (config.maxTokens && config.maxTokens > 0) body.max_tokens = config.maxTokens
   } else {
     if (config.temperature !== undefined) body.temperature = config.temperature
     // maxTokens > 0 才传，0 = 不限制（由模型自身决定）

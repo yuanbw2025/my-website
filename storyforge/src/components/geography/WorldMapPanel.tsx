@@ -70,7 +70,7 @@ export default function WorldMapPanel({ project }: Props) {
     } catch { /* empty */ }
 
     const messages = buildWorldMapPrompt(worldview, overview, locations)
-    const result = await ai.start(messages, { maxTokens: 16384 })
+    const result = await ai.start(messages)
 
     if (!result) return
 
