@@ -44,7 +44,13 @@ execSync('npm install', { cwd: join(ROOT, 'storyforge'), stdio: 'inherit' });
 execSync('npm run build', { cwd: join(ROOT, 'storyforge'), stdio: 'inherit' });
 console.log('✅ StoryForge built successfully.');
 
-// Step 5: Assemble public/ directory
+// Step 5: Build novel-game
+console.log('\n🔨 Building novel-game React app...');
+execSync('npm install', { cwd: join(ROOT, 'novel-game'), stdio: 'inherit' });
+execSync('npm run build', { cwd: join(ROOT, 'novel-game'), stdio: 'inherit' });
+console.log('✅ novel-game built successfully.');
+
+// Step 6: Assemble public/ directory
 console.log('\n📦 Assembling portal output...');
 
 mkdirSync(join(ROOT, 'public'), { recursive: true });
@@ -52,6 +58,7 @@ mkdirSync(join(ROOT, 'public', 'infiniteskill'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'yuntype'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'cyber-flying-sword'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'storyforge'), { recursive: true });
+mkdirSync(join(ROOT, 'public', 'novel-game'), { recursive: true });
 
 // Copy portal HTML
 copyFileSync(join(ROOT, 'index.html'), join(ROOT, 'public', 'index.html'));
@@ -92,5 +99,13 @@ cpSync(
   { recursive: true }
 );
 console.log('  ✓ Copied storyforge/dist → public/storyforge/');
+
+// Copy novel-game build output
+cpSync(
+  join(ROOT, 'novel-game', 'dist'),
+  join(ROOT, 'public', 'novel-game'),
+  { recursive: true }
+);
+console.log('  ✓ Copied novel-game/dist → public/novel-game/');
 
 console.log('\n🚀 Build complete! Output in public/');

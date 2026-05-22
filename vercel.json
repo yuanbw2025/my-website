@@ -17,6 +17,10 @@
     {
       "source": "/storyforge/(.*)",
       "destination": "/storyforge/index.html"
+    },
+    {
+      "source": "/novel-game/(.*)",
+      "destination": "/novel-game/index.html"
     }
   ]
 }

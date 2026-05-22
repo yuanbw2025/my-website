@@ -19,6 +19,8 @@
 | **flying-sword-pinball** | 🌐 公开 镜像库 | `yuanbw2025/flying-sword-pinball` | 飞剑弹珠游戏的开源镜像，零依赖单文件 HTML5 游戏 |
 | **yuntype** | 🌐 公开 镜像库 | `yuanbw2025/yuntype` | 云中书 AI 排版引擎的开源镜像，660 种排版组合 |
 | **cyber-flying-sword** | 🌐 公开 镜像库 | `yuanbw2025/cyber-flying-sword` | 赛博飞剑手势动作游戏的开源镜像，Three.js + MediaPipe |
+| **storyforge** | 🌐 公开 镜像库 | `yuanbw2025/storyforge` | 故事熔炉小说创作工坊的开源镜像，世界观构建与章节生成 |
+| **novel-game** | 🌐 公开 镜像库 | `yuanbw2025/novel-game` | 小说转文本交互游戏生成器的开源镜像，Vite+React |
 
 ### 1.2 仓库之间的关系图
 
@@ -35,6 +37,8 @@
 │  ├── infiniteskill/          ← 智能编译器 (Vite+React)        │
 │  ├── yuntype/                ← 云中书排版引擎 (Vite+React)     │
 │  ├── cyber-flying-sword/     ← 赛博飞剑手势游戏 (Vite+React+Three.js) │
+│  ├── storyforge/             ← 故事熔炉小说创作 (Vite+React) │
+│  ├── novel-game/             ← 小说转交互游戏 (Vite+React) │
 │  ├── public/                 ← 最终部署产物 (build.mjs 聚合)   │
 │  └── *.md                    ← 项目文档群                     │
 │                                                             │
@@ -44,6 +48,8 @@
 │  game.html             ═══▶  yuanbw2025/flying-sword-pinball   │
 │  yuntype/               ═══▶  yuanbw2025/yuntype (公开)         │
 │  cyber-flying-sword/   ═══▶  yuanbw2025/cyber-flying-sword     │
+│  storyforge/           ═══▶  yuanbw2025/storyforge (公开)      │
+│  novel-game/           ═══▶  yuanbw2025/novel-game (公开)      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -56,6 +62,8 @@
    - Step 1: 进入 `infiniteskill/`，执行 `npm install` + `npm run build`。
    - Step 2: 进入 `yuntype/`，执行 `npm install` + `npm run build`。
    - Step 3: 进入 `cyber-flying-sword/`，执行 `npm install` + `npm run build`。
+   - Step 4: 进入 `storyforge/`，执行 `npm install` + `npm run build`。
+   - Step 5: 进入 `novel-game/`，执行 `npm install` + `npm run build`。
 3. **第三阶段（聚合归拢）**：
    - 销毁旧的 `public/` 文件夹并新建。
    - 把主页 `index.html` 和 `game.html` 丢入 `public/`。
@@ -70,6 +78,8 @@
 | 智能编译器 | `https://yuanbw.vercel.app/infiniteskill/` |
 | 云中书排版 | `https://yuanbw.vercel.app/yuntype/` |
 | 赛博飞剑 | `https://yuanbw.vercel.app/cyber-flying-sword/` |
+| 故事熔炉 | `https://yuanbw.vercel.app/storyforge/` |
+| 交互游戏 | `https://yuanbw.vercel.app/novel-game/` |
 | 飞剑弹珠游戏 | `https://yuanbw.vercel.app/game.html` |
 
 ---
@@ -164,6 +174,25 @@
   - [ ] 敌人 AI（6 种敌人类型）
   - [ ] 关卡设计与 Boss 战
   - [ ] HUD 与音效系统
+
+### 3.5 故事熔炉 StoryForge
+
+- **位置**：`my-website/storyforge/`
+- **镜像库**：https://github.com/yuanbw2025/storyforge
+- **技术栈**：Vite + React 19 + TypeScript
+- **功能**：AI 辅助的小说创作工坊，包含世界观设定、大纲生成、章节续写。
+- **核心特性**：纯本地存储，自由配置各类 AI 模型接口。
+
+### 3.6 小说转文本交互游戏 Novel Game
+
+- **位置**：`my-website/novel-game/`
+- **镜像库**：https://github.com/yuanbw2025/novel-game
+- **技术栈**：Vite + React 19 + TypeScript
+- **功能**：将小说剧本转换为分支叙事的互动文本游戏，支持变量与成就。
+- **核心特性**：
+  - AI 自动生成包含多分支与变量的故事图谱
+  - 可视化剧情树视图
+  - 直接导出为含存档系统与成就解锁的单文件 HTML 游戏
 
 ---
 
