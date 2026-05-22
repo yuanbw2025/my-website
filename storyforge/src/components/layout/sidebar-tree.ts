@@ -4,7 +4,7 @@ import {
   UserCircle, UsersRound, User, Footprints, Network,
   Ruler, BookOpen, ListTree, FilePen, PenTool, Eye,
   FileCog, History, Upload, Download, Settings,
-  GraduationCap, Map, ClipboardList,
+  Map, ClipboardList,
 } from 'lucide-react'
 
 /**
@@ -147,12 +147,7 @@ export const NAV_TREE: TreeSection[] = [
       leaf('state-table',      '状态表',   ClipboardList),
     ],
   },
-  {
-    sectionId: 'learn',
-    label: '作品学习',
-    icon: GraduationCap,
-    rootLeaf: leaf('master-studies', '作品学习', GraduationCap),
-  },
+  // 作品学习已整合进「项目参考 → 深度分析」tab（Phase 20）
   {
     sectionId: 'prompts',
     label: '提示词库',

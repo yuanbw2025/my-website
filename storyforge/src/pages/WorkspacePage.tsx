@@ -23,7 +23,7 @@ import SettingsPage from '../components/settings/SettingsPage'
 import VersionHistoryPanel from '../components/system/VersionHistoryPanel'
 import ImportDocPanel from '../components/system/ImportDocPanel'
 import PromptManagerPanel from '../components/settings/prompt/PromptManagerPanel'
-import MasterStudiesPanel from '../components/master-studies/MasterStudiesPanel'
+// MasterStudiesPanel 已整合进 ReferencePanel（Phase 20）
 import DataManagementPanel from '../components/data/DataManagementPanel'
 import WorldviewPanel from '../components/worldview/WorldviewPanel'
 import StoryCorePanel from '../components/worldview/StoryCorePanel'
@@ -178,9 +178,9 @@ export default function WorkspacePage() {
       case 'state-table':
         return <StatePanel project={project} />
 
-      // ── 作品学习（一级） ─────────────────────────────────────────
+      // 作品学习已整合进项目参考 → 深度分析 tab（Phase 20）
       case 'master-studies':
-        return <MasterStudiesPanel project={project} />
+        return <ReferencePanel project={project} />
 
       // ── 提示词库（一级） ───────────────────────────────────────────
       case 'prompts':

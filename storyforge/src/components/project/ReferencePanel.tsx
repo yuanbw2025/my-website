@@ -2,10 +2,22 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import {
   Trash2, Library, BookMarked, Palette, Upload,
   Globe, Users2, ListTree, PenTool, ChevronDown, ChevronRight,
+  Microscope, Loader2, UploadCloud, StopCircle, BarChart3,
 } from 'lucide-react'
 import { useReferenceStore } from '../../stores/reference'
-import type { Project, Reference, ReferenceType } from '../../lib/types'
+import type {
+  Project, Reference, ReferenceType,
+  ReferenceChunkAnalysis, ReferenceAnalysisDepth,
+} from '../../lib/types'
+import { DIMENSION_LABELS, ANALYSIS_DIMENSIONS } from '../../lib/types/reference'
 import type { WritingTechniques } from '../../lib/types/import-session-data'
+import {
+  planRefChunks,
+  registerRefChunks,
+  runRefAnalysis,
+  cancelRefAnalysisPipeline,
+  setRefAnalysisPipelineListener,
+} from '../../lib/reference-analysis/pipeline'
 
 // ── 常量 ─────────────────────────────────────────────────────────
 
@@ -192,7 +204,7 @@ export default function ReferencePanel({ project }: Props) {
 
 // ── 详情卡 ────────────────────────────────────────────────────────
 
-type DetailTab = 'worldview' | 'characters' | 'outline' | 'techniques' | 'info'
+type DetailTab = 'worldview' | 'characters' | 'outline' | 'techniques' | 'deep-analysis' | 'info'
 
 function ReferenceDetailCard({
   reference, refIndex, onUpdate, onDelete,
@@ -215,6 +227,8 @@ function ReferenceDetailCard({
   const wtEntries = wt ? Object.entries(wt).filter(([, v]) => typeof v === 'string' && v.trim()) : []
 
   const availableTabs: { key: DetailTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = []
+  // 深度分析始终显示（可上传文件触发分析）
+  availableTabs.push({ key: 'deep-analysis', label: '深度分析', icon: Microscope })
   if (hasTabs) {
     if (wtEntries.length > 0) availableTabs.push({ key: 'techniques', label: '写作技法', icon: PenTool, count: wtEntries.length })
     if (worldviewEntries.length > 0) availableTabs.push({ key: 'worldview', label: '世界观', icon: Globe, count: worldviewEntries.length })
@@ -304,6 +318,9 @@ function ReferenceDetailCard({
         )}
         {activeTab === 'techniques' && (
           <TechniquesTab techniques={data?.writingTechniques} />
+        )}
+        {activeTab === 'deep-analysis' && (
+          <DeepAnalysisTab reference={reference} onUpdate={onUpdate} />
         )}
       </div>
     </div>
@@ -450,6 +467,326 @@ function TechniquesTab({ techniques }: { techniques?: WritingTechniques }) {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── 深度分析 Tab ────────────────────────────────────────────────
+
+function DeepAnalysisTab({
+  reference, onUpdate,
+}: {
+  reference: Reference
+  onUpdate: (data: Partial<Reference>) => void
+}) {
+  const { getChunkAnalyses, clearChunkAnalyses } = useReferenceStore()
+  const [chunks, setChunks] = useState<ReferenceChunkAnalysis[]>([])
+  const [depth, setDepth] = useState<ReferenceAnalysisDepth>(reference.analysisDepth || 'standard')
+  const [progress, setProgress] = useState(reference.analysisProgress || 0)
+  const [statusMsg, setStatusMsg] = useState('')
+  const [activityLog, setActivityLog] = useState<{ level: string; msg: string }[]>([])
+  const [running, setRunning] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const status = reference.analysisStatus || 'none'
+
+  // 加载已有分析结果
+  useEffect(() => {
+    if (reference.id && (status === 'done' || status === 'analyzing')) {
+      getChunkAnalyses(reference.id).then(setChunks)
+    }
+  }, [reference.id, status, getChunkAnalyses])
+
+  // 设置 pipeline listener
+  useEffect(() => {
+    setRefAnalysisPipelineListener({
+      onProgress: (p, msg) => {
+        setProgress(p)
+        if (msg) setStatusMsg(msg)
+      },
+      onActivity: (level, msg) => {
+        setActivityLog(prev => [...prev.slice(-20), { level, msg }])
+      },
+      onDone: (refId, _success) => {
+        setRunning(false)
+        if (reference.id === refId) {
+          getChunkAnalyses(refId).then(setChunks)
+        }
+      },
+    })
+    return () => setRefAnalysisPipelineListener({})
+  }, [reference.id, getChunkAnalyses])
+
+  // 上传文件并开始分析
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !reference.id) return
+
+    const text = await file.text()
+    if (!text.trim()) {
+      setStatusMsg('文件内容为空')
+      return
+    }
+
+    // 规划分块
+    const plan = planRefChunks(text, depth)
+
+    // 更新 Reference 元数据
+    onUpdate({
+      totalChars: plan.totalChars,
+      fileHash: plan.fileHash,
+      analysisDepth: depth,
+      analysisStatus: 'pending',
+      analysisProgress: 0,
+      analysisError: undefined,
+    })
+
+    // 如果有旧分析结果，清理
+    await clearChunkAnalyses(reference.id)
+    setChunks([])
+
+    // 注册分块到内存
+    registerRefChunks(reference.id, plan.chunks)
+
+    setStatusMsg(`已加载「${file.name}」，共 ${plan.totalChars.toLocaleString()} 字，分 ${plan.chunks.length} 块`)
+    setActivityLog([])
+
+    // 启动分析
+    setRunning(true)
+    setProgress(0)
+    runRefAnalysis(reference.id)
+
+    // 清空 file input
+    e.target.value = ''
+  }
+
+  const handleCancel = () => {
+    cancelRefAnalysisPipeline()
+    setRunning(false)
+  }
+
+  const handleReanalyze = async () => {
+    if (!reference.id) return
+    setStatusMsg('请上传文件以重新分析')
+    fileInputRef.current?.click()
+  }
+
+  const isAnalyzing = status === 'analyzing' || running
+
+  return (
+    <div className="space-y-4">
+      {/* 说明 */}
+      <div className="bg-bg-elevated rounded-lg p-3 text-xs text-text-muted leading-relaxed">
+        <Microscope className="w-4 h-4 inline mr-1.5 text-accent" />
+        上传优秀网文 / 小说样本，让 AI 从
+        <span className="text-accent font-medium"> 叙事架构、开篇技法、情节节奏、人物塑造、冲突升级、伏笔悬念、文笔对话、世界观构建 </span>
+        八个维度提炼创作方法论。分析结果永久保留在浏览器本地，创作时可「引用手法」注入 AI prompt 上下文。
+      </div>
+
+      {/* 操作区 */}
+      {!isAnalyzing && status !== 'done' && (
+        <div className="flex items-center gap-3">
+          {/* 深度选择 */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-text-muted">分析深度：</span>
+            <select
+              value={depth}
+              onChange={e => setDepth(e.target.value as ReferenceAnalysisDepth)}
+              className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary"
+            >
+              <option value="quick">快速（大块，省 token）</option>
+              <option value="standard">标准（推荐）</option>
+              <option value="deep">深度（细块，最详尽）</option>
+            </select>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,.epub"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors"
+          >
+            <UploadCloud className="w-4 h-4" />
+            上传文件并分析
+          </button>
+        </div>
+      )}
+
+      {/* 分析进度 */}
+      {isAnalyzing && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-accent">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              正在分析...
+            </div>
+            <button
+              onClick={handleCancel}
+              className="flex items-center gap-1 px-3 py-1 text-xs text-red-400 hover:text-red-300 border border-red-400/30 rounded transition-colors"
+            >
+              <StopCircle className="w-3.5 h-3.5" />
+              取消
+            </button>
+          </div>
+          <div className="h-2 bg-bg-elevated rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent transition-all duration-300 rounded-full"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="text-xs text-text-muted">{progress}% — {statusMsg}</div>
+        </div>
+      )}
+
+      {/* 分析完成 */}
+      {status === 'done' && !isAnalyzing && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-green-400">
+            <BarChart3 className="w-4 h-4" />
+            分析完成 — 共 {chunks.length} 块
+            {reference.totalChars && <span className="text-text-muted text-xs">（{reference.totalChars.toLocaleString()} 字）</span>}
+          </div>
+          <button
+            onClick={handleReanalyze}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs text-text-muted hover:text-accent border border-border rounded-lg transition-colors"
+          >
+            重新分析
+          </button>
+        </div>
+      )}
+
+      {/* 分析失败 */}
+      {status === 'failed' && !isAnalyzing && (
+        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+          <p className="text-sm text-red-400">分析失败</p>
+          {reference.analysisError && <p className="text-xs text-text-muted mt-1">{reference.analysisError}</p>}
+          <button
+            onClick={handleReanalyze}
+            className="mt-2 flex items-center gap-1 px-3 py-1.5 text-xs text-accent border border-accent/30 rounded-lg hover:bg-accent/10 transition-colors"
+          >
+            重新上传并分析
+          </button>
+        </div>
+      )}
+
+      {/* 活动日志（分析中显示） */}
+      {isAnalyzing && activityLog.length > 0 && (
+        <div className="bg-bg-elevated rounded-lg p-2 max-h-28 overflow-y-auto text-[11px] font-mono space-y-0.5">
+          {activityLog.map((log, i) => (
+            <div key={i} className={
+              log.level === 'error' ? 'text-red-400' :
+              log.level === 'warn' ? 'text-yellow-400' :
+              log.level === 'success' ? 'text-green-400' :
+              'text-text-muted'
+            }>{log.msg}</div>
+          ))}
+        </div>
+      )}
+
+      {/* 分块分析结果 */}
+      {chunks.length > 0 && !isAnalyzing && (
+        <ChunkAnalysisViewer chunks={chunks} />
+      )}
+    </div>
+  )
+}
+
+/** 分块分析查看器 —— 可切换块 + 按维度展示 */
+function ChunkAnalysisViewer({ chunks }: { chunks: ReferenceChunkAnalysis[] }) {
+  const [selectedChunk, setSelectedChunk] = useState(0)
+  const [expandedDims, setExpandedDims] = useState<Set<string>>(new Set(ANALYSIS_DIMENSIONS))
+
+  const chunk = chunks[selectedChunk]
+  if (!chunk) return null
+
+  const toggleDim = (dim: string) => {
+    setExpandedDims(prev => {
+      const next = new Set(prev)
+      if (next.has(dim)) next.delete(dim)
+      else next.add(dim)
+      return next
+    })
+  }
+
+  const dimColors: Record<string, string> = {
+    narrativeStructure: 'text-blue-400 border-blue-400/30',
+    openingTechnique:   'text-amber-400 border-amber-400/30',
+    plotRhythm:         'text-green-400 border-green-400/30',
+    characterCraft:     'text-purple-400 border-purple-400/30',
+    conflictEscalation: 'text-red-400 border-red-400/30',
+    foreshadowing:      'text-cyan-400 border-cyan-400/30',
+    proseAndDialogue:   'text-pink-400 border-pink-400/30',
+    worldBuilding:      'text-teal-400 border-teal-400/30',
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* 块选择器 */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-text-muted">分块：</span>
+        <div className="flex flex-wrap gap-1">
+          {chunks.map((c, i) => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedChunk(i)}
+              className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                i === selectedChunk
+                  ? 'bg-accent text-white'
+                  : 'bg-bg-elevated text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {c.label || `块 ${i + 1}`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 八维内容 */}
+      <div className="space-y-1">
+        {ANALYSIS_DIMENSIONS.map(dim => {
+          const content = chunk[dim]
+          if (!content || content === '本块未涉及') return null
+          const isExpanded = expandedDims.has(dim)
+          const colorClass = dimColors[dim] || 'text-text-muted border-border'
+
+          return (
+            <div key={dim} className="border border-border/40 rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleDim(dim)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-bg-hover transition-colors"
+              >
+                {isExpanded
+                  ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                  : <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                }
+                <span className={`text-xs font-medium ${colorClass.split(' ')[0]}`}>
+                  {DIMENSION_LABELS[dim]}
+                </span>
+              </button>
+              {isExpanded && (
+                <div className="px-3 pb-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+                  {content}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 精彩片段 */}
+      {chunk.rawExcerpt && (
+        <div className="border border-border/40 rounded-lg p-3">
+          <h4 className="text-xs font-medium text-text-muted mb-1.5">精彩片段引用</h4>
+          <div className="text-sm text-text-secondary italic leading-relaxed whitespace-pre-wrap">
+            {chunk.rawExcerpt}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

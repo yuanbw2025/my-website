@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, X, Sparkles } from 'lucide-react'
+import { Plus, X, Sparkles, Microscope, Check } from 'lucide-react'
 import { useCreativeRulesStore } from '../../stores/project-singletons'
 import { useWorldviewStore } from '../../stores/worldview'
+import { useReferenceStore } from '../../stores/reference'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildRulesGeneratePrompt } from '../../lib/ai/adapters/rules-adapter'
 import AIStreamOutput from '../shared/AIStreamOutput'
@@ -21,6 +22,7 @@ interface Props {
 export default function CreativeRulesPanel({ project }: Props) {
   const { creativeRules, loadAll, save } = useCreativeRulesStore()
   const { worldview, storyCore, loadAll: loadWorldview } = useWorldviewStore()
+  const { references, loadAll: loadRefs } = useReferenceStore()
   const [writingStyle, setWritingStyle] = useState('')
   const [narrativePOV, setNarrativePOV] = useState<NarrativePOV>('third-limited')
   const [toneAndMood, setToneAndMood] = useState('')
@@ -28,13 +30,15 @@ export default function CreativeRulesPanel({ project }: Props) {
   const [consistencyRules, setConsistencyRules] = useState<string[]>([])
   const [specialRequirements, setSpecialRequirements] = useState('')
   const [referenceWorks, setReferenceWorks] = useState<string[]>([])
+  const [citedRefIds, setCitedRefIds] = useState<number[]>([])
   const [aiTarget, setAiTarget] = useState<'writingStyle' | 'toneAndMood' | 'specialRequirements' | null>(null)
   const ai = useAIStream()
 
   useEffect(() => {
     loadAll(project.id!)
     loadWorldview(project.id!)
-  }, [project.id, loadAll, loadWorldview])
+    loadRefs(project.id!)
+  }, [project.id, loadAll, loadWorldview, loadRefs])
 
   useEffect(() => {
     if (creativeRules) {
@@ -45,6 +49,7 @@ export default function CreativeRulesPanel({ project }: Props) {
       try { setProhibitions(JSON.parse(creativeRules.prohibitions || '[]')) } catch { setProhibitions([]) }
       try { setConsistencyRules(JSON.parse(creativeRules.consistencyRules || '[]')) } catch { setConsistencyRules([]) }
       try { setReferenceWorks(JSON.parse(creativeRules.referenceWorks || '[]')) } catch { setReferenceWorks([]) }
+      try { setCitedRefIds(JSON.parse(creativeRules.citedReferenceIds || '[]')) } catch { setCitedRefIds([]) }
     }
   }, [creativeRules])
 
@@ -261,6 +266,68 @@ export default function CreativeRulesPanel({ project }: Props) {
 
       {/* 参考作品 */}
       {renderList('参考作品', '如：《凡人修仙传》', referenceWorks, setReferenceWorks, 'referenceWorks')}
+
+      {/* 引用手法 —— Phase 20 */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-medium text-text-secondary flex items-center gap-1.5">
+            <Microscope className="w-3.5 h-3.5 text-accent" />
+            引用手法
+          </label>
+          <span className="text-[10px] text-text-muted">
+            勾选后，AI 写作时会参考这些作品的分析方法论
+          </span>
+        </div>
+        {(() => {
+          const analyzedRefs = references.filter(r => r.analysisStatus === 'done')
+          if (analyzedRefs.length === 0) {
+            return (
+              <p className="text-text-muted text-xs py-3 text-center border border-dashed border-border rounded-lg">
+                暂无已分析的参考作品。请先在「项目参考 → 深度分析」上传文件并完成分析。
+              </p>
+            )
+          }
+          return (
+            <div className="space-y-1">
+              {analyzedRefs.map(ref => {
+                const checked = citedRefIds.includes(ref.id!)
+                return (
+                  <button
+                    key={ref.id}
+                    onClick={() => {
+                      const next = checked
+                        ? citedRefIds.filter(id => id !== ref.id!)
+                        : [...citedRefIds, ref.id!]
+                      setCitedRefIds(next)
+                      saveField({ citedReferenceIds: JSON.stringify(next) })
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all border ${
+                      checked
+                        ? 'border-accent/40 bg-accent/8'
+                        : 'border-border hover:border-text-muted bg-bg-surface'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
+                      checked ? 'bg-accent border-accent' : 'border-border'
+                    }`}>
+                      {checked && <Check className="w-3 h-3 text-white" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-text-primary">{ref.title}</span>
+                      {ref.author && <span className="text-xs text-text-muted ml-1.5">— {ref.author}</span>}
+                    </div>
+                    {ref.totalChars && (
+                      <span className="text-[10px] text-text-muted shrink-0">
+                        {(ref.totalChars / 10000).toFixed(1)}万字
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })()}
+      </div>
 
       {/* 特殊创作要求 */}
       <div className="mb-6">

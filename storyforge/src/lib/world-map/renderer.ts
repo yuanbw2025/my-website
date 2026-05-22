@@ -36,14 +36,6 @@ const TERRAIN_COLORS: Record<string, string> = {
   grassland: '#5a8a4a',
 }
 
-// ── 标记图标 ──────────────────────────────────────────────
-const MARKER_ICONS: Record<string, string> = {
-  capital: '🏰', city: '🏙️', town: '🏘️', village: '🏕️',
-  sect: '⚔️', fortress: '🏯', port: '⚓', academy: '📚',
-  ruin: '🏚️', dungeon: '💀', oasis: '🌴', bridge: '🌉',
-  lighthouse: '🗼', mine: '⛏️', shrine: '⛩️', custom: '📍',
-}
-
 // ═══════════════════════════════════════════════════════════
 // 主渲染函数
 // ═══════════════════════════════════════════════════════════
@@ -244,19 +236,58 @@ function drawLandRegion(ctx: CanvasRenderingContext2D, region: MapRegion) {
 
 // ── 地形纹理辅助 ──────────────────────────────────────────
 function drawTreeTexture(ctx: CanvasRenderingContext2D, poly: Point2D[], rng: () => number, count: number) {
-  ctx.fillStyle = '#1a3a10'
   const bounds = getBounds(poly)
   for (let i = 0; i < count; i++) {
     const x = bounds.minX + rng() * (bounds.maxX - bounds.minX)
     const y = bounds.minY + rng() * (bounds.maxY - bounds.minY)
     if (!isPointInPolygon(x, y, poly)) continue
-    const h = 4 + rng() * 4
-    ctx.beginPath()
-    ctx.moveTo(x, y - h)
-    ctx.lineTo(x - h * 0.5, y + 2)
-    ctx.lineTo(x + h * 0.5, y + 2)
-    ctx.closePath()
-    ctx.fill()
+
+    const isPine = rng() < 0.6
+    const size = 3 + rng() * 4
+
+    if (isPine) {
+      // 松树：三角形 + 树干，带明暗
+      const h = size * 1.8
+      // 树干
+      ctx.fillStyle = '#3a2a18'
+      ctx.fillRect(x - 0.5, y, 1, size * 0.4)
+      // 阴影面（右半）
+      ctx.fillStyle = '#1a3a10'
+      ctx.beginPath()
+      ctx.moveTo(x, y - h)
+      ctx.lineTo(x + size * 0.55, y)
+      ctx.lineTo(x, y)
+      ctx.closePath()
+      ctx.fill()
+      // 受光面（左半）
+      ctx.fillStyle = '#2a5a1a'
+      ctx.beginPath()
+      ctx.moveTo(x, y - h)
+      ctx.lineTo(x - size * 0.55, y)
+      ctx.lineTo(x, y)
+      ctx.closePath()
+      ctx.fill()
+    } else {
+      // 阔叶树：圆形树冠 + 高光
+      const r = size * 0.7
+      // 阴影
+      ctx.fillStyle = 'rgba(0,0,0,0.15)'
+      ctx.beginPath()
+      ctx.arc(x + 1, y - r + 1, r, 0, Math.PI * 2)
+      ctx.fill()
+      // 树冠
+      const hue = 0.28 + (rng() - 0.5) * 0.06
+      const lum = 0.2 + rng() * 0.08
+      ctx.fillStyle = `hsl(${hue * 360}, 55%, ${lum * 100}%)`
+      ctx.beginPath()
+      ctx.arc(x, y - r, r, 0, Math.PI * 2)
+      ctx.fill()
+      // 高光
+      ctx.fillStyle = 'rgba(120,180,80,0.25)'
+      ctx.beginPath()
+      ctx.arc(x - r * 0.25, y - r * 1.2, r * 0.4, 0, Math.PI * 2)
+      ctx.fill()
+    }
   }
 }
 
@@ -301,95 +332,156 @@ function drawHillTexture(ctx: CanvasRenderingContext2D, poly: Point2D[], rng: ()
   }
 }
 
-// ── 山脉 ──────────────────────────────────────────────────
+// ── 山脉（手绘 Inkarnate 风格） ──────────────────────────────
 function drawMountainRange(ctx: CanvasRenderingContext2D, mtn: MapMountainRange) {
   const pts = mtn.ridgeLine
   if (pts.length < 2) return
 
-  const peakH = mtn.height === 'epic' ? 24 : mtn.height === 'high' ? 18 : mtn.height === 'medium' ? 13 : 9
-  const showSnow = peakH >= 13
+  const peakH = mtn.height === 'epic' ? 28 : mtn.height === 'high' ? 22 : mtn.height === 'medium' ? 16 : 11
+  const showSnow = peakH >= 16
+  const rng = seededRandom(hashStr(mtn.name))
 
   ctx.save()
 
-  // 沿脊线间隔画山峰
-  const step = Math.max(20, mtn.width * 0.8)
-  for (let d = 0; d < totalPathLength(pts); d += step) {
+  // 收集所有山峰（主峰 + 侧峰），从后到前排序绘制（painter's algorithm）
+  const peaks: { x: number; y: number; h: number; w: number }[] = []
+  const step = Math.max(16, mtn.width * 0.6)
+  const totalLen = totalPathLength(pts)
+
+  for (let d = 0; d < totalLen; d += step) {
     const pt = pointAlongPath(pts, d)
     if (!pt) continue
-    const [x, y] = pt
-    const w = peakH * 0.75
-    const jitter = ((d * 7) % 5) - 2 // 微小随机偏移
+    const h = peakH * (0.7 + rng() * 0.3)
+    const w = h * (0.6 + rng() * 0.3)
+    peaks.push({ x: pt[0] + (rng() - 0.5) * 4, y: pt[1], h, w })
 
-    // 阴影
-    ctx.fillStyle = 'rgba(0,0,0,0.2)'
+    // 旁侧小峰
+    if (rng() < 0.6) {
+      const side = (rng() < 0.5 ? -1 : 1) * mtn.width * (0.2 + rng() * 0.3)
+      const sh = h * (0.35 + rng() * 0.3)
+      peaks.push({ x: pt[0] + side, y: pt[1] + (rng() - 0.5) * 3, h: sh, w: sh * 0.7 })
+    }
+  }
+
+  // 按 y 排序：远处（小 y）先画
+  peaks.sort((a, b) => (a.y - a.h) - (b.y - b.h))
+
+  for (const pk of peaks) {
+    const { x, y, h, w } = pk
+
+    // ── 山体阴影（右侧深色） ──
+    ctx.fillStyle = 'rgba(30,20,10,0.25)'
     ctx.beginPath()
-    ctx.moveTo(x + jitter, y - peakH + 2)
-    ctx.lineTo(x - w - 2 + jitter, y + 4)
-    ctx.lineTo(x + w + 2 + jitter, y + 4)
+    ctx.moveTo(x + 1, y - h + 1)
+    ctx.lineTo(x + w + 3, y + 3)
+    ctx.lineTo(x - w + 3, y + 3)
     ctx.closePath()
     ctx.fill()
 
-    // 山体
-    ctx.fillStyle = '#6a5a48'
+    // ── 山体左侧（受光面） ──
+    ctx.fillStyle = '#8a7860'
     ctx.beginPath()
-    ctx.moveTo(x + jitter, y - peakH)
-    ctx.lineTo(x - w + jitter, y + 2)
-    ctx.lineTo(x + w + jitter, y + 2)
+    ctx.moveTo(x, y - h)
+    ctx.lineTo(x - w, y + 2)
+    ctx.lineTo(x, y + 2)
     ctx.closePath()
     ctx.fill()
 
-    // 雪顶
-    if (showSnow) {
+    // ── 山体右侧（阴影面） ──
+    ctx.fillStyle = '#5a4838'
+    ctx.beginPath()
+    ctx.moveTo(x, y - h)
+    ctx.lineTo(x + w, y + 2)
+    ctx.lineTo(x, y + 2)
+    ctx.closePath()
+    ctx.fill()
+
+    // ── 山脊线（明暗交界） ──
+    ctx.strokeStyle = 'rgba(180,160,130,0.3)'
+    ctx.lineWidth = 0.7
+    ctx.beginPath()
+    ctx.moveTo(x, y - h)
+    ctx.lineTo(x, y + 2)
+    ctx.stroke()
+
+    // ── 岩石纹理线条 ──
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)'
+    ctx.lineWidth = 0.4
+    for (let i = 0; i < 3; i++) {
+      const ty = y - h * (0.2 + i * 0.2)
+      ctx.beginPath()
+      ctx.moveTo(x - w * (0.3 + i * 0.15), ty + h * 0.1)
+      ctx.quadraticCurveTo(x, ty - 1, x + w * (0.2 + i * 0.1), ty + h * 0.15)
+      ctx.stroke()
+    }
+
+    // ── 雪顶 ──
+    if (showSnow && h >= peakH * 0.6) {
+      const snowLine = h * 0.35
       ctx.fillStyle = '#e8e0d0'
       ctx.beginPath()
-      ctx.moveTo(x + jitter, y - peakH)
-      ctx.lineTo(x - w * 0.3 + jitter, y - peakH * 0.5)
-      ctx.lineTo(x + w * 0.3 + jitter, y - peakH * 0.5)
+      ctx.moveTo(x, y - h)
+      // 不规则雪线
+      ctx.lineTo(x - w * 0.25, y - h + snowLine)
+      ctx.quadraticCurveTo(x - w * 0.1, y - h + snowLine * 0.85, x, y - h + snowLine * 0.7)
+      ctx.quadraticCurveTo(x + w * 0.1, y - h + snowLine * 0.85, x + w * 0.25, y - h + snowLine)
       ctx.closePath()
       ctx.fill()
     }
-
-    // 纹理线
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)'
-    ctx.lineWidth = 0.5
-    ctx.beginPath()
-    ctx.moveTo(x - w * 0.5 + jitter, y)
-    ctx.lineTo(x + jitter, y - peakH * 0.6)
-    ctx.lineTo(x + w * 0.5 + jitter, y)
-    ctx.stroke()
   }
 
   // 山脉名称
-  const midPt = pointAlongPath(pts, totalPathLength(pts) / 2)
+  const midPt = pointAlongPath(pts, totalLen / 2)
   if (midPt) {
-    ctx.fillStyle = '#8a7a60'
-    ctx.font = 'italic 9px serif'
+    ctx.fillStyle = '#7a6a50'
+    ctx.font = 'italic 10px serif'
     ctx.textAlign = 'center'
-    ctx.fillText(mtn.name, midPt[0], midPt[1] + peakH + 12)
+    ctx.strokeStyle = '#1a1810'
+    ctx.lineWidth = 2
+    ctx.strokeText(mtn.name, midPt[0], midPt[1] + peakH + 14)
+    ctx.fillText(mtn.name, midPt[0], midPt[1] + peakH + 14)
   }
 
   ctx.restore()
 }
 
-// ── 河流 ──────────────────────────────────────────────────
+// ── 河流（双线描边 + 发光） ──────────────────────────────────
 function drawRiver(ctx: CanvasRenderingContext2D, river: MapRiver) {
   ctx.save()
-  ctx.strokeStyle = '#4a90c0'
-  ctx.lineWidth = river.width || 2
-  ctx.globalAlpha = 0.8
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-
   if (river.underground) ctx.setLineDash([5, 5])
 
+  const baseWidth = Math.max(river.width || 2, 2)
+
+  // 外层发光
+  ctx.strokeStyle = 'rgba(60,130,190,0.25)'
+  ctx.lineWidth = baseWidth + 4
+  ctx.globalAlpha = 0.6
+  drawSmoothPath(ctx, river.path)
+  ctx.stroke()
+
+  // 主河道
+  ctx.strokeStyle = '#4a90c0'
+  ctx.lineWidth = baseWidth + 1
+  ctx.globalAlpha = 0.85
+  drawSmoothPath(ctx, river.path)
+  ctx.stroke()
+
+  // 高光中线
+  ctx.strokeStyle = 'rgba(140,200,240,0.35)'
+  ctx.lineWidth = Math.max(1, baseWidth * 0.4)
+  ctx.globalAlpha = 0.7
   drawSmoothPath(ctx, river.path)
   ctx.stroke()
 
   // 支流
   if (river.tributaries) {
     for (const trib of river.tributaries) {
-      ctx.lineWidth = trib.width || 1
-      ctx.globalAlpha = 0.6
+      const tw = Math.max(trib.width || 1, 1)
+      ctx.strokeStyle = '#4a90c0'
+      ctx.lineWidth = tw + 0.5
+      ctx.globalAlpha = 0.65
       drawSmoothPath(ctx, trib.path)
       ctx.stroke()
     }
@@ -399,10 +491,13 @@ function drawRiver(ctx: CanvasRenderingContext2D, river: MapRiver) {
   if (river.path.length >= 3) {
     const mid = river.path[Math.floor(river.path.length / 2)]
     ctx.fillStyle = '#5a9ac0'
-    ctx.font = 'italic 8px serif'
+    ctx.font = 'italic 9px serif'
     ctx.textAlign = 'center'
-    ctx.globalAlpha = 0.7
-    ctx.fillText(river.name, mid[0] + 14, mid[1] - 6)
+    ctx.globalAlpha = 0.75
+    ctx.strokeStyle = '#1a1810'
+    ctx.lineWidth = 2
+    ctx.strokeText(river.name, mid[0] + 14, mid[1] - 8)
+    ctx.fillText(river.name, mid[0] + 14, mid[1] - 8)
   }
 
   ctx.setLineDash([])
@@ -444,7 +539,7 @@ function drawRoad(ctx: CanvasRenderingContext2D, road: MapRoad) {
   ctx.restore()
 }
 
-// ── 城市标记 ──────────────────────────────────────────────
+// ── 城市标记（手绘风格图标） ──────────────────────────────
 function drawMarker(
   ctx: CanvasRenderingContext2D,
   marker: MapMarker,
@@ -452,60 +547,149 @@ function drawMarker(
   isHovered: boolean,
 ) {
   const { x, y } = marker
-  const icon = marker.icon || MARKER_ICONS[marker.type] || '📍'
   const importance = marker.importance || 3
   const isCapital = marker.type === 'capital'
-  const baseSize = isCapital ? 14 : 9 + importance
+  const isCity = marker.type === 'city' || marker.type === 'capital'
+  const isFortress = marker.type === 'fortress' || marker.type === 'sect'
+  const isPort = marker.type === 'port'
 
   ctx.save()
 
   // 选中高亮
   if (isSelected) {
-    ctx.globalAlpha = 0.5
+    ctx.globalAlpha = 0.4
     ctx.fillStyle = '#3b82f6'
     ctx.beginPath()
-    ctx.arc(x, y, baseSize + 4, 0, Math.PI * 2)
+    ctx.arc(x, y, 16, 0, Math.PI * 2)
     ctx.fill()
     ctx.globalAlpha = 1
   }
 
   // 悬停高亮
   if (isHovered && !isSelected) {
-    ctx.globalAlpha = 0.3
+    ctx.globalAlpha = 0.25
     ctx.fillStyle = '#60a5fa'
-    ctx.beginPath()
-    ctx.arc(x, y, baseSize + 2, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.globalAlpha = 1
-  }
-
-  // 首都光晕
-  if (isCapital) {
-    ctx.globalAlpha = 0.3
-    ctx.fillStyle = '#c9a84c'
     ctx.beginPath()
     ctx.arc(x, y, 14, 0, Math.PI * 2)
     ctx.fill()
     ctx.globalAlpha = 1
   }
 
-  // 图标
-  ctx.font = `${baseSize}px serif`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(icon, x, y)
+  if (isCapital) {
+    // ── 首都：城堡图标 ──
+    // 光晕
+    ctx.globalAlpha = 0.25
+    ctx.fillStyle = '#c9a84c'
+    ctx.beginPath()
+    ctx.arc(x, y, 16, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.globalAlpha = 1
+
+    // 城堡主体
+    ctx.fillStyle = '#c9a84c'
+    ctx.fillRect(x - 7, y - 4, 14, 10)
+    // 城垛
+    for (let i = -6; i <= 4; i += 4) {
+      ctx.fillRect(x + i, y - 8, 3, 4)
+    }
+    // 门
+    ctx.fillStyle = '#1a1810'
+    ctx.beginPath()
+    ctx.arc(x, y + 2, 2.5, Math.PI, 0)
+    ctx.fillRect(x - 2.5, y + 2, 5, 4)
+    ctx.fill()
+    // 旗帜
+    ctx.strokeStyle = '#c9a84c'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(x, y - 8)
+    ctx.lineTo(x, y - 15)
+    ctx.stroke()
+    ctx.fillStyle = '#c44'
+    ctx.beginPath()
+    ctx.moveTo(x, y - 15)
+    ctx.lineTo(x + 6, y - 13)
+    ctx.lineTo(x, y - 11)
+    ctx.closePath()
+    ctx.fill()
+  } else if (isFortress) {
+    // ── 要塞：菱形 + 双圈 ──
+    ctx.strokeStyle = '#8a6a4a'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(x, y - 7)
+    ctx.lineTo(x + 7, y)
+    ctx.lineTo(x, y + 7)
+    ctx.lineTo(x - 7, y)
+    ctx.closePath()
+    ctx.stroke()
+    ctx.fillStyle = '#5a4a38'
+    ctx.fill()
+    ctx.fillStyle = '#c9a84c'
+    ctx.beginPath()
+    ctx.arc(x, y, 3, 0, Math.PI * 2)
+    ctx.fill()
+  } else if (isPort) {
+    // ── 港口：锚形 ──
+    ctx.fillStyle = '#4a7a9a'
+    ctx.beginPath()
+    ctx.arc(x, y, 5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = '#b0d0e0'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(x, y, 5, 0, Math.PI * 2)
+    ctx.stroke()
+    // 锚杆
+    ctx.strokeStyle = '#b0d0e0'
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.moveTo(x, y - 5)
+    ctx.lineTo(x, y + 4)
+    ctx.moveTo(x - 4, y + 2)
+    ctx.quadraticCurveTo(x - 4, y + 5, x, y + 4)
+    ctx.quadraticCurveTo(x + 4, y + 5, x + 4, y + 2)
+    ctx.stroke()
+  } else if (isCity) {
+    // ── 城市：实心圆 + 外圈 ──
+    const r = 4 + Math.min(importance, 4)
+    ctx.fillStyle = '#b08060'
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = '#d0a878'
+    ctx.lineWidth = 1.2
+    ctx.stroke()
+    // 内圈
+    ctx.fillStyle = '#1a1810'
+    ctx.beginPath()
+    ctx.arc(x, y, r * 0.4, 0, Math.PI * 2)
+    ctx.fill()
+  } else {
+    // ── 通用标记：小圆点 ──
+    const r = 3 + Math.min(importance, 3)
+    ctx.fillStyle = '#a08060'
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = '#c0a878'
+    ctx.lineWidth = 0.8
+    ctx.stroke()
+  }
 
   // 城市名
   const nameColor = isCapital ? '#c9a84c' : '#b0a080'
-  const nameFont = isCapital ? 'bold 11px serif' : `${8 + Math.min(importance, 3)}px serif`
+  const fontSize = isCapital ? 12 : 8 + Math.min(importance, 3)
+  const nameFont = isCapital ? `bold ${fontSize}px serif` : `${fontSize}px serif`
   ctx.fillStyle = nameColor
   ctx.font = nameFont
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
   ctx.strokeStyle = '#1a1810'
-  ctx.lineWidth = 3
-  ctx.strokeText(marker.name, x, y + baseSize * 0.6 + 2)
-  ctx.fillText(marker.name, x, y + baseSize * 0.6 + 2)
+  ctx.lineWidth = 2.5
+  const nameY = y + (isCapital ? 10 : 8)
+  ctx.strokeText(marker.name, x, nameY)
+  ctx.fillText(marker.name, x, nameY)
 
   ctx.restore()
 }

@@ -23,6 +23,10 @@ export interface CreativeRules {
   /** 结构化参考作品列表（v3 取代 references 表 + 旧 referenceWorks 字符串） */
   referenceWorksV2?: import('./reference-work').ReferenceWork[]
 
+  // ── Phase 20 —— 引用手法 ──────────────────────────────────────
+  /** 选中的参考作品 ID 列表，其深度分析结果会注入 AI prompt 上下文 */
+  citedReferenceIds?: string   // JSON number[]
+
   createdAt: number
   updatedAt: number
 }

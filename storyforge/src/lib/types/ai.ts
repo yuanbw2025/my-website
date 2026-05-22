@@ -11,6 +11,7 @@ export type AIProvider =
   | 'poe'
   | 'kimi'
   | 'claude'
+  | 'modelscope'
   | 'ollama'
   | 'custom'
 
@@ -68,6 +69,14 @@ export const PROVIDER_MODELS: Record<string, { value: string; label: string; des
     { value: 'GPT-5.4', label: 'GPT-5.4' },
     { value: 'GLM-5.1-FM', label: 'GLM 5.1 FM' },
   ],
+  modelscope: [
+    { value: 'Qwen/Qwen3-235B-A22B', label: 'Qwen3 235B A22B', desc: '最强 MoE 模型' },
+    { value: 'Qwen/Qwen3-32B', label: 'Qwen3 32B', desc: '高性能密集模型' },
+    { value: 'Qwen/Qwen3-30B-A3B', label: 'Qwen3 30B A3B', desc: '轻量 MoE，性价比高' },
+    { value: 'Qwen/Qwen3-14B', label: 'Qwen3 14B', desc: '中等规模密集模型' },
+    { value: 'Qwen/Qwen3-8B', label: 'Qwen3 8B', desc: '轻量密集模型' },
+    { value: 'Qwen/Qwen3-4B', label: 'Qwen3 4B', desc: '超轻量' },
+  ],
 }
 
 /** 提供商预设 */
@@ -115,6 +124,10 @@ export const PROVIDER_PRESETS: Record<string, Partial<AIConfig>> = {
   claude: {
     baseUrl: 'https://api.anthropic.com/v1',
     model: 'claude-sonnet-4-20250514',
+  },
+  modelscope: {
+    baseUrl: 'https://api-inference.modelscope.cn/v1',
+    model: 'Qwen/Qwen3-235B-A22B',
   },
   ollama: {
     baseUrl: 'http://localhost:11434/v1',

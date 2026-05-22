@@ -1,5 +1,7 @@
 import type { Worldview, StoryCore, PowerSystem, Character } from '../types'
+import { DIMENSION_LABELS, ANALYSIS_DIMENSIONS } from '../types/reference'
 import { loadContextMemo } from '../export/context-snapshot'
+import { db } from '../db/schema'
 
 /** 获取已缓存的上下文快照（如果有） */
 export function getContextMemo(projectId: number): string {
@@ -54,6 +56,47 @@ function getRoleLabel(role: string): string {
     supporting: '配角', minor: '次要',
   }
   return map[role] || role
+}
+
+/**
+ * 构建"引用手法"上下文 —— 从已分析的参考作品中提取方法论注入 AI prompt。
+ * 将每个维度的分析结论合并、去重、精简，形成可操作的创作指导。
+ */
+export async function buildRefAnalysisContext(refIds: number[]): Promise<string> {
+  if (!refIds.length) return ''
+
+  const parts: string[] = []
+
+  for (const refId of refIds) {
+    const ref = await db.references.get(refId)
+    if (!ref || ref.analysisStatus !== 'done') continue
+
+    const chunks = await db.referenceChunkAnalysis
+      .where('referenceId').equals(refId)
+      .sortBy('chunkIndex')
+
+    if (!chunks.length) continue
+
+    // 按维度汇总：每个维度取各块的结论合并（截取精华）
+    const dimSummaries: string[] = []
+    for (const dim of ANALYSIS_DIMENSIONS) {
+      const dimContents = chunks
+        .map(c => c[dim])
+        .filter((v): v is string => !!v && v !== '本块未涉及')
+      if (!dimContents.length) continue
+
+      // 每块取前 150 字，最多取 3 块，避免 prompt 过长
+      const selected = dimContents.slice(0, 3).map(t => t.slice(0, 150))
+      dimSummaries.push(`· ${DIMENSION_LABELS[dim]}：${selected.join('；')}`)
+    }
+
+    if (dimSummaries.length) {
+      parts.push(`【参考手法 — ${ref.title}${ref.author ? `（${ref.author}）` : ''}】\n${dimSummaries.join('\n')}`)
+    }
+  }
+
+  if (!parts.length) return ''
+  return `【引用手法 — 请参考以下大师创作方法论来指导写作】\n\n${parts.join('\n\n')}\n\n【引用手法结束 — 请灵活运用上述方法论，不要生搬硬套】`
 }
 
 /** 构建世界观各维度已有内容（用于 AI 生成时做参考） */

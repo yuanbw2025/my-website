@@ -16,6 +16,7 @@ import type {
   CharacterRelation,
   Snapshot,
   Reference,
+  ReferenceChunkAnalysis,
   PromptTemplate,
   DetailedOutline,
   ImportJob,
@@ -30,6 +31,7 @@ import type {
   MasterInsight,
   StateCard,
   EmotionBeatCard,
+  WorldNode,
 } from '../types'
 
 class StoryForgeDB extends Dexie {
@@ -64,11 +66,17 @@ class StoryForgeDB extends Dexie {
   masterStyleMetrics!: Table<MasterStyleMetrics, number>
   masterInsights!: Table<MasterInsight, number>
 
+  // Phase 20 —— 参考作品深度分析（八维分块分析）
+  referenceChunkAnalysis!: Table<ReferenceChunkAnalysis, number>
+
   // A1 —— 状态表（角色/地点/物品/势力状态追踪）
   stateCards!: Table<StateCard, number>
 
   // A3 —— 情感节拍卡
   emotionBeatCards!: Table<EmotionBeatCard, number>
+
+  // 多世界 / 世界树
+  worldNodes!: Table<WorldNode, number>
 
   constructor() {
     super('storyforge')
@@ -153,6 +161,16 @@ class StoryForgeDB extends Dexie {
     // v13: 情感节拍卡（A3）
     this.version(13).stores({
       emotionBeatCards: '++id, projectId, chapterId',
+    })
+
+    // v14: 参考作品八维深度分析（Phase 20 — 整合作品学习到项目参考）
+    this.version(14).stores({
+      referenceChunkAnalysis: '++id, referenceId, chunkIndex',
+    })
+
+    // v15: 多世界/世界树 — 每个世界节点独立地图配置
+    this.version(15).stores({
+      worldNodes: '++id, projectId, parentId, sortOrder',
     })
   }
 }

@@ -11,7 +11,8 @@ import { useAutoSave } from '../../hooks/useAutoSave'
 import { useBeforeUnload } from '../../hooks/useBeforeUnload'
 import { buildChapterContentPrompt, buildContinuePrompt, buildPolishPrompt, buildExpandPrompt, buildDeAIPrompt } from '../../lib/ai/adapters/chapter-adapter'
 import { buildStateExtractPrompt, parseStateDiffs } from '../../lib/ai/adapters/state-extract-adapter'
-import { buildWorldContext, buildCharacterContext, getContextMemo } from '../../lib/ai/context-builder'
+import { buildWorldContext, buildCharacterContext, getContextMemo, buildRefAnalysisContext } from '../../lib/ai/context-builder'
+import { useCreativeRulesStore } from '../../stores/project-singletons'
 import { htmlToPlainText, plainTextToHtml, countWords } from '../../lib/utils/html'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import StateDiffModal from '../state/StateDiffModal'
@@ -31,6 +32,7 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   const { characters } = useCharacterStore()
   const { cards: stateCards, loadAll: loadStateCards, buildStateContext, buildSelectiveStateContext, applyDiffs } = useStateCardStore()
   const { buildBeatContext } = useEmotionBeatStore()
+  const { creativeRules } = useCreativeRulesStore()
 
   // content 为 HTML 字符串；旧数据是纯文本，RichEditor 内部会自动包装
   const [content, setContent] = useState('')
@@ -116,31 +118,39 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   }
 
   // AI 操作 —— 所有 AI 交互都基于纯文本
-  // 构建包含状态表 + 情感节拍的完整世界观上下文
-  const buildFullWorldCtx = () => {
+  // 构建包含状态表 + 情感节拍 + 引用手法的完整世界观上下文
+  const buildFullWorldCtx = async () => {
     const parts = [worldCtx]
     if (selectiveState.text) parts.push(selectiveState.text)
     if (currentChapter?.id) {
       const beatCtx = buildBeatContext(currentChapter.id)
       if (beatCtx) parts.push(beatCtx)
     }
+    // 引用手法注入（Phase 20）
+    try {
+      const citedIds: number[] = JSON.parse(creativeRules?.citedReferenceIds || '[]')
+      if (citedIds.length) {
+        const refCtx = await buildRefAnalysisContext(citedIds)
+        if (refCtx) parts.push(refCtx)
+      }
+    } catch { /* ignore */ }
     return parts.filter(Boolean).join('\n\n')
   }
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!outlineNode) return
     const prevChapter = chapters.filter(c => c.order < (currentChapter?.order || 0)).pop()
     const prevEnding = htmlToPlainText(prevChapter?.content || '').slice(-500)
-    const fullCtx = buildFullWorldCtx()
+    const fullCtx = await buildFullWorldCtx()
     console.log(`[ChapterEditor] 生成正文 — 注入 ${selectiveState.matchedIds.length}/${selectiveState.allIds.length} 张状态卡`)
     const messages = buildChapterContentPrompt(outlineNode.title, outlineNode.summary, fullCtx, charCtx, prevEnding)
     setAIAction('generate')
     ai.start(messages)
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!plainText || !outlineNode) return
-    const fullCtx = buildFullWorldCtx()
+    const fullCtx = await buildFullWorldCtx()
     console.log(`[ChapterEditor] 续写 — 注入 ${selectiveState.matchedIds.length}/${selectiveState.allIds.length} 张状态卡`)
     const messages = buildContinuePrompt(plainText, outlineNode.summary, fullCtx)
     setAIAction('continue')
