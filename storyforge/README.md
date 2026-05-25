@@ -1,5 +1,11 @@
 # 🔥 StoryForge · 故事熔炉
 
+> **项目截图、开发进度、使用教程在知乎同步更新，欢迎来知乎交流：**  
+> **📄 [知乎专栏文档](https://zhuanlan.zhihu.com/p/2038714210188780594)**  
+> **💬 QQ 交流群：1082374587**（欢迎加群讨论需求、反馈 bug、交流小说创作）
+
+---
+
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)
