@@ -1,10 +1,7 @@
-# 构建产物
-infiniteskill/node_modules/
-infiniteskill/dist/
-yuntype/node_modules/
-yuntype/dist/
-cyber-flying-sword/node_modules/
-cyber-flying-sword/dist/
+# 构建产物（各子项目）
+*/node_modules/
+*/dist/
+*.tsbuildinfo
 
 # 备份目录
 infiniteskill_backup/
@@ -12,6 +9,9 @@ infiniteskill_backup/
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# Claude Code 工作区
+.claude/
 
 # 参考资料（不推送）
 _reference/

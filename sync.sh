@@ -21,6 +21,7 @@ PROJECTS=(
   "novel-game:novel-game-mirror"
   "ai-slides:ai-slides-mirror"
   "ai-presentation:ai-presentation-mirror"
+  "cyber-flying-sword:cyber-flying-sword-mirror"
 )
 
 # 如果传了参数，只同步指定项目
