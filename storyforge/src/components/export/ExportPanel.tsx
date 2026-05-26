@@ -7,6 +7,7 @@ import {
 import { exportProjectJSON, downloadJSON, importProjectJSON, type ProjectExportData } from '../../lib/export/json-export'
 import { exportProjectMarkdown, exportProjectTXT, downloadTextFile } from '../../lib/export/text-export'
 import { exportProjectHTML } from '../../lib/export/html-builder'
+import { exportProjectEPUB } from '../../lib/export/epub-export'
 import { exportToGist, validateGitHubPAT } from '../../lib/export/gist-export'
 import {
   generateContextSnapshot, downloadContextSnapshot,
@@ -114,6 +115,17 @@ export default function ExportPanel({ project, onImported }: Props) {
       showStatus('success', 'HTML 导出成功！')
     } catch (e) {
       showStatus('error', `导出失败：${(e as Error).message}`)
+    }
+  }
+
+  // ── EPUB 导出（Phase 24.1）──
+  const handleExportEPUB = async () => {
+    try {
+      showStatus('loading', '正在生成 EPUB...')
+      await exportProjectEPUB(project.id!)
+      showStatus('success', 'EPUB 导出成功！')
+    } catch (e) {
+      showStatus('error', `EPUB 导出失败：${(e as Error).message}`)
     }
   }
 
@@ -311,6 +323,18 @@ export default function ExportPanel({ project, onImported }: Props) {
         <button onClick={handleExportHTML} disabled={status === 'loading'}
           className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50">
           <Download className="w-4 h-4" /> 导出 HTML
+        </button>
+      </div>
+
+      {/* EPUB 导出（Phase 24.1） */}
+      <div className="bg-bg-surface border border-border rounded-lg p-5 space-y-4">
+        <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+          <FileText className="w-5 h-5 text-purple-400" /> EPUB 电子书
+        </h3>
+        <p className="text-sm text-text-muted">导出为 EPUB 3.0 格式电子书，可在 Kindle、Apple Books、微信读书等阅读器中打开。自动生成目录和封面页。</p>
+        <button onClick={handleExportEPUB} disabled={status === 'loading'}
+          className="flex items-center gap-2 px-4 py-2.5 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-500/30 transition-colors disabled:opacity-50">
+          <Download className="w-4 h-4" /> 导出 EPUB
         </button>
       </div>
 

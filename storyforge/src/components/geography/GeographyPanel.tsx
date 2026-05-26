@@ -203,6 +203,14 @@ export default function GeographyPanel({ project }: Props) {
             <div className="flex items-center gap-2 text-text-muted text-sm py-8 justify-center">
               <Loader2 className="w-4 h-4 animate-spin" />
               AI 正在绘制地图...
+              {ai.output.length > 0 && (
+                <span className="text-xs">≈ ~{Math.round(ai.output.length * 1.5).toLocaleString()} tokens</span>
+              )}
+            </div>
+          )}
+          {ai.tokenUsage && !ai.isStreaming && (
+            <div className="text-[10px] text-text-muted mb-2">
+              Token: ↑{ai.tokenUsage.inputTokens.toLocaleString()} ↓{ai.tokenUsage.outputTokens.toLocaleString()}
             </div>
           )}
           {ai.error && (

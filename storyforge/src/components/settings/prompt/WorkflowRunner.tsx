@@ -13,6 +13,7 @@ import { renderPrompt } from '../../../lib/ai/prompt-engine'
 import { extractJSON } from '../../../lib/ai/adapters/import-adapter'
 import type { PromptWorkflow, PromptWorkflowStep, SaveTarget } from '../../../lib/types/workflow'
 import type { Project, CharacterRole } from '../../../lib/types'
+import type { TokenUsage } from '../../../lib/ai/logger'
 import { targetLabel } from './workflow-helpers'
 
 interface RunnerProps {
@@ -26,6 +27,7 @@ interface StepResult {
   output: string
   status: 'pending' | 'running' | 'done' | 'skipped' | 'failed'
   error?: string
+  tokenUsage?: TokenUsage | null
 }
 
 /**
@@ -193,7 +195,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
         parameterValues: step.parameterValues,
       })
       const output = await ai.start(messages)
-      updateResult(step.stepId, { status: 'done', output })
+      updateResult(step.stepId, { status: 'done', output, tokenUsage: ai.tokenUsage })
       setCurrentIndex(idx + 1)
 
       // 是否暂停等用户确认
@@ -396,6 +398,11 @@ function StepCard({
             <p className="text-xs text-accent flex items-center gap-1">
               <Sparkles className="w-3 h-3 animate-pulse" /> AI 生成中...
             </p>
+          )}
+          {result.status === 'done' && result.tokenUsage && (
+            <div className="text-[10px] text-text-muted">
+              Token: ↑{result.tokenUsage.inputTokens.toLocaleString()} ↓{result.tokenUsage.outputTokens.toLocaleString()}
+            </div>
           )}
           {result.output && (
             <pre className="text-xs text-text-primary whitespace-pre-wrap font-sans max-h-64 overflow-y-auto p-2 bg-bg-surface rounded">

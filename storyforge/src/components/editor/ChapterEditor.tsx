@@ -22,12 +22,16 @@ import { useStoryArcStore } from '../../stores/story-arc'
 import { useForeshadowStore } from '../../stores/foreshadow'
 import { htmlToPlainText, plainTextToHtml, countWords } from '../../lib/utils/html'
 import AIStreamOutput from '../shared/AIStreamOutput'
+import ContextBudgetBar from '../shared/ContextBudgetBar'
+import { useAIConfigStore } from '../../stores/ai-config'
+import { analyzeContextSegments, calculateBudget, type ContextBudget } from '../../lib/ai/context-budget'
 import StateDiffModal from '../state/StateDiffModal'
 import RichEditor, { type RichEditorHandle } from './RichEditor'
 import EmotionBeatCard from './EmotionBeatCard'
 import OutlinePreview from '../outline/OutlinePreview'
 import ReviewPanel from './ReviewPanel'
 import NotePanel from './NotePanel'
+import FloatingToolbar from './FloatingToolbar'
 import type { Project, StateDiffItem } from '../../lib/types'
 
 interface Props {
@@ -67,6 +71,8 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   const [showOutlinePreview, setShowOutlinePreview] = useState(false)
   const [showReviewPanel, setShowReviewPanel] = useState(false)
   const [showNotePanel, setShowNotePanel] = useState(false)
+  const [contextBudget, setContextBudget] = useState<ContextBudget | null>(null)
+  const aiConfig = useAIConfigStore(s => s.config)
 
   // 字数（基于纯文本）
   const wordCount = useMemo(() => countWords(plainText), [plainText])
@@ -223,6 +229,17 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
     const prevEnding = htmlToPlainText(prevChapter?.content || '').slice(-500)
     const fullCtx = await buildFullWorldCtx('write')
     const messages = buildChapterContentPrompt(outlineNode.title, outlineNode.summary, fullCtx, charCtx, prevEnding)
+
+    // Phase 21.3: 计算上下文预算
+    const segments = analyzeContextSegments([
+      { label: 'System Prompt', content: messages.find(m => m.role === 'system')?.content || '', layer: 'L0' },
+      { label: '章节大纲', content: outlineNode.summary || '', layer: 'L1' },
+      { label: '前文结尾', content: prevEnding, layer: 'L1' },
+      { label: '世界观+角色+伏笔', content: fullCtx, layer: 'L2' },
+      { label: 'User Prompt', content: messages.find(m => m.role === 'user')?.content || '', layer: 'L1' },
+    ])
+    setContextBudget(calculateBudget(aiConfig.provider, aiConfig.model, segments))
+
     setAIAction('generate')
     ai.start(messages)
   }
@@ -614,6 +631,13 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
         />
       )}
 
+      {/* Phase 21.3: 上下文预算条 */}
+      {contextBudget && (
+        <div className="mb-2">
+          <ContextBudgetBar budget={contextBudget} compact={ai.isStreaming} />
+        </div>
+      )}
+
       {(ai.output || ai.isStreaming || ai.error) && (
         <div className="mb-3">
           <AIStreamOutput output={ai.output} isStreaming={ai.isStreaming} error={ai.error} tokenUsage={ai.tokenUsage}
@@ -653,6 +677,20 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
         }}
         placeholder="开始写作..."
         minHeight={400}
+      />
+
+      {/* Phase 24.3: 选中文本浮动工具栏 */}
+      <FloatingToolbar
+        getSelectedText={() => editorRef.current?.getSelectedText() || ''}
+        getSelectionRect={() => {
+          const sel = window.getSelection()
+          if (!sel || sel.isCollapsed || !sel.rangeCount) return null
+          return sel.getRangeAt(0).getBoundingClientRect()
+        }}
+        replaceSelectedText={(text) => {
+          editorRef.current?.replaceSelection(text)
+        }}
+        disabled={ai.isStreaming}
       />
 
       {/* 作者笔记 */}

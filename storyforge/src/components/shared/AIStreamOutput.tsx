@@ -63,6 +63,11 @@ export default function AIStreamOutput({
     setMarked(kind)
   }
 
+  // Phase 21.1: 生成中 token 估算（中文 ≈ 1.5 token/字，英文 ≈ 1.3 token/word）
+  const estimatedOutputTokens = isStreaming && !tokenUsage && output.length > 0
+    ? Math.round(output.length * 1.5)
+    : null
+
   return (
     <div className="border border-border rounded-lg overflow-hidden border-l-2 border-l-accent">
       {/* 输出区域 */}
@@ -106,11 +111,15 @@ export default function AIStreamOutput({
       <div className="flex items-center justify-between px-4 py-2 bg-bg-elevated border-t border-border">
         <span className="text-text-muted text-xs flex items-center gap-2">
           {hasOutput && <span>{output.length} 字</span>}
-          {tokenUsage && (
+          {tokenUsage ? (
             <span title={`输入 ${tokenUsage.inputTokens} + 输出 ${tokenUsage.outputTokens}`}>
               Token: ↑{tokenUsage.inputTokens.toLocaleString()} ↓{tokenUsage.outputTokens.toLocaleString()}
             </span>
-          )}
+          ) : estimatedOutputTokens ? (
+            <span className="text-text-muted" title="基于字数估算，精确值在生成完成后显示">
+              ≈ 输出 ~{estimatedOutputTokens.toLocaleString()} tokens
+            </span>
+          ) : null}
         </span>
         <div className="flex items-center gap-2">
           {isStreaming ? (
