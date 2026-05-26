@@ -1,59 +1,95 @@
 # Yuan's Digital Sandbox — 项目核心架构与规划文档
 
-> **文档版本**：v6.0 (多仓库架构版)
-> **最后更新**：2026-04-13
+> **文档版本**：v7.0 (独立仓库开发 + 主库集成部署)
+> **最后更新**：2026-05-26
 > **设计纲领**：主站门户即微缩宇宙，各独立工具共组生命树。
 
 ---
 
 ## 一、 系统架构蓝图与多仓库部署链路
 
-本项目运用了基于 Vercel 的 **Monobuild (主代码库统一单体构建) 体系**，同时为每个独立工具维护公开的 GitHub 镜像库，供外部用户下载和学习。
+本项目采用 **独立仓库开发 + 主库集成部署** 的架构。各子项目在自己的独立仓库中进行日常开发，完成后通过 `git subtree pull` 同步到主库，由主库统一构建部署到 Vercel。
 
-### 1.1 五大代码库的职能划分
+> ⚠️ **架构变更说明（2026-05-26）**：此前采用"主库开发 → 镜像推送"模式，已改为"独立仓库开发 → 主库集成"模式。旧模式下独立仓库是只读镜像，新模式下独立仓库是开发正本。
+
+### 1.1 代码库的职能划分
 
 | 仓库 | 类型 | GitHub 地址 | 用途 |
 |------|------|------------|------|
-| **my-website** | 🔒 私有 主枢纽 | `yuanbw2025/my-website` | Vercel 部署唯一入口，承载主站 + 所有子项目源码 + 构建脚本 + 后端 API |
-| **infiniteskill** | 🌐 公开 镜像库 | `yuanbw2025/infiniteskill` | 智能文档技能编译器的开源镜像，供用户下载 / Star / PR |
-| **flying-sword-pinball** | 🌐 公开 镜像库 | `yuanbw2025/flying-sword-pinball` | 飞剑弹珠游戏的开源镜像，零依赖单文件 HTML5 游戏 |
-| **yuntype** | 🌐 公开 镜像库 | `yuanbw2025/yuntype` | 云中书 AI 排版引擎的开源镜像，660 种排版组合 |
-| **cyber-flying-sword** | 🌐 公开 镜像库 | `yuanbw2025/cyber-flying-sword` | 赛博飞剑手势动作游戏的开源镜像，Three.js + MediaPipe |
-| **storyforge** | 🌐 公开 镜像库 | `yuanbw2025/storyforge` | 故事熔炉小说创作工坊的开源镜像，世界观构建与章节生成 |
-| **novel-game** | 🌐 公开 镜像库 | `yuanbw2025/novel-game` | 小说转文本交互游戏生成器的开源镜像，Vite+React |
+| **my-website** | 🏗 集成部署库 | `yuanbw2025/my-website` | Vercel 部署唯一入口，汇聚所有子项目构建产物 + 门户页面 + 后端 API。**不在此库做子项目开发。** |
+| **storyforge** | 🔧 独立开发库 | `yuanbw2025/storyforge` | 故事熔炉小说创作工坊，日常开发在此进行 |
+| **yuntype** | 🔧 独立开发库 | `yuanbw2025/yuntype` | 云中书 AI 排版引擎 |
+| **cyber-flying-sword** | 🔧 独立开发库 | `yuanbw2025/cyber-flying-sword` | 赛博飞剑手势动作游戏 |
+| **novel-game** | 🔧 独立开发库 | `yuanbw2025/novel-game` | 小说转文本交互游戏生成器 |
+| **ai-slides** | 🔧 独立开发库 | `yuanbw2025/ai-slides` | AI 演示文稿工具 |
+| **ai-presentation** | 🔧 独立开发库 | `yuanbw2025/ai-presentation` | AI 演示稿工具 |
+| **wechat-html-injector** | 🔧 独立开发库 | `yuanbw2025/wechat-html-injector` | 微信 HTML 注入器 |
+| **infiniteskill** | 📦 已归档 | `yuanbw2025/infiniteskill` | 智能文档技能编译器（已成型，不再活跃开发） |
+| **Infinite_SpatioTemporal_Map** | 🔧 独立开发库 | `yuanbw2025/Infinite_SpatioTemporal_Map` | 无限时空图（独立项目，不在主库 subtree 中） |
+| **flying-sword-pinball** | 🔧 独立开发库 | `yuanbw2025/flying-sword-pinball` | 飞剑弹珠游戏（独立项目，不在主库 subtree 中） |
+| **freellmapizh** | 🔧 独立开发库 | `yuanbw2025/freellmapizh` | 免费 LLM API 中文文档 |
 
-### 1.2 仓库之间的关系图
+### 1.2 开发与部署流程
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    my-website (私有主库)                       │
-│    Vercel 自动部署入口 → https://yuanbw.vercel.app            │
-│                                                             │
-│  ├── index.html              ← 主站中国风门户首页             │
-│  ├── game.html               ← 飞剑弹珠游戏 (单文件源码)      │
-│  ├── build.mjs               ← 统一构建脚本                  │
-│  ├── vercel.json             ← 路由规则 + 构建配置             │
-│  ├── api/v2/                 ← Serverless 后端               │
-│  ├── infiniteskill/          ← 智能编译器 (Vite+React)        │
-│  ├── yuntype/                ← 云中书排版引擎 (Vite+React)     │
-│  ├── cyber-flying-sword/     ← 赛博飞剑手势游戏 (Vite+React+Three.js) │
-│  ├── storyforge/             ← 故事熔炉小说创作 (Vite+React) │
-│  ├── novel-game/             ← 小说转交互游戏 (Vite+React) │
-│  ├── public/                 ← 最终部署产物 (build.mjs 聚合)   │
-│  └── *.md                    ← 项目文档群                     │
-│                                                             │
-│  ── 代码镜像推送 ──▶                                          │
-│                                                             │
-│  infiniteskill/        ═══▶  yuanbw2025/infiniteskill (公开)   │
-│  game.html             ═══▶  yuanbw2025/flying-sword-pinball   │
-│  yuntype/               ═══▶  yuanbw2025/yuntype (公开)         │
-│  cyber-flying-sword/   ═══▶  yuanbw2025/cyber-flying-sword     │
-│  storyforge/           ═══▶  yuanbw2025/storyforge (公开)      │
-│  novel-game/           ═══▶  yuanbw2025/novel-game (公开)      │
-└─────────────────────────────────────────────────────────────┘
+独立仓库（开发正本）                    my-website（集成部署库）
+┌──────────────────┐                 ┌──────────────────────────────┐
+│ storyforge       │──subtree pull──▶│ storyforge/                  │
+│ yuntype           │──subtree pull──▶│ yuntype/                      │
+│ cyber-flying-sword│──subtree pull──▶│ cyber-flying-sword/          │
+│ novel-game       │──subtree pull──▶│ novel-game/                  │
+│ ai-slides        │──subtree pull──▶│ ai-slides/                   │
+│ ai-presentation  │──subtree pull──▶│ ai-presentation/             │
+│ wechat-html-injector│─subtree pull─▶│ wechat-plugin/              │
+│ infiniteskill    │──subtree pull──▶│ infiniteskill/               │
+└──────────────────┘                 │                              │
+                                     │ + index.html (门户页面)       │
+                                     │ + build.mjs (统一构建)        │
+                                     │ + vercel.json (部署配置)      │
+                                     │ + api/ (Serverless)           │
+                                     └──────────┬───────────────────┘
+                                                │ git push origin main
+                                                ▼
+                                          Vercel 自动部署
+                                     https://yuanbw.vercel.app
 ```
 
-### 1.3 构建流水线（Vercel Pipeline 生命周期）
+### 1.3 日常操作指南
+
+**在独立仓库开发：**
+```bash
+cd ~/Desktop/projects/storyforge    # 进入独立仓库
+git checkout -b feat/xxx            # 新建功能分支
+# ... 正常开发 ...
+git commit && git push              # 提交推送
+# GitHub 上 merge PR（或本地 merge）
+```
+
+**同步到主库部署：**
+```bash
+cd ~/Desktop/projects/my-website
+git subtree pull --prefix=storyforge storyforge-mirror main --squash \
+  -m "sync: pull latest storyforge"
+git push origin main                # 触发 Vercel 部署
+```
+
+**批量同步所有子项目（使用 sync.sh）：**
+```bash
+cd ~/Desktop/projects/my-website
+bash sync.sh                        # 一键拉取所有独立仓库的最新代码
+git push origin main                # 触发 Vercel 部署
+```
+
+### 1.4 关键规则
+
+| 规则 | 说明 |
+|------|------|
+| ❌ 不在主库直接改子项目代码 | 子目录（storyforge/ 等）只通过 `subtree pull` 更新 |
+| ✅ 主库只改自己的文件 | index.html / build.mjs / vercel.json / README.md / api/ |
+| ✅ 独立仓库是唯一开发入口 | 所有功能开发、bug 修复都在独立仓库进行 |
+| ✅ 独立仓库可接受外部 PR | 合并后 subtree pull 同步到主库 |
+
+### 1.5 构建流水线（Vercel Pipeline 生命周期）
 
 当主代码被推送到 GitHub 的 main 分支后，触发的 Vercel 构建管道如下：
 
@@ -70,7 +106,7 @@
    - 将各子项目 `dist/` 资源平移到对应的 `public/<子项目名>/`。
 4. **最终形态**：部署器将拼合完整的 `public/` 送上前台。
 
-### 1.4 线上访问路径
+### 1.6 线上访问路径
 
 | 页面 | URL |
 |------|-----|
@@ -103,7 +139,7 @@
 ### 3.1 InfiniteSkill 智能文档技能编译器
 
 - **位置**：`my-website/infiniteskill/`
-- **镜像库**：https://github.com/yuanbw2025/infiniteskill
+- **独立仓库**：https://github.com/yuanbw2025/infiniteskill
 - **技术栈**：Vite 6 + React 19 + TypeScript + TailwindCSS v4
 - **功能**：上传 PDF/文档 → AI 自动提取技能树 → 生成结构化技能卡片
 - **核心文件**：
@@ -124,7 +160,7 @@
 ### 3.2 飞剑弹珠 Flying Sword Breakout
 
 - **位置**：`my-website/game.html`（主库中的源文件）
-- **镜像库**：https://github.com/yuanbw2025/flying-sword-pinball
+- **独立仓库**：https://github.com/yuanbw2025/flying-sword-pinball
 - **技术栈**：纯 HTML5 Canvas + JavaScript + Web Audio API
 - **零依赖**：整个游戏浓缩在单个 HTML 文件中（~43KB）
 - **核心特性**：
@@ -139,7 +175,7 @@
 ### 3.3 云中书 YunType AI 排版引擎
 
 - **位置**：`my-website/yuntype/`
-- **镜像库**：https://github.com/yuanbw2025/yuntype
+- **独立仓库**：https://github.com/yuanbw2025/yuntype
 - **技术栈**：Vite + React 19 + TypeScript
 - **功能**：Markdown 文章 → AI 智能排版 → 微信公众号 / 小红书兼容的富文本 HTML
 - **核心特性**：
@@ -154,7 +190,7 @@
 ### 3.4 赛博飞剑 Cyber Flying Sword
 
 - **位置**：`my-website/cyber-flying-sword/`
-- **镜像库**：https://github.com/yuanbw2025/cyber-flying-sword（待创建）
+- **独立仓库**：https://github.com/yuanbw2025/cyber-flying-sword（待创建）
 - **技术栈**：Vite + React 19 + TypeScript + Three.js r128+ + MediaPipe Hands
 - **功能**：手势控制的 3D 赛博朋克动作平台游戏
 - **核心玩法**：
@@ -178,7 +214,7 @@
 ### 3.5 故事熔炉 StoryForge
 
 - **位置**：`my-website/storyforge/`
-- **镜像库**：https://github.com/yuanbw2025/storyforge
+- **独立仓库**：https://github.com/yuanbw2025/storyforge
 - **技术栈**：Vite + React 19 + TypeScript
 - **功能**：AI 辅助的小说创作工坊，包含世界观设定、大纲生成、章节续写。
 - **核心特性**：纯本地存储，自由配置各类 AI 模型接口。
@@ -186,7 +222,7 @@
 ### 3.6 小说转文本交互游戏 Novel Game
 
 - **位置**：`my-website/novel-game/`
-- **镜像库**：https://github.com/yuanbw2025/novel-game
+- **独立仓库**：https://github.com/yuanbw2025/novel-game
 - **技术栈**：Vite + React 19 + TypeScript
 - **功能**：将小说剧本转换为分支叙事的互动文本游戏，支持变量与成就。
 - **核心特性**：
@@ -207,7 +243,7 @@
 - [x] 智能额度管理与透明化 UX 落地（跨端额度同步与配额拦截）
 - [x] 飞剑弹珠游戏 v2.0 完成并上线
 - [x] 确立跨周期防呆文档规范（工作记忆台账制 + AI 交接手册）
-- [x] 五大仓库独立建制完成（my-website + infiniteskill + flying-sword-pinball + yuntype + cyber-flying-sword）
+- [x] 12 个仓库独立建制完成，架构升级为"独立仓库开发 → 主库集成部署"模式（2026-05-26）
 - [x] InfiniteSkill 知乎 + 微信公众号推广文章撰写完毕
 - [x] 云中书 YunType v1.0 全渠道上线（Web App + MCP Server + Prompt Skill + Playground）
 - [x] 赛博飞剑 Monobuild 集成骨架 + 核心设计文档完成

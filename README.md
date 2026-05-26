@@ -198,14 +198,19 @@ git add -A && git commit -m "update" && git push origin main
 ## 🚀 部署架构
 
 ```
-GitHub (main) → Vercel Auto Deploy
-                  ├── buildCommand: "node build.mjs"
-                  ├── outputDirectory: "public/"
-                  └── rewrites: /<子项目>/* → /<子项目>/index.html (SPA)
+独立仓库（开发正本）  ──subtree pull──>  my-website  ──push──>  Vercel Auto Deploy
+                                          ├── buildCommand: "node build.mjs"
+                                          ├── outputDirectory: "public/"
+                                          └── rewrites: /<子项目>/* → /<子项目>/index.html (SPA)
 ```
 
+> ⚠️ **架构变更（2026-05-26）**：已从"主库开发 → 镜像推送"改为 **"独立仓库开发 → 主库集成"** 模式。
+> 各子项目在自己的独立仓库中开发，完成后通过 `git subtree pull` 同步到本仓库触发部署。
+> **不要在本仓库直接修改子目录代码**，否则 subtree pull 会冲突。详见 `PROJECT_PLAN.md`。
+
 - 推送到 `main` 分支即自动触发 Vercel 部署
-- `build.mjs` 负责：按序构建 infiniteskill → yuntype → cyber-flying-sword → 组装 `public/` 目录
+- `build.mjs` 负责：按序构建所有子项目 → 组装 `public/` 目录
+- `sync.sh` 一键从独立仓库拉取最新代码
 - Vercel rewrites 确保各子项目 SPA 路由正常工作
 
 ---
