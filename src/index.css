@@ -1,0 +1,197 @@
+/* ═══════════════════════════════════════
+   CSS 变量 — 亮色/深色模式
+   ═══════════════════════════════════════ */
+:root,
+[data-theme="light"] {
+  --bg-primary: #f5f5f5;
+  --bg-card: #ffffff;
+  --bg-hover: #f0f0f0;
+  --border-color: #e5e5e5;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --accent: #4F46E5;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #1a1a2e;
+  --bg-card: #16213e;
+  --bg-hover: #0f3460;
+  --border-color: #2a2a4a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-muted: #808080;
+  --accent: #7C73E6;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* 深色模式下调整全局样式 */
+[data-theme="dark"] header {
+  background: var(--bg-card) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+[data-theme="dark"] header span,
+[data-theme="dark"] header div {
+  color: var(--text-primary);
+}
+[data-theme="dark"] textarea {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="url"],
+[data-theme="dark"] input[type="password"] {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ═══════════════════════════════════════
+   移动端适配
+   ═══════════════════════════════════════ */
+
+/* 平板（≤1024px）：收窄风格面板 */
+@media (max-width: 1024px) {
+  header {
+    padding: 8px 12px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  header > div:first-child span:last-child {
+    display: none; /* 隐藏组合数 */
+  }
+}
+
+/* 手机（≤768px）：改为纵向堆叠布局 */
+@media (max-width: 768px) {
+  /* 主内容区改为纵向 */
+  #root > div > div:last-child {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  /* 左栏（输入区）：全宽 + 固定高度 */
+  #root > div > div:last-child > div:first-child {
+    width: 100% !important;
+    min-width: unset !important;
+    max-height: 30vh;
+    border-right: none !important;
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  /* 中栏（风格面板）：全宽横向滚动 */
+  #root > div > div:last-child > div:nth-child(2) {
+    width: 100% !important;
+    max-height: 200px;
+    overflow-y: auto;
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  /* 右栏（预览区）：占满剩余空间 */
+  #root > div > div:last-child > div:last-child {
+    min-height: 50vh;
+  }
+
+  /* 顶栏：两行布局 */
+  header {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+  }
+
+  /* Logo区域精简 */
+  header > div:first-child {
+    flex: 1;
+    min-width: 120px;
+  }
+  header > div:first-child span:last-child {
+    display: none !important;
+  }
+
+  /* 模式切换按钮：允许滚动 */
+  header > div:nth-child(2) {
+    overflow-x: auto;
+    flex-shrink: 1;
+    -webkit-overflow-scrolling: touch;
+  }
+  header > div:nth-child(2) button {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    white-space: nowrap;
+  }
+
+  /* 右侧按钮组 */
+  header > div:last-child {
+    gap: 6px !important;
+    flex-wrap: wrap;
+  }
+  header > div:last-child button {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+  }
+  header > div:last-child > div:last-child {
+    display: none; /* 隐藏"当前: xxx" */
+  }
+
+  /* 双栏面板（网页/配图/演示）→ 纵向堆叠 */
+  .panel-split {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .panel-split-left {
+    width: 100% !important;
+    max-height: 45vh;
+    border-right: none !important;
+    border-bottom: 1px solid #e5e5e5;
+    overflow-y: auto !important;
+  }
+}
+
+/* 超小屏幕（≤480px） */
+@media (max-width: 480px) {
+  header > div:first-child span:nth-child(2) {
+    font-size: 14px !important;
+  }
+
+  /* 左栏（输入区）进一步压缩 */
+  #root > div > div:last-child > div:first-child {
+    max-height: 25vh;
+  }
+
+  /* 风格面板更紧凑 */
+  #root > div > div:last-child > div:nth-child(2) {
+    max-height: 160px;
+  }
+}
+
+/* 触屏优化 */
+@media (hover: none) and (pointer: coarse) {
+  button {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  textarea {
+    font-size: 16px !important; /* 防止iOS缩放 */
+  }
+  input {
+    font-size: 16px !important;
+  }
+}
