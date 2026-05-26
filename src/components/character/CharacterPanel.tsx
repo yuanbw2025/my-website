@@ -13,6 +13,7 @@ import { parseCharacterOutput } from '../../lib/ai/parse-character-output'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
 import type { Project, Character, CharacterRole, CharacterAlignment } from '../../lib/types'
+import CharacterStatusPanel from './CharacterStatusPanel'
 
 // ── 常量 ───────────────────────────────────────────────────────
 
@@ -213,6 +214,7 @@ export default function CharacterPanel({ project }: Props) {
               <CharacterDetailCard
                 char={selectedChar}
                 charIndex={characters.findIndex(c => c.id === selectedChar.id)}
+                projectId={project.id!}
                 onUpdate={handleUpdate}
                 onDelete={() => { deleteCharacter(selectedChar.id!); setSelected(null) }}
               />
@@ -231,10 +233,11 @@ export default function CharacterPanel({ project }: Props) {
 // ── 角色详情卡（design 风格） ────────────────────────────────────
 
 function CharacterDetailCard({
-  char, charIndex, onUpdate, onDelete,
+  char, charIndex, projectId, onUpdate, onDelete,
 }: {
   char: Character
   charIndex: number
+  projectId: number
   onUpdate: (f: keyof Character, v: string) => void
   onDelete: () => void
 }) {
@@ -314,6 +317,9 @@ function CharacterDetailCard({
           </button>
         </div>
       </div>
+
+      {/* Phase 23.1: 动态状态面板 */}
+      <CharacterStatusPanel projectId={projectId} characterName={char.name} />
 
       {/* 字段列表 — 横排 label: value */}
       {expanded && (

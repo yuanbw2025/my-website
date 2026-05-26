@@ -7,6 +7,7 @@ import { buildWorldviewPrompt } from '../../lib/ai/adapters/worldview-adapter'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
 import type { Project } from '../../lib/types'
+import CurrencyPanel from './CurrencyPanel'
 
 // ── 字段定义 ──────────────────────────────────────────────────
 
@@ -132,6 +133,12 @@ export default function WorldviewHumanityPanel({ project }: Props) {
               contextSummary={buildCtx(f.key)}
               onStreamingChange={streaming => handleStreamingChange(f.key, streaming)}
             />
+            {/* Phase 23.2: 在经济文化字段下追加货币面板 */}
+            {f.key === 'pec' && (
+              <div className="mt-6 max-w-3xl">
+                <CurrencyPanel projectId={project.id!} />
+              </div>
+            )}
           </div>
         ))}
       </div>

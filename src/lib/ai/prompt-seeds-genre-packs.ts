@@ -10,6 +10,7 @@
  *   - 默认包（玄幻爽文）的 system 模板已在 prompt-seeds.ts 主文件，标记 genres=['xuanhuan-shuangwen']
  */
 import type { PromptSeed } from './prompt-seeds'
+import { EXTENDED_GENRE_PACK_SEEDS } from './prompt-seeds-genre-packs-extended'
 
 // ── 仙侠修真包 ─────────────────────────────────────────────────────────────
 
@@ -878,6 +879,7 @@ export const GENRE_PACK_SEEDS: PromptSeed[] = [
   ...REALISM,
   ...SUSPENSE,
   ...CONTINUE_TEMPLATES,
+  ...EXTENDED_GENRE_PACK_SEEDS,
 ]
 
 /** 题材包元信息（用于 UI 显示） */

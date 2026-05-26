@@ -170,11 +170,19 @@ export default function WorldMapPanel({ project }: Props) {
           <div className="flex items-center gap-2 text-sm text-accent mb-1">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             AI 正在分析世界设定，生成地图参数...
+            {ai.output.length > 0 && (
+              <span className="text-xs text-text-muted">≈ ~{Math.round(ai.output.length * 1.5).toLocaleString()} tokens</span>
+            )}
           </div>
           <div className="text-xs text-text-muted max-h-20 overflow-y-auto font-mono">
             {ai.output.slice(0, 200)}
             {ai.output.length > 200 && '...'}
           </div>
+        </div>
+      )}
+      {ai.tokenUsage && !ai.isStreaming && (
+        <div className="mb-2 text-[10px] text-text-muted">
+          Token: ↑{ai.tokenUsage.inputTokens.toLocaleString()} ↓{ai.tokenUsage.outputTokens.toLocaleString()}
         </div>
       )}
 

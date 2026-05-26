@@ -39,6 +39,32 @@ export function buildWorldContext(wv: Worldview | null, sc: StoryCore | null, ps
     parts.push(`【力量体系】${ps.name}：${ps.description?.slice(0, 200) || ''}`)
   }
 
+  // Phase 23.2: 货币体系注入
+  if (wv?.economy) {
+    try {
+      const parsed = JSON.parse(wv.economy)
+      if (parsed.currencies?.length > 0) {
+        const lines = ['【货币体系】']
+        for (const c of parsed.currencies) {
+          lines.push(`- ${c.symbol || '💰'} ${c.name}${c.description ? `（${c.description}）` : ''}`)
+        }
+        if (parsed.currencies.length >= 2) {
+          const base = parsed.currencies.find((c: { id: string }) => c.id === parsed.baseCurrencyId)
+          if (base) {
+            lines.push('兑换：')
+            for (const c of parsed.currencies) {
+              if (c.id === parsed.baseCurrencyId) continue
+              lines.push(`  1 ${base.name} = ${(c.value / base.value).toFixed(c.value >= base.value ? 0 : 2)} ${c.name}`)
+            }
+          }
+        }
+        if (parsed.note) lines.push(`备注：${parsed.note}`)
+        lines.push('请严格使用以上货币，不要自创。')
+        parts.push(lines.join('\n'))
+      }
+    } catch { /* not JSON currency format, skip */ }
+  }
+
   return parts.join('\n\n')
 }
 
