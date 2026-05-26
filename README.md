@@ -55,6 +55,11 @@ my-website/
 │   ├── package.json
 │   └── vite.config.ts
 │
+├── storyforge/                 # 🔥 StoryForge 故事熔炉（React + Vite + TypeScript + Dexie）
+│   ├── src/                    #   AI 辅助小说创作工作台（30 张表 · 11 家 AI · 三层记忆系统）
+│   ├── package.json
+│   └── vite.config.ts
+│
 ├── public/                     # 📂 构建产物（Vercel 最终部署此目录）
 │   ├── index.html              #   主页副本
 │   ├── infiniteskill/          #   InfiniteSkill 编译产物
@@ -206,6 +211,17 @@ GitHub (main) → Vercel Auto Deploy
 ---
 
 ## 📜 更新日志
+
+### 2026-05-26
+- 🔥 **StoryForge v2.0.0** — Phase A-H 全量进化（25+ 子功能模块）
+  - 🧠 三层记忆系统（Working/Episodic/Semantic + 状态自动提取 + 章节摘要 + 事件时间线 + 情感节拍）
+  - 📖 全局故事线管理（主线/支线 + 阶段卡 + AI 生成）
+  - 🔮 伏笔系统增强（逾期检测 + 紧急度 + 上下文注入 + AI 建议）
+  - 📝 大纲流程强化（批量生成 + 细纲 6 字段增强 + 大纲预览面板）
+  - 🎭 题材风格系统（21 题材 + 11 写作风格 + 5 创作方法论）
+  - 🛡 质量控制三件套（审校 + 去 AI 味 + 追读力评估）
+  - 👤 角色增强（动态状态 + 出场追踪 + 活跃过滤）
+  - 📤 导出优化（HTML 带样式排版）+ 便签系统
 
 ### 2026-04-13
 - 🗡️ 赛博飞剑（Cyber Flying Sword）子项目集成 — Monobuild 骨架 + 核心设计文档
