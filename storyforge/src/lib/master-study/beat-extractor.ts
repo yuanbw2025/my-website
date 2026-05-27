@@ -8,8 +8,8 @@ import { db } from '../db/schema'
 import { chat } from '../ai/client'
 import { renderPrompt } from '../ai/prompt-engine'
 import { usePromptStore } from '../../stores/prompt'
-import { useAIConfigStore } from '../../stores/ai-config'
 import { extractJSON } from '../ai/adapters/import-adapter'
+import { getMasterAIConfig } from './model-resolver'
 import type { AIConfig, ChatMessage } from '../types'
 import type { MasterWork, MasterChapterBeat, BeatType } from '../types'
 
@@ -128,8 +128,7 @@ async function extractOnce(
     chapterChars: ch.text.length,
     rawChapter: ch.text,
   })
-  const baseConfig = useAIConfigStore.getState().config
-  const config: AIConfig = { ...baseConfig, maxTokens: 4096 }
+  const config: AIConfig = getMasterAIConfig(4096)
   if (!config.apiKey) throw new Error('未配置 AI API Key')
   const output = await chatWithAbort(messages, config, signal)
   const parsed = extractJSON(output)

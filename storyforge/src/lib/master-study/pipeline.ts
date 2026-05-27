@@ -18,10 +18,10 @@ import { db } from '../db/schema'
 import { chat } from '../ai/client'
 import { renderPrompt } from '../ai/prompt-engine'
 import { usePromptStore } from '../../stores/prompt'
-import { useAIConfigStore } from '../../stores/ai-config'
 import { useMasterStudyStore } from '../../stores/master-study'
 import { chunkDocument, quickHash, type ChunkPlan } from '../import/chunker'
 import { extractJSON } from '../ai/adapters/import-adapter'
+import { getMasterAIConfig } from './model-resolver'
 import type { AIConfig, ChatMessage } from '../types'
 import type {
   MasterAnalysisDepth,
@@ -30,7 +30,7 @@ import type {
 } from '../types'
 
 /** 不同深度对应的分块字符数 + maxTokens 上限 */
-const DEPTH_PRESET: Record<MasterAnalysisDepth, {
+export const DEPTH_PRESET: Record<MasterAnalysisDepth, {
   targetChars: number
   maxTokens: number
 }> = {
@@ -265,8 +265,7 @@ async function analyzeChunkOnce(args: {
     rawDocument: args.chunk.text,
     depth: args.work.analysisDepth,
   })
-  const baseConfig = useAIConfigStore.getState().config
-  const config: AIConfig = { ...baseConfig, maxTokens: args.maxTokens }
+  const config: AIConfig = getMasterAIConfig(args.maxTokens)
   if (!config.apiKey) throw new Error('未配置 AI API Key（请先到「系统设置 → AI 配置」填写）')
   const output = await chatWithAbort(messages, config, args.signal)
   const obj = extractJSON(output) as RawAnalysis
