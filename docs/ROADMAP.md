@@ -198,40 +198,10 @@
 
 ---
 
-## 待开发 — Phase 29: Prompt 精细化（字段级独立模板）
+## ~~Phase 29: Prompt 精细化~~ ❌ 已关闭
 
-> 来源：社区反馈（2026-05-27）—— 用户「买辣椒也用券」反馈故事设计和世界观各子字段共用同一 prompt，无法按字段独立定制
-> 优先级：中（影响高级用户的 prompt 定制体验）
-
-### 问题
-
-1. **故事设计 7 个子字段共用一个 moduleKey**：一句话故事、故事概念、故事主题、核心冲突、故事模式、故事主线、故事脉线全部使用 `story.generate`，用户在提示词库中只能看到/定制一套模板，无法针对「故事主题」和「核心冲突」设置不同的 prompt 策略
-2. **世界观维度同理**：世界起源（3 个子字段）、自然环境（5 个子字段）、人文环境（7 个子字段）全部共用 `worldview.dimension`，虽然 `buildWorldviewPrompt` 内部会根据 `dimensionLabel` 动态调整用户提示词，但系统提示词、生成策略无法按维度独立定制
-3. **用户感知**：在提示词库看到的「内置·故事核心生成」只有一条，切换字段后提示词没变化，用户误以为所有字段完全用同一个 prompt
-
-### 用户故事
-
-- **US-29A**：作为作者，我希望故事设计的每个子字段（一句话故事、故事主题、核心冲突等）能有各自独立的 prompt 模板，让 AI 对不同字段的生成策略有针对性
-- **US-29B**：作为作者，我希望世界观的每个维度（世界起源、力量层次、种族设定、势力分布等）也能独立定制 prompt，而不是所有维度共用一套
-
-### 计划
-
-- **29.1** moduleKey 细粒度拆分
-  - 故事设计：`story.generate` → `story.oneliner` / `story.concept` / `story.theme` / `story.conflict` / `story.mode` / `story.mainline` / `story.subplot`（7 个独立 key）
-  - 世界观：`worldview.dimension` → `worldview.origin` / `worldview.power` / `worldview.natural.*` / `worldview.humanity.*`（按面板+字段拆分）
-  - 需同步更新 `PromptModuleKey` 类型定义和 `prompt-seeds.ts` 中的种子模板
-- **29.2** 向后兼容
-  - 旧的 `story.generate` / `worldview.dimension` 模板作为 fallback：如果新细粒度 key 下没有激活模板，则回退到旧的通用模板
-  - 用户已定制的模板不受影响，继续作为通用模板生效
-- **29.3** 各组件适配
-  - `StoryCorePanel.tsx`：每个字段的 `PromptRunPanel` 传入对应的细粒度 moduleKey
-  - `WorldviewOriginPanel.tsx` / `WorldviewNaturalPanel.tsx` / `WorldviewHumanityPanel.tsx`：同理
-  - `buildWorldviewPrompt` / `buildStoryCorePrompt`：查询模板时优先用细粒度 key，无匹配时 fallback
-
-### 与其他 Phase 的关联
-
-- **与题材包系统**：题材包内的模板也需要按新的细粒度 key 注册，一个题材包可以只覆盖部分字段，其余走 fallback
-- **与 Phase 26（角色权重）**：26.2 新增的大纲角色注入同样需要独立 moduleKey（`outline.volume` / `outline.chapter` 已经是独立的，无需改动）
+> 来源：社区反馈（2026-05-27）—— 用户「买辣椒也用券」
+> **关闭原因**：经确认，现有功能已满足需求。每个字段下方的 PromptRunPanel 支持：①展开后临时修改 System/User Prompt；②下拉切换不同模板；③做完一项后切换模板再生成下一项。用户确认「可以」，需求已解决。
 
 ---
 
