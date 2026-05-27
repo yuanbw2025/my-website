@@ -724,12 +724,12 @@ export function getMasterSettings(): MasterSettings {
 /** 推荐的低成本模型（按 provider 分组）—— 用于学习设置模型选择 */
 const RECOMMENDED_MODELS: Array<{ provider: string; model: string; label: string; hint: string }> = [
   { provider: 'global', model: '', label: '跟随全局设置', hint: '使用系统设置中的 AI 模型' },
-  { provider: 'deepseek', model: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', hint: '¥1/百万 token，性价比最高' },
-  { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', hint: '有免费额度，超出后很便宜' },
+  { provider: 'deepseek', model: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', hint: '输入 ¥1 + 输出 ¥2/百万 token，性价比最高' },
+  { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', hint: '免费层不限量，付费层也很便宜' },
   { provider: 'glm', model: 'glm-4-flash', label: 'GLM-4 Flash', hint: '完全免费' },
-  { provider: 'modelscope', model: 'Qwen/Qwen3-235B-A22B', label: 'ModelScope Qwen3', hint: '完全免费（魔搭）' },
-  { provider: 'qwen', model: 'qwen-plus', label: 'Qwen Plus', hint: '¥0.8/百万 token' },
-  { provider: 'deepseek', model: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', hint: '¥4/百万 token，最强但贵' },
+  { provider: 'modelscope', model: 'Qwen/Qwen3-235B-A22B', label: 'ModelScope Qwen3', hint: '每天 2000 次免费（魔搭）' },
+  { provider: 'qwen', model: 'qwen-plus', label: 'Qwen Plus', hint: '输入 ¥0.8 + 输出 ¥4.8/百万 token' },
+  { provider: 'deepseek', model: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', hint: '输入 ¥3 + 输出 ¥6/百万 token，最强但贵' },
 ]
 
 function MasterSettingsTab({ works, onCleaned }: { works: MasterWork[]; onCleaned: () => void }) {
