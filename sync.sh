@@ -22,6 +22,7 @@ PROJECTS=(
   "ai-slides:ai-slides-mirror"
   "ai-presentation:ai-presentation-mirror"
   "cyber-flying-sword:cyber-flying-sword-mirror"
+  "promo-video-maker:promo-video-maker-mirror"
 )
 
 # 如果传了参数，只同步指定项目

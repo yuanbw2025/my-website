@@ -55,6 +55,12 @@ my-website/
 │   ├── package.json
 │   └── vite.config.ts
 │
+├── promo-video-maker/          # 🎬 项目推广视频生成器（Electron + React + FFmpeg）
+│   ├── src/                    #   截图编排、配音、字幕与导出界面
+│   ├── electron/               #   桌面端主进程与视频导出服务
+│   ├── package.json
+│   └── vite.config.ts
+│
 ├── storyforge/                 # 🔥 StoryForge 故事熔炉（React + Vite + TypeScript + Dexie）
 │   ├── src/                    #   AI 辅助小说创作工作台（30 张表 · 11 家 AI · 三层记忆系统）
 │   ├── package.json
