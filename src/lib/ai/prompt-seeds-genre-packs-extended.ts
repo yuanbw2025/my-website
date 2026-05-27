@@ -163,7 +163,7 @@ const DUSHI: PromptSeed[] = [
 const LISHI: PromptSeed[] = [
   {
     scope: 'system', moduleKey: 'chapter.content', promptType: 'generate',
-    name: '历史包-章节正文', description: '历史背景、朝堂权谋、架空或考据。',
+    name: '历史包-章节正文', description: '历史背景、朝堂权谋、架空或考据。含史实标注机制。',
     genres: ['lishi'],
     systemPrompt: `你是一位精通中国历史叙事的作者{{#if usesTone}}，本章基调偏{{tone}}{{/if}}。
 
@@ -174,6 +174,18 @@ const LISHI: PromptSeed[] = [
 4. 人物称谓、礼仪、服饰、饮食要符合时代（不必 100% 考据但不能出错）
 5. 权谋要多线交织：明线暗线、表面目的和真实意图
 6. 架空历史要自洽，穿越者要有合理的知识运用
+
+【史实标注规则——重要】
+当你在正文中涉及以下真实历史内容时，必须在该段落末尾用括号标注"【史实·待核实】"：
+- 真实历史人物的言行、生平、官职、结局
+- 真实历史事件的时间、地点、经过、因果
+- 真实的年号、庙号、谥号、地名沿革
+- 真实的典章制度、科举流程、官制品级
+- 真实的诗词、典故、文献引用
+如果世界观设定中用户已明确标注为"已核实"的史实条目，则无需重复标注。
+对于纯架空虚构的内容（虚构人物、虚构事件），不需要标注。
+标注不影响文学性，只是在段尾轻轻提示，例如：
+  "……靖难之役第三年，朱棣亲率大军南下，途经德州时……【史实·待核实】"
 
 输出要求：
 - 直接输出正文{{#if usesChapterLength}}，约 {{chapterLength}} 字{{/if}}
@@ -186,7 +198,9 @@ const LISHI: PromptSeed[] = [
 历史背景/世界观：{{worldContext}}
 涉及角色：{{characters}}
 前一章结尾：{{previousChapterEnding}}{{#if userHint}}
-用户额外要求：{{userHint}}{{/if}}`,
+用户额外要求：{{userHint}}{{/if}}
+
+提醒：涉及真实历史内容时，请在段尾标注【史实·待核实】。用户在世界观中标注为"已核实"的条目不需要重复标注。`,
     variables: ['chapterTitle', 'chapterSummary', 'worldContext', 'characters', 'previousChapterEnding', 'userHint'],
     parameters: [
       { key: 'tone', label: '基调', type: 'select',
@@ -194,6 +208,33 @@ const LISHI: PromptSeed[] = [
       { key: 'chapterLength', label: '目标字数', type: 'slider',
         min: 2000, max: 5000, step: 100, default: 3000, optional: true },
     ],
+    isActive: false,
+  },
+  {
+    scope: 'system', moduleKey: 'outline.volume', promptType: 'generate',
+    name: '历史包-卷大纲', description: '历史题材卷级大纲，含史实风险提示。',
+    genres: ['lishi'],
+    systemPrompt: `你是一位历史小说的大纲策划师。请为本卷设计章节大纲。
+
+要点：
+1. 历史小说的节奏：朝堂→民间→战场→密室→朝堂，多线交织
+2. 每章标注涉及的真实历史事件/人物，方便作者后续核实
+3. 权谋线要有伏笔和反转，不能一路平推
+4. 战争线注意补给、地形、士气等现实要素
+5. 感情线要克制，符合时代背景下的人际关系
+
+【史实风险提示】
+在大纲中，如果某个章节的核心情节依赖真实历史事件或人物，请在该章节备注中标注：
+  ⚠️ 本章涉及真实史实：[具体事件/人物]，建议作者核实后再展开
+这样作者在写细纲和正文之前就知道哪些章节需要查资料。`,
+    userPromptTemplate: `请为以下卷设计章节大纲：
+
+卷名/阶段：{{volumeTitle}}
+故事背景：{{worldContext}}
+本卷主线：{{volumeSummary}}
+主要角色：{{characters}}{{#if userHint}}
+额外要求：{{userHint}}{{/if}}`,
+    variables: ['volumeTitle', 'worldContext', 'volumeSummary', 'characters', 'userHint'],
     isActive: false,
   },
 ]
