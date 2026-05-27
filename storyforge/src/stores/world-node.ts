@@ -12,6 +12,9 @@ export interface WorldTreeNode extends WorldNode {
   children: WorldTreeNode[]
 }
 
+/** 防止 StrictMode 双调用产生两个根世界的互斥锁 */
+const _ensureRootLocks = new Map<number, Promise<void>>()
+
 interface WorldNodeStore {
   /** 当前项目的所有世界节点（平铺） */
   nodes: WorldNode[]
@@ -173,28 +176,41 @@ export const useWorldNodeStore = create<WorldNodeStore>((set, get) => ({
   },
 
   ensureRootWorld: async (projectId) => {
-    const existing = await db.worldNodes
-      .where('projectId')
-      .equals(projectId)
-      .count()
-    if (existing > 0) return
+    // 互斥锁：防止 React StrictMode 下两次 useEffect 同时执行导致双根世界
+    const existing = _ensureRootLocks.get(projectId)
+    if (existing) { await existing; return }
 
-    // 创建默认根世界
-    const now = Date.now()
-    const id = await db.worldNodes.add({
-      projectId,
-      parentId: null,
-      name: '主世界',
-      description: '故事发生的主要世界',
-      sortOrder: 0,
-      icon: '🌍',
-      createdAt: now,
-      updatedAt: now,
-    } as WorldNode)
+    const task = (async () => {
+      try {
+        const count = await db.worldNodes
+          .where('projectId')
+          .equals(projectId)
+          .count()
+        if (count > 0) return
 
-    set({
-      nodes: [{ id, projectId, parentId: null, name: '主世界', description: '故事发生的主要世界', sortOrder: 0, icon: '🌍', createdAt: now, updatedAt: now }],
-      activeWorldId: id,
-    })
+        // 创建默认根世界
+        const now = Date.now()
+        const id = await db.worldNodes.add({
+          projectId,
+          parentId: null,
+          name: '主世界',
+          description: '故事发生的主要世界',
+          sortOrder: 0,
+          icon: '🌍',
+          createdAt: now,
+          updatedAt: now,
+        } as WorldNode)
+
+        set({
+          nodes: [{ id, projectId, parentId: null, name: '主世界', description: '故事发生的主要世界', sortOrder: 0, icon: '🌍', createdAt: now, updatedAt: now }],
+          activeWorldId: id,
+        })
+      } finally {
+        _ensureRootLocks.delete(projectId)
+      }
+    })()
+
+    _ensureRootLocks.set(projectId, task)
+    await task
   },
 }))

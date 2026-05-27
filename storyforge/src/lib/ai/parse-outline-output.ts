@@ -1,10 +1,10 @@
 /**
  * 解析 AI 生成的大纲文本，提取结构化卷/章节数据
  *
- * 设计原则：
- * 1. 只匹配明确的卷/章标题（"第X卷"/"第X章"），其他全部忽略
- * 2. 过滤 AI 开场白、总结语、非大纲段落
- * 3. 所有标题/摘要去除 markdown 格式
+ * Phase 30.4: JSON 优先解析
+ * 1. 优先尝试从文本中提取 JSON 数组并解析
+ * 2. JSON 解析失败时降级到正则匹配
+ * 3. 正则匹配支持"第X卷"/"第X章"、数字序号、**标题**摘要等格式
  */
 
 export interface ParsedVolume {
@@ -15,6 +15,39 @@ export interface ParsedVolume {
 export interface ParsedChapter {
   title: string
   summary: string
+}
+
+// ── JSON 提取 ──
+
+/** 从 AI 输出中提取 JSON 数组（支持 ```json 包裹 或裸 JSON） */
+function extractJsonArray(text: string): unknown[] | null {
+  // 1. 尝试从 ```json ... ``` 代码块提取
+  const codeBlockMatch = text.match(/```json\s*([\s\S]*?)```/)
+  if (codeBlockMatch) {
+    try {
+      const parsed = JSON.parse(codeBlockMatch[1].trim())
+      if (Array.isArray(parsed)) return parsed
+    } catch { /* fall through */ }
+  }
+
+  // 2. 尝试直接解析整个文本（去掉前后空白和可能的 ``` 标记）
+  const cleaned = text.replace(/^```\w*\s*/, '').replace(/\s*```\s*$/, '').trim()
+  try {
+    const parsed = JSON.parse(cleaned)
+    if (Array.isArray(parsed)) return parsed
+  } catch { /* fall through */ }
+
+  // 3. 尝试找到第一个 [ ... ] 区间
+  const firstBracket = text.indexOf('[')
+  const lastBracket = text.lastIndexOf(']')
+  if (firstBracket !== -1 && lastBracket > firstBracket) {
+    try {
+      const parsed = JSON.parse(text.slice(firstBracket, lastBracket + 1))
+      if (Array.isArray(parsed)) return parsed
+    } catch { /* fall through */ }
+  }
+
+  return null
 }
 
 // ── 工具函数 ──
@@ -146,10 +179,28 @@ function matchVolumeTitle(line: string): { volNum: string; restTitle: string } |
 /**
  * 解析卷级大纲文本
  *
- * 只提取真正的"第X卷"条目，其他全部忽略。
- * 每个卷包含标题和紧跟其后的摘要文本。
+ * Phase 30.4: JSON 优先 → 正则降级
  */
 export function parseVolumeOutlineOutput(text: string): ParsedVolume[] {
+  // Phase 30.4: 优先 JSON 解析
+  const jsonArr = extractJsonArray(text)
+  if (jsonArr && jsonArr.length > 0) {
+    const result: ParsedVolume[] = []
+    for (const item of jsonArr) {
+      if (item && typeof item === 'object' && 'title' in item) {
+        const obj = item as { title?: string; summary?: string }
+        if (obj.title) {
+          result.push({
+            title: String(obj.title).trim(),
+            summary: String(obj.summary || '').trim(),
+          })
+        }
+      }
+    }
+    if (result.length > 0) return result
+  }
+
+  // 降级：正则解析
   const volumes: ParsedVolume[] = []
   const lines = text.split('\n')
 
@@ -241,13 +292,29 @@ function matchChapterTitle(line: string): { chNum: string; restTitle: string } |
 /**
  * 解析章节大纲文本
  *
- * 支持的格式：
- * - 第X章：标题
- * - ## 第X章 标题
- * - **第X章：标题**
- * - 数字序号 + 标题（1. 标题）
+ * Phase 30.4: JSON 优先 → 正则降级
+ * 正则支持格式：第X章、## 第X章、**第X章**、数字序号
  */
 export function parseChapterOutlineOutput(text: string): ParsedChapter[] {
+  // Phase 30.4: 优先 JSON 解析
+  const jsonArr = extractJsonArray(text)
+  if (jsonArr && jsonArr.length > 0) {
+    const result: ParsedChapter[] = []
+    for (const item of jsonArr) {
+      if (item && typeof item === 'object' && 'title' in item) {
+        const obj = item as { title?: string; summary?: string }
+        if (obj.title) {
+          result.push({
+            title: String(obj.title).trim(),
+            summary: String(obj.summary || '').trim(),
+          })
+        }
+      }
+    }
+    if (result.length > 0) return result
+  }
+
+  // 降级：正则解析
   const chapters: ParsedChapter[] = []
   const lines = text.split('\n')
 

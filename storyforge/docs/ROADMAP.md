@@ -73,8 +73,8 @@
 
 ### 计划
 
-- **25.1** 修复世界地图双主世界 bug（`ensureRootWorld` 加锁/幂等）
-- **25.2** 删除「地理环境」面板，地理总述合并到自然环境
+- **25.1** ✅ 修复世界地图双主世界 bug（`ensureRootWorld` 加锁/幂等）
+- **25.2** ✅ 删除「地理环境」面板，地理总述合并到自然环境
 - **25.3** 创作区新增「重要地点」模块
   - 地点类型 = 自然地形标签 + 人文场所标签（多标签组合，非下拉）
   - 自然地形：大陆、半岛、岛屿、群岛、高原、平原、盆地、丘陵、峡谷、山脉、山峰、火山、戈壁、沙漠、冰原、草原、森林、雨林、沼泽、绿洲、洞穴、海洋、海峡、海湾、湖泊、河流、瀑布、温泉、冰川、浮空岛、虚空、异界裂隙等
@@ -108,10 +108,10 @@
 
 ### 计划
 
-- **26.1** 角色创建改进（快速修复）
+- **26.1** ✅ 角色创建改进（快速修复）
   - 手动创角色时弹出 role 选择器（主角/反派/配角/次要/NPC/路人）
   - AI 生成角色时 prompt 注入阵容缺口信息（「当前：主角 0，反派 0，配角 2」）
-- **26.2** 角色上下文分权重注入
+- **26.2** ✅ 角色上下文分权重注入
   - `buildCharacterContext` 改为分层输出：核心角色（主角/反派，完整信息）→ 重要配角（一句话+关系）→ 其他（仅名字）
   - 大纲生成（`OutlinePanel`）注入角色上下文
   - 细纲、场景生成已有角色注入，但需对齐权重格式
@@ -251,26 +251,25 @@
 
 ### 计划
 
-- **30.1** 批量生成引擎
+- **30.1** ✅ 批量生成引擎
   - 细纲批量：筛选有大纲无细纲的章节 → 串行调用 `buildEnhancedDetailPrompt` → 进度条（当前/总数+章节标题）→ 结果写入
-  - 章节批量：筛选空/少于 100 字章节 → 先 `buildEmotionBeatPrompt` 再 `buildChapterPrompt` → 进度条
-  - 按钮位置：细纲操作栏右侧 + 章节列表页工具栏
-  - 支持中途停止
+  - 章节批量：筛选空/少于阈值字数章节 → `buildChapterContentPrompt` → 进度条
+  - 按钮位置：细纲操作栏左侧面板底部（含停止按钮）
+  - 支持中途停止（AbortController）
 - **30.2** 角色关系自动提取
   - 数据源：大纲摘要 + 细纲场景 + 章节正文
   - 关系类型：亲属、恋人、朋友、对手、敌人、师徒、盟友、上下级、其他
   - AI 输出 JSON 数组 `[{char1, char2, type, description}]`
   - 去重逻辑：同对角色同类型关系跳过已存在的
   - 新增 prompt seed：`relation.extract`
-- **30.3** 大纲-细纲同步
+- **30.3** ✅ 大纲-细纲同步
   - `DetailedOutline` 类型新增 `lastUsedSummary?: string` 字段
   - 细纲生成时存入当时的大纲摘要快照
-  - 细纲页面加载时对比 `lastUsedSummary` 与当前大纲摘要，不一致时显示黄色警告条：「大纲已更新，细纲可能过时」+ 「重新生成」/「忽略」按钮
-  - DB schema 升级（新增字段）
-- **30.4** 大纲输出 JSON 化
+  - 细纲页面加载时对比 `lastUsedSummary` 与当前大纲摘要，不一致时显示黄色警告条 + 「忽略」按钮
+- **30.4** ✅ 大纲输出 JSON 化
   - 修改 `outline.volume` / `outline.chapter` 的 prompt seed，要求 AI 输出 JSON 数组
   - `parseVolumeOutlineOutput` / `parseChapterOutlineOutput` 改为 JSON.parse 优先 + 现有正则解析作为降级
-  - 增加 `**标题**摘要` 无冒号格式的解析支持
+  - `extractJsonArray` 支持代码块、裸 JSON、首尾方括号三种提取方式
 - **30.5** 导入去重增强（与 Phase 28.1 协同）
   - 世界观字段：句子级相似度过滤（本地计算，无需 AI）
   - 角色按名字聚合：同名角色合并为一张卡片
@@ -299,14 +298,14 @@
 
 ### 计划
 
-- **31.1** 上下文注入历史数据
-  - `buildWorldContext` 增加可选参数：读取 `historicalTimelineEvents`（按年份排序取关键事件）+ `historicalKeywords`（按分类分组）
-  - 注入格式：`【历史时间线】开元十三年(725)：主角在长安开设织布机坊（虚构）...`
-  - Token 预算控制：历史数据最多占上下文窗口的 10%
-- **31.2** 大纲/细纲/正文感知历史模式
-  - `buildVolumeOutlinePrompt` / `buildChapterOutlinePrompt` 新增 `creativeMode` 参数
-  - 历史模式下 system prompt 追加：「严格遵循历史背景设定，标注架空与史实的边界」
-  - 正文生成的 `CHAPTER_SYSTEM` 增加历史模式分支
+- **31.1** ✅ 上下文注入历史数据
+  - 新增 `buildHistoricalContext(projectId)` 异步函数：读取时间线事件（按年份排序）+ 关键词（按分类分组），格式化注入
+  - Token 预算控制：最多 2000 字（约上下文窗口 10%），事件最多占 60%
+- **31.2** ✅ 大纲/细纲/正文感知历史模式
+  - `OUTLINE_SYSTEM` / `CHAPTER_SYSTEM` 增加 `{{#if (eq creativeMode "historical")}}` 分支
+  - 卷级/章节大纲 prompt 增加 `historicalContext` + `creativeMode` 变量
+  - 正文 prompt 历史模式下强调时代语境、禁止 anachronism
+  - `OutlinePanel` 在 historical 模式下自动注入历史上下文
 - **31.3** creativeMode 联动题材包
   - 切换到「历史考证」模式时，自动提示用户是否同时切换题材包到「历史」
   - 切换到「幻想设定」模式时，同理提示是否切回通用/玄幻等

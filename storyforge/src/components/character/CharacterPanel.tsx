@@ -56,6 +56,7 @@ export default function CharacterPanel({ project }: Props) {
   const [selected, setSelected] = useState<number | null>(null)
   const [hint, setHint] = useState('')
   const [parsing, setParsing] = useState(false)
+  const [showRolePicker, setShowRolePicker] = useState(false)
   const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
   const [systemOverride, setSystemOverride] = useState<string | null>(null)
   const [userOverride, setUserOverride] = useState<string | null>(null)
@@ -65,9 +66,10 @@ export default function CharacterPanel({ project }: Props) {
 
   const selectedChar = characters.find(c => c.id === selected)
 
-  const handleAdd = async () => {
+  const handleAdd = async (role: CharacterRole = 'supporting') => {
+    setShowRolePicker(false)
     const id = await addCharacter({
-      projectId: project.id!, name: '新角色', role: 'supporting',
+      projectId: project.id!, name: '新角色', role,
       shortDescription: '', appearance: '', personality: '',
       background: '', motivation: '', abilities: '', relationships: '', arc: '',
     })
@@ -79,7 +81,14 @@ export default function CharacterPanel({ project }: Props) {
   }
 
   const handleAIGenerate = () => {
+    // 统计阵容缺口
+    const roleCounts: Record<CharacterRole, number> = {
+      protagonist: 0, antagonist: 0, supporting: 0, minor: 0, npc: 0, extra: 0,
+    }
+    characters.forEach(c => { roleCounts[c.role] = (roleCounts[c.role] || 0) + 1 })
+    const rosterGap = `当前阵容：主角 ${roleCounts.protagonist}、反派 ${roleCounts.antagonist}、配角 ${roleCounts.supporting}、次要 ${roleCounts.minor}、NPC ${roleCounts.npc}、路人 ${roleCounts.extra}`
     const existing = characters.map(c => `${c.name}（${ROLE_LABELS[c.role]}）`).join('、')
+    const enrichedHint = [hint, rosterGap].filter(Boolean).join('\n')
     const worldCtx = buildWorldContext(worldview, storyCore, powerSystem)
     const opts = {
       parameterValues: Object.keys(parameterValues).length > 0 ? parameterValues : undefined,
@@ -88,7 +97,7 @@ export default function CharacterPanel({ project }: Props) {
         userPromptTemplate: userOverride ?? undefined,
       } : undefined,
     }
-    const messages = buildCharacterPrompt(project.name, project.genre ?? '', worldCtx, existing, hint, opts)
+    const messages = buildCharacterPrompt(project.name, project.genre ?? '', worldCtx, existing, enrichedHint, opts)
     ai.start(messages)
   }
 
@@ -96,12 +105,31 @@ export default function CharacterPanel({ project }: Props) {
     <div className="space-y-3">
       {/* 工具栏 */}
       <div className="flex items-center gap-3 flex-wrap">
-        <button
-          onClick={handleAdd}
-          className="flex items-center gap-1.5 px-3 py-2 bg-accent text-white text-sm rounded-md hover:bg-accent-hover transition-colors"
-        >
-          <Plus className="w-4 h-4" /> 新建角色
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowRolePicker(!showRolePicker)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-accent text-white text-sm rounded-md hover:bg-accent-hover transition-colors"
+          >
+            <Plus className="w-4 h-4" /> 新建角色 <ChevronDown className="w-3 h-3 ml-0.5" />
+          </button>
+          {showRolePicker && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowRolePicker(false)} />
+              <div className="absolute top-full left-0 mt-1 z-50 bg-bg-surface border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
+                {(Object.entries(ROLE_LABELS) as [CharacterRole, string][]).map(([role, label]) => (
+                  <button
+                    key={role}
+                    onClick={() => handleAdd(role)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors"
+                  >
+                    <span className={`inline-block w-2 h-2 rounded-full ${ROLE_COLORS[role].split(' ')[0].replace('/10', '')}`} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-1">
           <input
             value={hint}

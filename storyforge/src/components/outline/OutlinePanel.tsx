@@ -4,7 +4,8 @@ import { useOutlineStore } from '../../stores/outline'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildVolumeOutlinePrompt, buildChapterOutlinePrompt } from '../../lib/ai/adapters/outline-adapter'
-import { buildWorldContext } from '../../lib/ai/context-builder'
+import { buildWorldContext, buildCharacterContext, buildHistoricalContext } from '../../lib/ai/context-builder'
+import { useCharacterStore } from '../../stores/character'
 import {
   parseVolumeOutlineOutput, parseChapterOutlineOutput,
   type ParsedVolume, type ParsedChapter,
@@ -26,6 +27,7 @@ interface Props {
 export default function OutlinePanel({ project, onOpenChapter }: Props) {
   const { nodes, loadAll, addNode, updateNode, deleteNode } = useOutlineStore()
   const { worldview, storyCore, powerSystem } = useWorldviewStore()
+  const { characters } = useCharacterStore()
   const [selectedVolId, setSelectedVolId] = useState<number | null>(null)
   const [hint, setHint] = useState('')
   const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
@@ -124,7 +126,10 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     setPreviewChapters(null)
     const worldCtx = buildWorldContext(worldview, storyCore, powerSystem)
     const scCtx = storyCore ? `主题：${storyCore.theme}\n冲突：${storyCore.centralConflict}\n故事线：${storyCore.storyLines}` : ''
-    const messages = buildVolumeOutlinePrompt(project.name, project.genre, worldCtx, scCtx, project.targetWordCount || 500000, hint, buildOpts())
+    const charCtx = buildCharacterContext(characters)
+    // Phase 31: 历史模式注入
+    const histCtx = project.creativeMode === 'historical' ? await buildHistoricalContext(project.id!) : ''
+    const messages = buildVolumeOutlinePrompt(project.name, project.genre, worldCtx, scCtx, project.targetWordCount || 500000, hint, buildOpts(), charCtx, histCtx, project.creativeMode)
     ai.start(messages)
   }
 
@@ -136,7 +141,10 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     const worldCtx = buildWorldContext(worldview, storyCore, powerSystem)
     const volIdx = volumes.indexOf(selectedVol)
     const prevSummary = volIdx > 0 ? volumes[volIdx - 1].summary : ''
-    const messages = buildChapterOutlinePrompt(selectedVol.title, selectedVol.summary, worldCtx, prevSummary, hint, buildOpts())
+    const charCtx = buildCharacterContext(characters)
+    // Phase 31: 历史模式注入
+    const histCtx = project.creativeMode === 'historical' ? await buildHistoricalContext(project.id!) : ''
+    const messages = buildChapterOutlinePrompt(selectedVol.title, selectedVol.summary, worldCtx, prevSummary, hint, buildOpts(), charCtx, histCtx, project.creativeMode)
     ai.start(messages)
   }
 
@@ -152,12 +160,20 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     batchAbortRef.current = controller
 
     const worldCtx = buildWorldContext(worldview, storyCore, powerSystem)
+    const charCtx = buildCharacterContext(characters)
+    // Phase 31: 历史模式
+    const histCtx = project.creativeMode === 'historical'
+      ? await buildHistoricalContext(project.id!)
+      : ''
 
     try {
       const result = await runBatchOutlineGeneration({
         volumes,
         worldContext: worldCtx,
         userHint: hint || undefined,
+        characterContext: charCtx,
+        historicalContext: histCtx,
+        creativeMode: project.creativeMode,
         signal: controller.signal,
         onProgress: setBatchProgress,
       })

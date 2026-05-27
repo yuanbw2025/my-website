@@ -16,6 +16,11 @@ export function buildVolumeOutlinePrompt(
   targetWordCount: number,
   userHint?: string,
   options?: RunOptions,
+  characterContext?: string,
+  /** Phase 31: 历史上下文 */
+  historicalContext?: string,
+  /** Phase 31: 创作模式 */
+  creativeMode?: string,
 ): ChatMessage[] {
   const estimatedVolumes = Math.max(1, Math.ceil(targetWordCount / 300000))
   const tpl = usePromptStore.getState().getActive('outline.volume')
@@ -26,6 +31,9 @@ export function buildVolumeOutlinePrompt(
     estimatedVolumes,
     worldContext: worldContext || '（暂无，请自由发挥）',
     storyCore: storyCoreContext || '（暂无，请自由发挥）',
+    characterContext: characterContext || '',
+    historicalContext: historicalContext || '',
+    creativeMode: creativeMode || 'fantasy',
     userHint,
   }, options)
   return messages
@@ -39,6 +47,11 @@ export function buildChapterOutlinePrompt(
   prevVolumeSummary: string,
   userHint?: string,
   options?: RunOptions,
+  characterContext?: string,
+  /** Phase 31: 历史上下文 */
+  historicalContext?: string,
+  /** Phase 31: 创作模式 */
+  creativeMode?: string,
 ): ChatMessage[] {
   const tpl = usePromptStore.getState().getActive('outline.chapter')
   const { messages } = renderPrompt(tpl, {
@@ -46,6 +59,9 @@ export function buildChapterOutlinePrompt(
     volumeSummary,
     worldContext: worldContext || '（暂无）',
     prevVolumeSummary: prevVolumeSummary || '（这是第一卷）',
+    characterContext: characterContext || '',
+    historicalContext: historicalContext || '',
+    creativeMode: creativeMode || 'fantasy',
     userHint,
   }, options)
   return messages
