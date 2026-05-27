@@ -49,6 +49,16 @@ my-website/
 │   ├── package.json
 │   └── vite.config.ts
 │
+├── ai-slides/                  # 📦 AI 幻灯片编辑器（React + Vite + TypeScript）
+│   ├── src/                    #   内容生成、拖拽编辑、PPTX 导入分析与导出
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── ai-presentation/            # 📦 AI 演示稿生成器（React + Vite + TypeScript）
+│   ├── src/                    #   主题输入、一键生成与交互式放映
+│   ├── package.json
+│   └── vite.config.ts
+│
 ├── cyber-flying-sword/         # 🗡️ 赛博飞剑手势动作游戏（React + Three.js + MediaPipe）
 │   ├── src/                    #   游戏核心源码
 │   ├── docs/                   #   PROJECT_BIBLE / GDD / TDD / 手势参考
@@ -70,6 +80,8 @@ my-website/
 │   ├── index.html              #   主页副本
 │   ├── infiniteskill/          #   InfiniteSkill 编译产物
 │   ├── yuntype/                #   云中书编译产物
+│   ├── ai-slides/              #   AI 幻灯片编辑器编译产物
+│   ├── ai-presentation/        #   AI 演示稿生成器编译产物
 │   └── cyber-flying-sword/     #   赛博飞剑编译产物
 │
 ├── api/                        # ⚡ Vercel Serverless Functions

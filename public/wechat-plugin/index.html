@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>公众号 HTML 插件 · 悬象</title>
+<meta name="description" content="微信公众号 HTML 插入器 —— 配合云中书，一键将精美 HTML 排版插入公众号编辑器">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --pri:#6366f1;--pri-d:#4f46e5;--acc:#8b5cf6;
+    --bg:#f8f9ff;--card:#fff;--txt:#1e293b;--txt2:#64748b;--bdr:#e2e8f0;
+    --shadow:0 4px 24px rgba(99,102,241,0.1);
+  }
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Noto Serif SC',sans-serif;min-height:100vh;}
+
+  /* NAV */
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(12px);background:rgba(248,249,255,0.92);border-bottom:1px solid var(--bdr);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+  .nav-brand{font-size:15px;font-weight:700;color:var(--pri);text-decoration:none;display:flex;align-items:center;gap:8px;}
+  .nav-back{font-size:13px;color:var(--txt2);text-decoration:none;display:flex;align-items:center;gap:6px;transition:color .2s;}
+  .nav-back:hover{color:var(--pri);}
+
+  /* HERO */
+  .hero{padding:120px 24px 80px;text-align:center;background:linear-gradient(160deg,#f8f9ff 0%,#f0f0ff 50%,#f8f0ff 100%);}
+  .hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--pri);color:#fff;padding:6px 16px;border-radius:50px;font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:24px;}
+  .hero h1{font-size:clamp(32px,5vw,54px);font-weight:900;line-height:1.15;letter-spacing:-1px;color:var(--txt);margin-bottom:16px;}
+  .hero h1 span{background:linear-gradient(135deg,var(--pri),var(--acc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .hero-sub{font-size:17px;color:var(--txt2);line-height:1.7;max-width:540px;margin:0 auto 36px;}
+  .hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+  .btn-pri{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--pri),var(--acc));color:#fff;padding:14px 28px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;box-shadow:0 4px 20px rgba(99,102,241,0.35);transition:all .2s;}
+  .btn-pri:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(99,102,241,0.45);}
+  .btn-sec{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--pri);padding:14px 28px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;border:2px solid var(--bdr);transition:all .2s;}
+  .btn-sec:hover{border-color:var(--pri);transform:translateY(-2px);}
+
+  /* MAIN */
+  main{max-width:860px;margin:0 auto;padding:64px 24px;}
+
+  /* SECTION */
+  section{margin-bottom:72px;}
+  .sec-label{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:2px;color:var(--pri);text-transform:uppercase;margin-bottom:12px;}
+  .sec-label::before{content:'';display:block;width:20px;height:2px;background:var(--pri);}
+  h2{font-size:28px;font-weight:900;color:var(--txt);margin-bottom:8px;letter-spacing:-0.5px;}
+  .sec-desc{font-size:15px;color:var(--txt2);line-height:1.7;margin-bottom:32px;}
+
+  /* FEATURES GRID */
+  .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;}
+  .feat{background:var(--card);border:1.5px solid var(--bdr);border-radius:18px;padding:24px;transition:all .2s;}
+  .feat:hover{border-color:var(--pri);box-shadow:var(--shadow);transform:translateY(-3px);}
+  .feat-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:14px;}
+  .feat h3{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:6px;}
+  .feat p{font-size:13px;color:var(--txt2);line-height:1.65;}
+
+  /* STEPS */
+  .steps{display:grid;gap:0;}
+  .step{display:grid;grid-template-columns:60px 1fr;gap:0 24px;}
+  .step-left{display:flex;flex-direction:column;align-items:center;}
+  .step-num{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;flex-shrink:0;}
+  .step-line{width:2px;flex:1;min-height:32px;border-radius:2px;margin:6px 0;}
+  .step-body{padding-bottom:36px;}
+  .step-title{font-size:17px;font-weight:800;color:var(--txt);margin-bottom:8px;padding-top:10px;}
+  .step-content{background:#f8faff;border:1px solid #e8edff;border-radius:14px;padding:18px 20px;}
+  .step-content p{font-size:13px;color:var(--txt2);line-height:1.8;margin:0;}
+  .step-content code{background:#e8edff;color:var(--pri);padding:2px 8px;border-radius:6px;font-family:monospace;font-size:12px;}
+  .step-content .tip{margin-top:10px;background:#ede9fe;border-radius:8px;padding:10px 14px;font-size:12px;color:#6d28d9;font-weight:600;}
+
+  /* HOW IT WORKS */
+  .tech-card{background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:20px;padding:32px;}
+  .tech-card h3{color:#f1f5f9;font-size:16px;font-weight:700;margin-bottom:20px;}
+  .tech-steps{display:grid;gap:12px;}
+  .tech-step{display:flex;align-items:center;gap:14px;}
+  .tech-step-num{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0;}
+  .tech-step p{font-size:13px;color:#cbd5e1;line-height:1.5;}
+  .tech-step code{color:#7dd3fc;background:rgba(125,211,252,0.1);padding:1px 6px;border-radius:4px;font-family:monospace;}
+  .tech-note{margin-top:16px;font-size:12px;color:#64748b;line-height:1.6;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;}
+
+  /* DOWNLOAD */
+  .dl-card{background:linear-gradient(135deg,var(--pri),var(--acc));border-radius:24px;padding:40px;text-align:center;}
+  .dl-card h2{color:#fff;font-size:26px;margin-bottom:10px;}
+  .dl-card p{color:rgba(255,255,255,0.8);font-size:14px;margin-bottom:28px;line-height:1.7;}
+  .dl-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+  .btn-white{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--pri);padding:13px 26px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;transition:all .2s;}
+  .btn-white:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.15);}
+  .btn-ghost{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.15);color:#fff;padding:13px 26px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,0.3);transition:all .2s;}
+  .btn-ghost:hover{background:rgba(255,255,255,0.25);}
+
+  /* COMPAT */
+  .compat{display:flex;gap:16px;flex-wrap:wrap;}
+  .compat-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--bdr);border-radius:14px;padding:14px 20px;font-size:14px;font-weight:600;color:var(--txt);}
+  .compat-item span{font-size:24px;}
+
+  /* FOOTER */
+  footer{border-top:1px solid var(--bdr);padding:32px 24px;text-align:center;}
+  footer p{font-size:13px;color:var(--txt2);margin-bottom:8px;}
+  footer a{color:var(--pri);text-decoration:none;}
+  footer a:hover{text-decoration:underline;}
+
+  @media(max-width:640px){
+    .hero{padding:96px 20px 60px;}
+    main{padding:48px 16px;}
+    .feat-grid{grid-template-columns:1fr;}
+    .step{grid-template-columns:48px 1fr;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">⟵ 悬象</a>
+  <a href="https://github.com/yuanbw2025/wechat-html-injector" target="_blank" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+    GitHub
+  </a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">🧩 CHROME EXTENSION</div>
+  <h1>公众号 <span>HTML 插件</span></h1>
+  <p class="hero-sub">配合云中书排版工具，突破微信公众号编辑器的 HTML 限制，一键插入精美排版格式</p>
+  <div class="hero-btns">
+    <a href="https://github.com/yuanbw2025/wechat-html-injector/archive/refs/heads/main.zip" class="btn-pri">
+      ⬇️ 下载插件
+    </a>
+    <a href="/yuntype/" class="btn-sec">☁️ 打开云中书</a>
+  </div>
+</section>
+
+<main>
+
+  <!-- 功能特性 -->
+  <section>
+    <div class="sec-label">Features</div>
+    <h2>核心功能</h2>
+    <p class="sec-desc">专为微信公众号编辑器设计，解决 HTML 排版无法直接使用的痛点</p>
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="feat-icon" style="background:linear-gradient(135deg,#667eea20,#764ba220);">🎯</div>
+        <h3>精准插入</h3>
+        <p>配色、字体、间距、背景全部保留，所见即所得，不再样式丢失</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon" style="background:linear-gradient(135deg,#f093fb20,#f5576c20);">🛡️</div>
+        <h3>突破 ProseMirror 限制</h3>
+        <p>微信编辑器会过滤 grid/flex 等现代 CSS，本插件绕过该限制完整保留</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon" style="background:linear-gradient(135deg,#4facfe20,#00f2fe20);">⚡</div>
+        <h3>5 重策略兜底</h3>
+        <p>内置 5 种插入方案逐级降级，应对各种编辑器版本，成功率极高</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon" style="background:linear-gradient(135deg,#43e97b20,#38f9d720);">🎨</div>
+        <h3>悬浮图标随时可用</h3>
+        <p>进入编辑器页面自动出现紫色悬浮图标，点击即用，不干扰编辑流程</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 使用步骤 -->
+  <section>
+    <div class="sec-label">How to Use</div>
+    <h2>三步上手</h2>
+    <p class="sec-desc">从安装到插入排版，5 分钟即可完成</p>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num" style="background:linear-gradient(135deg,#667eea,#764ba2);">1</div>
+          <div class="step-line" style="background:linear-gradient(#764ba2,#f093fb);"></div>
+        </div>
+        <div class="step-body">
+          <div class="step-title">安装浏览器插件</div>
+          <div class="step-content">
+            <p>下载 ZIP 并解压 → Chrome 地址栏输入 <code>chrome://extensions/</code><br>
+            开启 <strong>开发者模式</strong> → 加载已解压的扩展程序 → 选择解压后的文件夹</p>
+            <div class="tip">Edge 浏览器同理：edge://extensions/</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num" style="background:linear-gradient(135deg,#f093fb,#f5576c);">2</div>
+          <div class="step-line" style="background:linear-gradient(#f5576c,#4facfe);"></div>
+        </div>
+        <div class="step-body">
+          <div class="step-title">用云中书生成 HTML</div>
+          <div class="step-content">
+            <p>打开 <strong>云中书 YunType</strong>，粘贴 Markdown 内容，选择配色 / 字体 / 比例<br>
+            点击「导出 HTML」，复制生成的代码</p>
+            <div class="tip">支持小红书风格、公众号长图、信息图等多种格式</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num" style="background:linear-gradient(135deg,#4facfe,#43e97b);">3</div>
+        </div>
+        <div class="step-body">
+          <div class="step-title">插入到公众号编辑器</div>
+          <div class="step-content">
+            <p>打开微信公众号后台，新建图文，编辑器右侧出现<strong>紫色 &lt;&gt; 悬浮图标</strong><br>
+            点击图标 → 粘贴 HTML → 点「插入」 → 排版格式直接出现 🎉</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 技术原理 -->
+  <section>
+    <div class="sec-label">How It Works</div>
+    <h2>技术原理</h2>
+    <p class="sec-desc">为什么普通粘贴不行，这个插件却可以？</p>
+    <div class="tech-card">
+      <h3>核心策略：renderCopy（渲染后复制）</h3>
+      <div class="tech-steps">
+        <div class="tech-step">
+          <div class="tech-step-num" style="background:#1d4ed8;">1</div>
+          <p>将 HTML 渲染进屏幕外的 <code>contenteditable</code> 暂存区，让浏览器真实渲染出 DOM</p>
+        </div>
+        <div class="tech-step">
+          <div class="tech-step-num" style="background:#7c3aed;">2</div>
+          <p>用 <code>execCommand('copy')</code> 将渲染结果写入<strong style="color:#f1f5f9;">真实系统剪贴板</strong>（非合成 DataTransfer）</p>
+        </div>
+        <div class="tech-step">
+          <div class="tech-step-num" style="background:#0891b2;">3</div>
+          <p>对编辑器执行 <code>execCommand('paste')</code>，ProseMirror 收到的是真实粘贴，完整保留 inline style ✅</p>
+        </div>
+      </div>
+      <p class="tech-note">若策略 A 失败，自动降级至合成 ClipboardEvent → execCommand insertHTML → Range insertNode → innerHTML，5 重兜底覆盖各种浏览器版本。</p>
+    </div>
+  </section>
+
+  <!-- 兼容性 -->
+  <section>
+    <div class="sec-label">Compatibility</div>
+    <h2>兼容性</h2>
+    <p class="sec-desc">支持主流 Chromium 内核浏览器</p>
+    <div class="compat">
+      <div class="compat-item"><span>🌐</span> Google Chrome</div>
+      <div class="compat-item"><span>🔷</span> Microsoft Edge</div>
+      <div class="compat-item"><span>🟠</span> 其他 Chromium 浏览器</div>
+    </div>
+  </section>
+
+  <!-- 下载 -->
+  <section>
+    <div class="dl-card">
+      <h2>立即开始使用</h2>
+      <p>下载插件，配合云中书，让公众号排版不再将就</p>
+      <div class="dl-btns">
+        <a href="https://github.com/yuanbw2025/wechat-html-injector/archive/refs/heads/main.zip" class="btn-white">
+          ⬇️ 下载 ZIP
+        </a>
+        <a href="https://github.com/yuanbw2025/wechat-html-injector" target="_blank" class="btn-ghost">
+          📦 查看源码
+        </a>
+        <a href="/yuntype/" class="btn-ghost">
+          ☁️ 打开云中书
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>MIT 开源 · 完全免费 · 不收集任何用户数据</p>
+  <p><a href="/">悬象 · Xuán Xiàng</a> · <a href="https://github.com/yuanbw2025/wechat-html-injector" target="_blank">GitHub</a> · <a href="/yuntype/">云中书</a></p>
+</footer>
+
+</body>
+</html>

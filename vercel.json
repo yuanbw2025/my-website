@@ -11,6 +11,14 @@
       "destination": "/yuntype/index.html"
     },
     {
+      "source": "/ai-slides/(.*)",
+      "destination": "/ai-slides/index.html"
+    },
+    {
+      "source": "/ai-presentation/(.*)",
+      "destination": "/ai-presentation/index.html"
+    },
+    {
       "source": "/cyber-flying-sword/(.*)",
       "destination": "/cyber-flying-sword/index.html"
     },
@@ -21,6 +29,10 @@
     {
       "source": "/novel-game/(.*)",
       "destination": "/novel-game/index.html"
+    },
+    {
+      "source": "/wechat-plugin/(.*)",
+      "destination": "/wechat-plugin/index.html"
     }
   ]
 }
