@@ -4,7 +4,7 @@ import {
   UserCircle, UsersRound, User, Footprints, Network,
   Ruler, BookOpen, FilePen, Eye,
   FileCog, History, Upload, Download, Settings,
-  Map, ClipboardList, GitBranch, MapPin, Clock, Gem,
+  Map, ClipboardList, GitBranch, Clock, Gem,
 } from 'lucide-react'
 
 /**
@@ -121,7 +121,6 @@ export const NAV_TREE: TreeSection[] = [
           leaf('worldview-origin',   '世界起源', Sparkles),
           leaf('worldview-natural',  '自然环境', Mountain),
           leaf('worldview-humanity', '人文环境', Users2),
-          leaf('geography',          '地理环境', MapPin),
           leaf('history',            '历史年表', Clock),
           leaf('world-map',          '世界地图', Map),
         ],

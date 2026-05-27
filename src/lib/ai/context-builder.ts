@@ -1,4 +1,6 @@
 import type { Worldview, StoryCore, PowerSystem, Character } from '../types'
+import type { HistoricalKeyword, HistoricalKeywordCategory } from '../types/history'
+import { KEYWORD_CATEGORY_LABELS } from '../types/history'
 import { DIMENSION_LABELS, ANALYSIS_DIMENSIONS } from '../types/reference'
 import { loadContextMemo } from '../export/context-snapshot'
 import { db } from '../db/schema'
@@ -68,12 +70,51 @@ export function buildWorldContext(wv: Worldview | null, sc: StoryCore | null, ps
   return parts.join('\n\n')
 }
 
-/** 构建角色上下文 */
+/**
+ * 构建角色上下文（分权重三层输出）
+ *
+ * - 核心角色（主角/反派）：完整信息（描述+性格+背景+动机+能力）
+ * - 重要配角（supporting）：一句话描述+关系
+ * - 其他（minor/npc/extra）：仅名字和定位
+ */
 export function buildCharacterContext(characters: Character[]): string {
   if (!characters.length) return ''
-  return characters.map(c =>
-    `${c.name}（${getRoleLabel(c.role)}）：${c.shortDescription || ''}${c.personality ? `，性格：${c.personality.slice(0, 100)}` : ''}`
-  ).join('\n')
+
+  const core = characters.filter(c => c.role === 'protagonist' || c.role === 'antagonist')
+  const supporting = characters.filter(c => c.role === 'supporting')
+  const others = characters.filter(c => c.role !== 'protagonist' && c.role !== 'antagonist' && c.role !== 'supporting')
+
+  const parts: string[] = []
+
+  if (core.length) {
+    parts.push('【核心角色（完整信息）】')
+    for (const c of core) {
+      const details = [
+        `${c.name}（${getRoleLabel(c.role)}）`,
+        c.shortDescription ? `简介：${c.shortDescription}` : '',
+        c.personality ? `性格：${c.personality.slice(0, 150)}` : '',
+        c.background ? `背景：${c.background.slice(0, 200)}` : '',
+        c.motivation ? `动机：${c.motivation.slice(0, 150)}` : '',
+        c.abilities ? `能力：${c.abilities.slice(0, 150)}` : '',
+        c.arc ? `成长弧线：${c.arc.slice(0, 150)}` : '',
+      ].filter(Boolean).join('；')
+      parts.push(details)
+    }
+  }
+
+  if (supporting.length) {
+    parts.push('【重要配角（一句话+关系）】')
+    for (const c of supporting) {
+      parts.push(`${c.name}：${c.shortDescription || '（无描述）'}${c.relationships ? `，关系：${c.relationships.slice(0, 80)}` : ''}`)
+    }
+  }
+
+  if (others.length) {
+    parts.push('【其他角色（仅名字）】')
+    parts.push(others.map(c => `${c.name}（${getRoleLabel(c.role)}）`).join('、'))
+  }
+
+  return parts.join('\n')
 }
 
 /**
@@ -172,4 +213,70 @@ export function buildExistingWorldview(wv: Worldview | null): string {
     wv.rules && `规则：${wv.rules.slice(0, 300)}`,
   ].filter(Boolean)
   return parts.join('\n')
+}
+
+// ── Phase 31.1: 历史模式上下文注入 ──────────────────────────────
+
+/**
+ * 构建历史时间线 + 关键词上下文
+ *
+ * 从 DB 读取项目的历史事件和关键词，格式化为 AI 可用的上下文。
+ * Token 预算控制：最多 2000 字（约上下文窗口的 10%）。
+ */
+export async function buildHistoricalContext(projectId: number): Promise<string> {
+  const MAX_CHARS = 2000
+  const parts: string[] = []
+  let charCount = 0
+
+  // 1. 历史时间线事件（按年份排序，取关键事件）
+  const events = await db.historicalTimelineEvents
+    .where('projectId').equals(projectId)
+    .sortBy('year')
+
+  if (events.length > 0) {
+    const eventLines: string[] = ['【历史时间线】']
+    for (const e of events) {
+      const marker = e.isHistorical ? '📜史实' : '✨虚构'
+      const line = `- ${e.date}（${marker}）：${e.title}${e.description ? `——${e.description.slice(0, 80)}` : ''}`
+      if (charCount + line.length > MAX_CHARS * 0.6) break // 事件最多占 60%
+      eventLines.push(line)
+      charCount += line.length
+    }
+    if (eventLines.length > 1) {
+      parts.push(eventLines.join('\n'))
+    }
+  }
+
+  // 2. 历史关键词（按分类分组）
+  const keywords = await db.historicalKeywords
+    .where('projectId').equals(projectId)
+    .toArray()
+
+  if (keywords.length > 0) {
+    const byCategory = new Map<HistoricalKeywordCategory, HistoricalKeyword[]>()
+    for (const kw of keywords) {
+      const list = byCategory.get(kw.category) || []
+      list.push(kw)
+      byCategory.set(kw.category, list)
+    }
+
+    const kwLines: string[] = ['【时代关键词——创作中必须使用这些时代元素，禁止超越时代的物品/制度】']
+    for (const [cat, kws] of byCategory) {
+      const label = KEYWORD_CATEGORY_LABELS[cat] || cat
+      const items = kws.map(k => {
+        const desc = k.description ? `（${k.description.slice(0, 40)}）` : ''
+        return `${k.keyword}${desc}`
+      }).join('、')
+      const line = `· ${label}：${items}`
+      if (charCount + line.length > MAX_CHARS) break
+      kwLines.push(line)
+      charCount += line.length
+    }
+    if (kwLines.length > 1) {
+      parts.push(kwLines.join('\n'))
+    }
+  }
+
+  if (!parts.length) return ''
+  return parts.join('\n\n')
 }

@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Plus, Trash2, Sparkles, ChevronRight, Wand2 } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Plus, Trash2, Sparkles, ChevronRight, Wand2, AlertTriangle, Zap, Square } from 'lucide-react'
 import { useOutlineStore } from '../../stores/outline'
 import { useDetailedOutlineStore } from '../../stores/detailed-outline'
 import { useWorldviewStore } from '../../stores/worldview'
@@ -8,6 +8,7 @@ import { useForeshadowStore } from '../../stores/foreshadow'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildDetailSceneGeneratePrompt, buildEnhancedDetailPrompt, parseEnhancedDetailResult } from '../../lib/ai/adapters/detail-scene-adapter'
 import { buildWorldContext, buildCharacterContext } from '../../lib/ai/context-builder'
+import { batchGenerateDetails, type BatchProgress } from '../../lib/ai/batch-detail-runner'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import { nanoid } from '../../lib/utils/id'
 import type { Project, DetailedScene, ScenePace, EmotionArc } from '../../lib/types'
@@ -150,11 +151,11 @@ export default function DetailedOutlinePanel({ project }: Props) {
     const dt = await ensureDetailed()
     if (!dt?.id) return
 
-    const patch: Record<string, unknown> = {}
+    const patch: Partial<import('../../lib/types').DetailedOutline> = {}
     if (parsed.openingHook) patch.openingHook = parsed.openingHook
     if (parsed.endingCliffhanger) patch.endingCliffhanger = parsed.endingCliffhanger
     if (parsed.sceneLocation) patch.sceneLocation = parsed.sceneLocation
-    if (parsed.emotionArc) patch.emotionArc = parsed.emotionArc
+    if (parsed.emotionArc) patch.emotionArc = parsed.emotionArc as EmotionArc
     if (parsed.appearingCharacterIds) patch.appearingCharacterIds = parsed.appearingCharacterIds
     if (parsed.foreshadowIds) patch.foreshadowIds = parsed.foreshadowIds
 
@@ -174,11 +175,77 @@ export default function DetailedOutlinePanel({ project }: Props) {
       patch.scenes = newScenes
     }
 
+    // Phase 30.3: 同时快照当前大纲摘要
+    patch.lastUsedSummary = currentChapter?.summary || ''
     await save(dt.id, patch)
     enhanceAI.reset()
   }
 
   const totalWords = currentDetailed?.scenes.reduce((s, sc) => s + (sc.estimatedWords || 0), 0) ?? 0
+
+  // Phase 30.3: 大纲-细纲同步检测
+  const isSyncStale = useMemo(() => {
+    if (!currentDetailed || !currentChapter) return false
+    // 只有曾经生成过细纲（有 lastUsedSummary）才检测
+    if (!currentDetailed.lastUsedSummary) return false
+    const currentSummary = currentChapter.summary || ''
+    return currentDetailed.lastUsedSummary !== currentSummary
+  }, [currentDetailed, currentChapter])
+
+  /** 标记同步：将当前大纲摘要快照写入细纲 */
+  const markSynced = useCallback(async () => {
+    if (!currentDetailed?.id || !currentChapter) return
+    await save(currentDetailed.id, { lastUsedSummary: currentChapter.summary || '' })
+  }, [currentDetailed, currentChapter, save])
+
+  // Phase 30.1: 批量生成细纲
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null)
+  const batchAbortRef = useRef<AbortController | null>(null)
+
+  const handleBatchDetail = useCallback(async () => {
+    if (batchProgress) return // 已在运行
+    const worldCtx = buildWorldContext(worldview, storyCore, null)
+    const charCtx = characters
+      .filter(c => c.role === 'protagonist' || c.role === 'supporting')
+      .map(c => `[ID:${c.id}] ${c.name}（${c.role}）`)
+      .join('\n')
+    const foreshadowCtx = foreshadows
+      .filter(f => f.status !== 'resolved')
+      .map(f => `[ID:${f.id}] ${f.name}（${f.type}）：${f.description}`)
+      .join('\n')
+
+    const ac = new AbortController()
+    batchAbortRef.current = ac
+
+    try {
+      const result = await batchGenerateDetails({
+        chapters: chapterNodes,
+        existingDetails: detailedOutlines,
+        worldContext: worldCtx,
+        characterContext: charCtx,
+        foreshadowContext: foreshadowCtx,
+        onSave: async (outlineNodeId, data) => {
+          const dt = await getOrCreate(project.id!, outlineNodeId)
+          if (dt.id) await save(dt.id, data)
+        },
+        onProgress: setBatchProgress,
+        signal: ac.signal,
+      })
+
+      if (!result.cancelled) {
+        // 刷新列表
+        await loadDetailed(project.id!)
+      }
+    } finally {
+      batchAbortRef.current = null
+      // 3 秒后清除进度信息
+      setTimeout(() => setBatchProgress(null), 3000)
+    }
+  }, [batchProgress, worldview, storyCore, characters, foreshadows, chapterNodes, detailedOutlines, getOrCreate, save, project.id, loadDetailed])
+
+  const handleBatchStop = useCallback(() => {
+    batchAbortRef.current?.abort()
+  }, [])
 
   return (
     <div className="h-full flex">
@@ -210,6 +277,38 @@ export default function DetailedOutlinePanel({ project }: Props) {
             })}
           </div>
         )}
+
+        {/* Phase 30.1: 批量生成按钮 */}
+        {chapterNodes.length > 0 && (
+          <div className="mt-3 px-2 space-y-2">
+            {!batchProgress ? (
+              <button
+                onClick={handleBatchDetail}
+                className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 bg-accent/10 text-accent text-xs rounded hover:bg-accent/20"
+              >
+                <Zap className="w-3.5 h-3.5" /> 批量生成细纲
+              </button>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 h-1.5 bg-bg-base rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-accent rounded-full transition-all"
+                      style={{ width: `${Math.round((batchProgress.completed / batchProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-text-muted whitespace-nowrap">
+                    {batchProgress.completed}/{batchProgress.total}
+                  </span>
+                  <button onClick={handleBatchStop} className="p-0.5 text-error hover:text-error/80" title="停止">
+                    <Square className="w-3 h-3" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-text-muted truncate">{batchProgress.stage}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 右侧：细纲编辑 */}
@@ -232,6 +331,25 @@ export default function DetailedOutlinePanel({ project }: Props) {
                 </p>
               )}
             </div>
+
+            {/* Phase 30.3: 大纲变更警告 */}
+            {isSyncStale && (
+              <div className="mb-3 flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg px-3 py-2">
+                <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-warning">大纲已变更</p>
+                  <p className="text-[11px] text-text-muted mt-0.5">
+                    本章大纲摘要在生成细纲后发生了修改，当前细纲可能与大纲不一致。建议重新生成或手动调整。
+                  </p>
+                </div>
+                <button
+                  onClick={markSynced}
+                  className="flex-shrink-0 text-[11px] px-2 py-0.5 rounded bg-warning/20 text-warning hover:bg-warning/30"
+                >
+                  忽略
+                </button>
+              </div>
+            )}
 
             {/* 操作栏 */}
             <div className="flex items-center gap-2 mb-4">
@@ -269,15 +387,22 @@ export default function DetailedOutlinePanel({ project }: Props) {
                     try {
                       if (!currentDetailed || currentDetailed.scenes.length === 0) {
                         await addScene()
-                        // addScene 后必须从 store 取最新状态，不能用闭包里的旧 currentDetailed
                         const fresh = useDetailedOutlineStore.getState().detailedOutlines.find(d => d.outlineNodeId === currentChapter.id)
                         if (fresh && fresh.scenes[0]) {
                           await updateScenes(fresh.scenes.map((s, i) =>
                             i === 0 ? { ...s, notes: text } : s
                           ))
                         }
+                        // Phase 30.3: 快照当前大纲摘要
+                        if (fresh?.id) {
+                          await save(fresh.id, { lastUsedSummary: currentChapter.summary || '' })
+                        }
                       } else {
                         await updateScene(currentDetailed.scenes[0].sceneId, { notes: text })
+                        // Phase 30.3: 快照当前大纲摘要
+                        if (currentDetailed.id) {
+                          await save(currentDetailed.id, { lastUsedSummary: currentChapter.summary || '' })
+                        }
                       }
                     } catch (err) {
                       console.error('[DetailedOutline] 采纳失败:', err)
