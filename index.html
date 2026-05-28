@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>悬象 · Xuán Xiàng</title>
-<meta name="description" content="悬象 Xuán Xiàng：个人 AI 工具、创作项目、游戏与 AI 导航入口。">
+<meta name="description" content="悬象 Xuán Xiàng：个人 AI 工具、创作项目、游戏与司南工具索引。">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=ZCOOL+XiaoWei&family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono&display=swap" rel="stylesheet">
 <style>
 [data-theme="juanben"]{--bg:#EDE4D0;--card:rgba(255,250,240,.72);--card-h:rgba(255,250,240,.94);--pri:#6B3410;--pri-l:rgba(107,52,16,.1);--acc:#6B8F50;--acc-l:rgba(107,143,80,.1);--txt:#2B1E10;--txt2:#6A5A40;--txt3:#9A8A70;--bdr:rgba(43,30,16,.1);--nav:rgba(237,228,208,.92);--ban:linear-gradient(90deg,rgba(107,52,16,.06),rgba(107,143,80,.05));--mtn:rgba(107,52,16,.06);--mtn2:rgba(107,143,80,.08);--ink:rgba(107,52,16,.2);--shd:rgba(0,0,0,.08);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#8C501E,#B87830);--cover-g:linear-gradient(135deg,#6B8F50,#8C501E);--cover-b:linear-gradient(135deg,#345A7A,#6B8F50)}
@@ -30,8 +30,9 @@ nav{position:fixed;top:0;width:100%;z-index:100;padding:0 4%;height:56px;display
 .n-btn{background:var(--pri-l);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;color:var(--pri);font-size:12px;cursor:pointer;transition:all .3s;letter-spacing:1px}
 .n-btn:hover{background:var(--pri);color:var(--bg)}
 select.n-btn{appearance:none;-webkit-appearance:none;padding-right:24px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:10px}
-main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:74px 20px 30px}
-.ban{background:var(--ban);border:1px solid var(--bdr);border-radius:12px;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;transition:all .4s;font-size:13px}
+main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:74px 20px 30px}
+.ban{background:var(--ban);border:1px solid var(--bdr);border-radius:12px;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;transition:all .4s;font-size:13px;position:relative;overflow:hidden}
+.ban::after{content:'';position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);animation:sweep 6s ease-in-out infinite}
 .ban strong{color:var(--pri)}.ban-t{color:var(--txt2)}
 .ban-l{color:var(--acc);font-weight:700;font-size:12px;white-space:nowrap;transition:opacity .3s}
 .ban-l:hover{opacity:.7}
@@ -43,9 +44,14 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:74px 20p
 .tab.on::after{width:55%}
 .pan{display:none;animation:fi .4s ease}.pan.on{display:block}
 @keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sweep{0%,35%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
+@keyframes drift{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(8px,-10px,0)}}
 .panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px}
 .panel-head h1,.panel-head h2{font-size:26px;letter-spacing:3px}
 .panel-head p{max-width:470px;color:var(--txt2);font-size:13px;line-height:1.7}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:34px 0 18px}
+.section-title h2{font-size:25px;letter-spacing:3px}
+.section-title p{max-width:560px;color:var(--txt2);font-size:13px;line-height:1.7}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
 .pc{background:var(--card);border:1px solid var(--bdr);border-radius:16px;overflow:hidden;color:inherit;transition:all .35s cubic-bezier(.175,.885,.32,1.1);backdrop-filter:blur(8px);display:flex;flex-direction:column}
 .pc:hover{transform:translateY(-5px);background:var(--card-h);box-shadow:0 16px 40px var(--shd);border-color:var(--pri)}
@@ -59,7 +65,11 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:74px 20p
 .pc:hover .pc-go{opacity:1;transform:translateX(0)}
 .ph{background:var(--card);border:2px dashed var(--bdr);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:225px;color:var(--txt3);font-size:13px;letter-spacing:2px}
 .ph-i{font-size:32px;margin-bottom:10px;opacity:.45}
-.nav-tools{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px}
+.sinan{margin-top:34px;position:relative}
+.sinan::before{content:'司南';position:absolute;right:18px;top:-20px;color:var(--pri-l);font-size:86px;font-weight:900;letter-spacing:10px;pointer-events:none;animation:drift 9s ease-in-out infinite}
+.sinan-orbit{position:absolute;right:34px;top:28px;width:88px;height:88px;border:1px solid var(--bdr);border-radius:50%;opacity:.42;pointer-events:none}
+.sinan-orbit::before{content:'';position:absolute;left:50%;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--acc);box-shadow:0 0 18px var(--ink)}
+.nav-tools{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px;position:relative}
 .nav-side,.nav-main{background:var(--card);border:1px solid var(--bdr);border-radius:16px;backdrop-filter:blur(8px)}
 .nav-side{padding:14px;height:max-content}
 .nav-side h3{font-size:16px;margin-bottom:12px;letter-spacing:2px}
@@ -72,8 +82,10 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:74px 20p
 .search-row input:focus{border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-l)}
 .search-row button{border:1px solid var(--bdr);background:var(--pri-l);color:var(--pri);border-radius:10px;padding:0 14px;font-weight:800;font-size:13px}
 .ai-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.ai-card{display:flex;flex-direction:column;min-height:154px;background:rgba(255,255,255,.28);border:1px solid var(--bdr);border-radius:12px;padding:14px;transition:all .25s}
+.ai-card{display:flex;flex-direction:column;min-height:154px;background:rgba(255,255,255,.28);border:1px solid var(--bdr);border-radius:12px;padding:14px;transition:all .25s;position:relative;overflow:hidden}
+.ai-card::after{content:'';position:absolute;left:14px;right:14px;top:0;height:1px;background:linear-gradient(90deg,transparent,var(--pri),transparent);opacity:0;transition:opacity .25s}
 .ai-card:hover{background:var(--card-h);border-color:var(--pri);transform:translateY(-3px);box-shadow:0 10px 28px var(--shd)}
+.ai-card:hover::after{opacity:.8}
 .ai-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .ai-ico{width:34px;height:34px;border-radius:10px;background:var(--pri-l);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
 .ai-card h3{font-size:15px;letter-spacing:1px}
@@ -89,7 +101,7 @@ main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:74px 20p
 .log-item p{font-size:13px;color:var(--txt2);line-height:1.7}
 footer{text-align:center;padding:36px 0 24px;border-top:1px solid var(--bdr);margin-top:50px;color:var(--txt3);font-size:12px;letter-spacing:2px}
 .f-stats{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:6px;opacity:.6}
-@media(max-width:820px){.n-motto{display:none}.n-brand{font-size:20px;letter-spacing:4px}.tab{font-size:13px;letter-spacing:1px}.panel-head{display:block}.panel-head p{margin-top:8px}.nav-tools{grid-template-columns:1fr}.cards,.ai-grid{grid-template-columns:1fr}.search-row{display:grid}.log-item{grid-template-columns:1fr}}
+@media(max-width:820px){.n-motto{display:none}.n-brand{font-size:20px;letter-spacing:4px}.tab{font-size:13px;letter-spacing:1px}.panel-head,.section-title{display:block}.panel-head p,.section-title p{margin-top:8px}.nav-tools{grid-template-columns:1fr}.cards,.ai-grid{grid-template-columns:1fr}.search-row{display:grid}.log-item{grid-template-columns:1fr}.sinan::before,.sinan-orbit{display:none}}
 </style>
 <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 <script>var _hmt=_hmt||[];(function(){var h=document.createElement("script");h.src="https://hm.baidu.com/hm.js?bd20cb072169d13aec6393a5328314f6";var s=document.getElementsByTagName("script")[0];s.parentNode.insertBefore(h,s)})();</script>
@@ -136,13 +148,12 @@ footer{text-align:center;padding:36px 0 24px;border-top:1px solid var(--bdr);mar
 
 <main>
   <div class="ban">
-    <span><strong>悬象 Xuán Xiàng</strong> <span class="ban-t">— 自研 AI 工具、创作项目与个人 AI 导航</span></span>
-    <a href="#ai-nav" class="ban-l" data-open-tab="navs">打开 AI 导航 →</a>
+    <span><strong>悬象 Xuán Xiàng</strong> <span class="ban-t">— 自研 AI 工具、创作项目与司南工具索引</span></span>
+    <a href="#sinan" class="ban-l">打开司南 →</a>
   </div>
 
   <div class="tabs">
     <button class="tab on" data-t="tools">器 · 工具</button>
-    <button class="tab" data-t="navs" id="ai-nav">AI 导航</button>
     <button class="tab" data-t="books">卷 · 书籍</button>
     <button class="tab" data-t="games">弈 · 游戏</button>
     <button class="tab" data-t="log">录 · 进展</button>
@@ -163,27 +174,28 @@ footer{text-align:center;padding:36px 0 24px;border-top:1px solid var(--bdr);mar
       <a href="https://github.com/yuanbw2025/promo-video-maker" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-t)"></div><span style="position:relative;z-index:1">🎞️</span></div><div class="pc-bd"><span class="pc-tag">PROMO VIDEO</span><h3 class="pc-ti">项目推广视频生成器</h3><p class="pc-de">用截图和文稿生成配音、字幕和 MP4，面向项目推广视频。</p><div class="pc-go">查看仓库 →</div></div></a>
       <a href="/wechat-plugin/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:linear-gradient(135deg,#667eea,#764ba2)"></div><span style="position:relative;z-index:1">🧩</span></div><div class="pc-bd"><span class="pc-tag">CHROME EXTENSION</span><h3 class="pc-ti">公众号 HTML 插件</h3><p class="pc-de">配合云中书把精美 HTML 排版插入公众号编辑器。</p><div class="pc-go">进入 →</div></div></a>
     </div>
-  </section>
 
-  <section class="pan" id="p-navs">
-    <div class="panel-head">
-      <h2>AI 导航</h2>
-      <p>常用 AI 工具与学习入口集中放在这里。支持搜索和分类筛选，后续可以继续扩成完整个人 AI 工具箱。</p>
-    </div>
-    <div class="nav-tools">
-      <aside class="nav-side">
-        <h3>工具分类</h3>
-        <div id="catList"></div>
-      </aside>
-      <div class="nav-main">
-        <div class="search-row">
-          <input id="aiSearch" type="search" placeholder="搜索工具名、用途或关键词...">
-          <button id="aiReset">重置</button>
-        </div>
-        <div class="ai-grid" id="aiGrid"></div>
-        <div class="empty" id="aiEmpty">没有匹配的工具。</div>
+    <section class="sinan" id="sinan">
+      <div class="sinan-orbit"></div>
+      <div class="section-title">
+        <h2>司南 · AI 工具索引</h2>
+        <p>司南就是导航。这里收纳常用和小众高价值 AI 工具，按真实使用场景分类，后续可以继续扩成你的个人 AI 工具箱。</p>
       </div>
-    </div>
+      <div class="nav-tools">
+        <aside class="nav-side">
+          <h3>索引分类</h3>
+          <div id="catList"></div>
+        </aside>
+        <div class="nav-main">
+          <div class="search-row">
+            <input id="aiSearch" type="search" placeholder="搜索工具名、用途或关键词...">
+            <button id="aiReset">重置</button>
+          </div>
+          <div class="ai-grid" id="aiGrid"></div>
+          <div class="empty" id="aiEmpty">没有匹配的工具。</div>
+        </div>
+      </div>
+    </section>
   </section>
 
   <section class="pan" id="p-books">
@@ -206,7 +218,7 @@ footer{text-align:center;padding:36px 0 24px;border-top:1px solid var(--bdr);mar
   <section class="pan" id="p-log">
     <div class="panel-head"><h2>开发进展</h2><p>记录当前重要项目方向，方便回看下一步要做什么。</p></div>
     <div class="log">
-      <article class="log-item"><div class="log-time">2026-05-28</div><div><h3>个人网站回归悬象风格</h3><p>保留原有山水主题和作品集气质，在此基础上加入 AI 导航、项目入口和开发进展。</p></div></article>
+      <article class="log-item"><div class="log-time">2026-05-28</div><div><h3>个人网站回归悬象风格</h3><p>保留原有山水主题和作品集气质，在此基础上加入司南工具索引、项目入口和开发进展。</p></div></article>
       <article class="log-item"><div class="log-time">2026-05-27</div><div><h3>项目推广视频生成器</h3><p>独立仓库已建立，后续聚焦截图、文稿、配音、字幕和 MP4 导出。</p></div></article>
       <article class="log-item"><div class="log-time">2026-05-27</div><div><h3>AI 视觉探索书</h3><p>项目愿景确定：图片即 UI，点击生成下一层，导出时保留已探索层级。</p></div></article>
     </div>
@@ -229,27 +241,81 @@ function openTab(name){
   document.querySelectorAll('.pan').forEach(p=>p.classList.toggle('on',p.id==='p-'+name));
 }
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.t)));
-document.querySelectorAll('[data-open-tab]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();openTab(a.dataset.openTab);}));
 
 const aiTools=[
-  {name:'ChatGPT',cat:'通用对话',url:'https://chatgpt.com/',icon:'💬',desc:'通用问答、写作、代码和多模态助手。',tags:'对话 写作 代码 多模态'},
-  {name:'Claude',cat:'通用对话',url:'https://claude.ai/',icon:'🧠',desc:'长文本阅读、写作、分析和代码协作。',tags:'长文本 写作 代码'},
-  {name:'Gemini',cat:'通用对话',url:'https://gemini.google.com/',icon:'✦',desc:'Google 多模态 AI 助手，适合搜索、文档和图像理解。',tags:'搜索 多模态 文档'},
+  {name:'ChatGPT',cat:'通用对话',url:'https://chatgpt.com/',icon:'💬',desc:'通用问答、写作、代码、多模态和数据分析入口。',tags:'对话 写作 代码 多模态 数据'},
+  {name:'Claude',cat:'通用对话',url:'https://claude.ai/',icon:'🧠',desc:'长文本阅读、写作、分析、代码协作和严谨推理。',tags:'长文本 写作 代码 推理'},
+  {name:'Gemini',cat:'通用对话',url:'https://gemini.google.com/',icon:'✦',desc:'Google 多模态助手，适合搜索、文档、图片和生态联动。',tags:'搜索 多模态 文档 Google'},
   {name:'DeepSeek',cat:'通用对话',url:'https://chat.deepseek.com/',icon:'🔎',desc:'中文体验较好的推理、写作和代码模型入口。',tags:'中文 推理 代码'},
-  {name:'GitHub Copilot',cat:'编程开发',url:'https://github.com/features/copilot',icon:'⌨️',desc:'代码补全、仓库理解和开发辅助。',tags:'代码 IDE GitHub'},
-  {name:'Cursor',cat:'编程开发',url:'https://cursor.com/',icon:'🧑‍💻',desc:'面向 AI 编程的编辑器。',tags:'代码 编辑器 Agent'},
+  {name:'Grok',cat:'通用对话',url:'https://grok.com/',icon:'◎',desc:'面向实时信息、问答和创意对话的 AI 助手。',tags:'实时 问答 创意'},
+  {name:'Mistral Le Chat',cat:'通用对话',url:'https://chat.mistral.ai/',icon:'◆',desc:'Mistral 官方聊天入口，适合体验欧洲开源模型生态。',tags:'Mistral 开源 模型'},
+  {name:'Poe',cat:'通用对话',url:'https://poe.com/',icon:'◉',desc:'一个界面聚合多种模型和机器人，适合横向试用。',tags:'模型聚合 bot 对话'},
+
+  {name:'Perplexity',cat:'搜索研究',url:'https://www.perplexity.ai/',icon:'📚',desc:'带来源的 AI 搜索和研究入口，适合快速查证。',tags:'搜索 研究 来源 查证'},
+  {name:'NotebookLM',cat:'搜索研究',url:'https://notebooklm.google.com/',icon:'📓',desc:'把资料变成可问答、可总结的个人学习笔记本。',tags:'学习 阅读 笔记 资料'},
+  {name:'Elicit',cat:'搜索研究',url:'https://elicit.com/',icon:'📄',desc:'面向论文检索、证据整理和研究问题拆解。',tags:'论文 学术 研究'},
+  {name:'Consensus',cat:'搜索研究',url:'https://consensus.app/',icon:'✓',desc:'从论文中寻找共识和证据，适合学术问题判断。',tags:'论文 学术 证据'},
+  {name:'Exa',cat:'搜索研究',url:'https://exa.ai/',icon:'⌕',desc:'面向 AI 应用的语义搜索 API，也适合发现高质量网页。',tags:'语义搜索 API 研究'},
+  {name:'Phind',cat:'搜索研究',url:'https://www.phind.com/',icon:'⌘',desc:'面向开发者的 AI 搜索和技术问答。',tags:'技术搜索 编程 问答'},
+  {name:'Genspark',cat:'搜索研究',url:'https://www.genspark.ai/',icon:'✺',desc:'AI 搜索、页面生成和任务型研究工具。',tags:'搜索 研究 页面'},
+
+  {name:'GitHub Copilot',cat:'编程开发',url:'https://github.com/features/copilot',icon:'⌨️',desc:'代码补全、仓库理解、PR 和开发辅助。',tags:'代码 IDE GitHub'},
+  {name:'Cursor',cat:'编程开发',url:'https://cursor.com/',icon:'🧑‍💻',desc:'面向 AI 编程的编辑器，适合仓库级迭代。',tags:'代码 编辑器 Agent'},
+  {name:'Windsurf',cat:'编程开发',url:'https://windsurf.com/',icon:'🌊',desc:'AI 编程 IDE，强调连续上下文和代理式开发。',tags:'代码 IDE Agent'},
+  {name:'Claude Code',cat:'编程开发',url:'https://www.anthropic.com/claude-code',icon:'▣',desc:'Anthropic 的命令行 AI 编程工具。',tags:'代码 CLI Agent'},
+  {name:'Replit AI',cat:'编程开发',url:'https://replit.com/ai',icon:'▤',desc:'在线开发环境里的 AI 生成、调试和部署能力。',tags:'在线 IDE 部署'},
   {name:'Bolt',cat:'编程开发',url:'https://bolt.new/',icon:'⚡',desc:'用自然语言快速生成和迭代 Web 应用。',tags:'Web 原型 全栈'},
-  {name:'Vercel v0',cat:'编程开发',url:'https://v0.dev/',icon:'⬡',desc:'用提示词生成前端界面和组件。',tags:'前端 UI React'},
-  {name:'Midjourney',cat:'图像设计',url:'https://www.midjourney.com/',icon:'🎨',desc:'高质量图像生成，适合概念图和视觉探索。',tags:'图像 设计 海报'},
-  {name:'Ideogram',cat:'图像设计',url:'https://ideogram.ai/',icon:'🖼️',desc:'图像生成，适合带文字的视觉设计。',tags:'图像 字体 海报'},
+  {name:'Lovable',cat:'编程开发',url:'https://lovable.dev/',icon:'♥',desc:'用对话生成全栈应用，适合快速产品原型。',tags:'Web 原型 全栈'},
+  {name:'Vercel v0',cat:'编程开发',url:'https://v0.dev/',icon:'⬡',desc:'用提示词生成前端界面和 React 组件。',tags:'前端 UI React'},
+
+  {name:'Midjourney',cat:'图像设计',url:'https://www.midjourney.com/',icon:'🎨',desc:'高质量图像生成，适合概念图、海报和风格探索。',tags:'图像 设计 海报'},
+  {name:'Ideogram',cat:'图像设计',url:'https://ideogram.ai/',icon:'🖼️',desc:'图像生成，尤其适合带文字的视觉设计。',tags:'图像 字体 海报'},
+  {name:'Krea',cat:'图像设计',url:'https://www.krea.ai/',icon:'✎',desc:'实时图像生成、增强和视觉迭代工具。',tags:'图像 实时 增强'},
+  {name:'Leonardo',cat:'图像设计',url:'https://leonardo.ai/',icon:'🖌️',desc:'面向游戏、产品和视觉资产的图像生成平台。',tags:'图像 游戏 资产'},
+  {name:'Adobe Firefly',cat:'图像设计',url:'https://firefly.adobe.com/',icon:'🔥',desc:'Adobe 的生成式图像、文字效果和设计工具。',tags:'Adobe 图像 设计'},
+  {name:'Freepik AI',cat:'图像设计',url:'https://www.freepik.com/ai',icon:'◫',desc:'图片、设计素材和 AI 生成工具集合。',tags:'素材 图像 设计'},
   {name:'Canva',cat:'图像设计',url:'https://www.canva.com/',icon:'🧩',desc:'在线设计工具，适合封面、海报和演示素材。',tags:'设计 模板 封面'},
+
   {name:'Runway',cat:'视频音频',url:'https://runwayml.com/',icon:'🎞️',desc:'AI 视频生成、编辑和视觉创作工具。',tags:'视频 生成 剪辑'},
+  {name:'Sora',cat:'视频音频',url:'https://sora.chatgpt.com/',icon:'▧',desc:'OpenAI 视频生成入口，适合高质量视频创意探索。',tags:'视频 生成 OpenAI'},
+  {name:'Pika',cat:'视频音频',url:'https://pika.art/',icon:'▶',desc:'AI 视频生成和短视频创作工具。',tags:'视频 生成 动画'},
+  {name:'Luma Dream Machine',cat:'视频音频',url:'https://lumalabs.ai/dream-machine',icon:'◌',desc:'文本或图片生成视频，适合镜头感创意。',tags:'视频 生成 镜头'},
+  {name:'Kling AI',cat:'视频音频',url:'https://klingai.com/',icon:'◇',desc:'视频生成和图像动效工具。',tags:'视频 动效 生成'},
+  {name:'HeyGen',cat:'视频音频',url:'https://www.heygen.com/',icon:'🗣️',desc:'数字人、口播和翻译视频工具。',tags:'数字人 口播 翻译'},
   {name:'ElevenLabs',cat:'视频音频',url:'https://elevenlabs.io/',icon:'🎙️',desc:'高质量文本转语音和声音克隆。',tags:'配音 TTS 音频'},
   {name:'Suno',cat:'视频音频',url:'https://suno.com/',icon:'🎵',desc:'AI 音乐生成工具。',tags:'音乐 音频 生成'},
-  {name:'Perplexity',cat:'搜索研究',url:'https://www.perplexity.ai/',icon:'📚',desc:'带来源的 AI 搜索和研究入口。',tags:'搜索 研究 来源'},
-  {name:'Consensus',cat:'搜索研究',url:'https://consensus.app/',icon:'📄',desc:'面向论文和学术问题的检索工具。',tags:'论文 学术 研究'},
-  {name:'Hugging Face',cat:'模型平台',url:'https://huggingface.co/',icon:'🤗',desc:'模型、数据集和 AI 应用社区。',tags:'模型 数据集 开源'},
-  {name:'OpenRouter',cat:'模型平台',url:'https://openrouter.ai/',icon:'🧬',desc:'统一访问多家模型的 API 平台。',tags:'API 模型 聚合'}
+  {name:'Udio',cat:'视频音频',url:'https://www.udio.com/',icon:'♫',desc:'AI 歌曲和音乐创作平台。',tags:'音乐 歌曲 生成'},
+  {name:'Descript',cat:'视频音频',url:'https://www.descript.com/',icon:'✂',desc:'文本式音视频剪辑、播客和字幕工具。',tags:'剪辑 字幕 播客'},
+  {name:'OpusClip',cat:'视频音频',url:'https://www.opus.pro/',icon:'▸',desc:'长视频切短视频，适合内容分发。',tags:'短视频 剪辑 分发'},
+
+  {name:'Gamma',cat:'文档演示',url:'https://gamma.app/',icon:'▥',desc:'用 AI 快速生成演示文稿、网页和文档。',tags:'PPT 演示 文档'},
+  {name:'Napkin',cat:'文档演示',url:'https://www.napkin.ai/',icon:'✧',desc:'把文字变成图解、流程图和视觉表达。',tags:'图解 流程图 文档'},
+  {name:'Notion AI',cat:'文档演示',url:'https://www.notion.com/product/ai',icon:'▨',desc:'在 Notion 工作区内总结、改写、问答和整理资料。',tags:'笔记 文档 工作区'},
+  {name:'Granola',cat:'文档演示',url:'https://www.granola.ai/',icon:'◍',desc:'会议记录和要点整理工具。',tags:'会议 笔记 总结'},
+  {name:'Readwise Reader',cat:'文档演示',url:'https://readwise.io/read',icon:'▦',desc:'稍后读、标注和知识管理入口。',tags:'阅读 标注 知识管理'},
+
+  {name:'Hugging Face',cat:'模型平台',url:'https://huggingface.co/',icon:'🤗',desc:'模型、数据集、Spaces 和 AI 应用社区。',tags:'模型 数据集 开源 Spaces'},
+  {name:'OpenRouter',cat:'模型平台',url:'https://openrouter.ai/',icon:'🧬',desc:'统一访问多家模型的 API 平台。',tags:'API 模型 聚合'},
+  {name:'Replicate',cat:'模型平台',url:'https://replicate.com/',icon:'▱',desc:'在线运行和调用开源模型。',tags:'模型 API 开源'},
+  {name:'GroqCloud',cat:'模型平台',url:'https://console.groq.com/',icon:'⚙',desc:'高速推理 API 平台，适合低延迟模型调用。',tags:'推理 API 低延迟'},
+  {name:'Together AI',cat:'模型平台',url:'https://www.together.ai/',icon:'◎',desc:'开源模型训练、推理和 API 平台。',tags:'模型 API 开源'},
+  {name:'Ollama',cat:'模型平台',url:'https://ollama.com/',icon:'◒',desc:'本地运行大模型的轻量工具。',tags:'本地模型 LLM'},
+  {name:'LM Studio',cat:'模型平台',url:'https://lmstudio.ai/',icon:'▰',desc:'本地下载、运行和测试开源模型。',tags:'本地模型 桌面'},
+
+  {name:'n8n',cat:'自动化',url:'https://n8n.io/',icon:'⛓',desc:'开源工作流自动化平台，适合连接 API 和 AI 流程。',tags:'自动化 工作流 开源'},
+  {name:'Make',cat:'自动化',url:'https://www.make.com/',icon:'⌬',desc:'可视化自动化平台，适合业务流程集成。',tags:'自动化 工作流 集成'},
+  {name:'Zapier AI',cat:'自动化',url:'https://zapier.com/ai',icon:'⚑',desc:'连接 SaaS 应用和 AI 动作的自动化平台。',tags:'自动化 SaaS AI'},
+  {name:'Lindy',cat:'自动化',url:'https://www.lindy.ai/',icon:'◈',desc:'AI 助理和自动化代理平台。',tags:'Agent 助理 自动化'},
+  {name:'Manus',cat:'自动化',url:'https://manus.im/',icon:'▵',desc:'任务型 AI Agent 产品，适合观察自主执行形态。',tags:'Agent 任务 自动化'},
+
+  {name:'Futurepedia',cat:'工具目录',url:'https://www.futurepedia.io/',icon:'🗂️',desc:'大型 AI 工具目录，适合发现新产品。',tags:'目录 工具 发现'},
+  {name:'There Is An AI For That',cat:'工具目录',url:'https://theresanaiforthat.com/',icon:'☷',desc:'按需求查找 AI 工具的老牌目录。',tags:'目录 工具 发现'},
+  {name:'Product Hunt AI',cat:'工具目录',url:'https://www.producthunt.com/categories/artificial-intelligence',icon:'P',desc:'发现新发布 AI 产品和独立项目。',tags:'新品 独立项目 目录'},
+  {name:'FutureTools',cat:'工具目录',url:'https://www.futuretools.io/',icon:'F',desc:'面向实用工具发现的 AI 工具库。',tags:'目录 工具 推荐'},
+  {name:'Toolify',cat:'工具目录',url:'https://www.toolify.ai/',icon:'T',desc:'AI 工具搜索与分类目录。',tags:'目录 搜索 工具'},
+  {name:'MossAI',cat:'工具目录',url:'https://mossai.org/',icon:'M',desc:'AI 工具导航目录，适合扩充工具样本。',tags:'目录 工具 导航'},
+  {name:'Best-AI',cat:'工具目录',url:'https://best-ai.org/',icon:'B',desc:'大量 AI 工具对比与分类目录。',tags:'目录 对比 工具'},
+  {name:'ToolCrush',cat:'工具目录',url:'https://toolcrush.io/',icon:'C',desc:'透明化 AI 工具目录，适合发现小众工具。',tags:'目录 小众 工具'}
 ];
 const state={cat:'全部',q:''};
 const catList=document.getElementById('catList');
