@@ -1,844 +1,279 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="juanben">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>悬象 Xuán Xiàng | AI Product Lab</title>
-<meta name="description" content="悬象 Xuán Xiàng：个人 AI 产品实验室，展示 AI 创作、学习、排版、游戏、知识工程等自研项目。">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>悬象 · Xuán Xiàng</title>
+<meta name="description" content="悬象 Xuán Xiàng：个人 AI 工具、创作项目、游戏与 AI 导航入口。">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=ZCOOL+XiaoWei&family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#f4efe4;
-  --paper:#fffaf0;
-  --panel:#fff7e8;
-  --ink:#1e211b;
-  --muted:#696b5f;
-  --soft:#908b78;
-  --line:#ded2bd;
-  --green:#2f7d68;
-  --blue:#2e6f9e;
-  --red:#b94b3f;
-  --gold:#b07a24;
-  --violet:#76548a;
-  --shadow:0 18px 60px rgba(51,40,24,.12);
-  --radius:8px;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{
-  margin:0;
-  color:var(--ink);
-  background:
-    linear-gradient(90deg,rgba(30,33,27,.04) 1px,transparent 1px) 0 0/48px 48px,
-    linear-gradient(180deg,#f8f2e7 0%,#efe8da 46%,#f6f3ed 100%);
-  font-family:"Inter","Noto Sans SC",system-ui,sans-serif;
-  -webkit-font-smoothing:antialiased;
-}
+[data-theme="juanben"]{--bg:#EDE4D0;--card:rgba(255,250,240,.72);--card-h:rgba(255,250,240,.94);--pri:#6B3410;--pri-l:rgba(107,52,16,.1);--acc:#6B8F50;--acc-l:rgba(107,143,80,.1);--txt:#2B1E10;--txt2:#6A5A40;--txt3:#9A8A70;--bdr:rgba(43,30,16,.1);--nav:rgba(237,228,208,.92);--ban:linear-gradient(90deg,rgba(107,52,16,.06),rgba(107,143,80,.05));--mtn:rgba(107,52,16,.06);--mtn2:rgba(107,143,80,.08);--ink:rgba(107,52,16,.2);--shd:rgba(0,0,0,.08);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#8C501E,#B87830);--cover-g:linear-gradient(135deg,#6B8F50,#8C501E);--cover-b:linear-gradient(135deg,#345A7A,#6B8F50)}
+[data-theme="muse"]{--bg:#1E2A28;--card:rgba(40,55,52,.6);--card-h:rgba(50,68,64,.85);--pri:#6EC8A0;--pri-l:rgba(110,200,160,.12);--acc:#D4A843;--acc-l:rgba(212,168,67,.1);--txt:#E8E4D8;--txt2:rgba(232,228,216,.6);--txt3:rgba(232,228,216,.35);--bdr:rgba(110,200,160,.1);--nav:rgba(30,42,40,.93);--ban:linear-gradient(90deg,rgba(110,200,160,.06),rgba(212,168,67,.04));--mtn:rgba(110,200,160,.06);--mtn2:rgba(110,200,160,.1);--ink:rgba(110,200,160,.3);--shd:rgba(0,0,0,.25);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#2D5A47,#6EC8A0);--cover-g:linear-gradient(135deg,#4A3068,#6EC8A0);--cover-b:linear-gradient(135deg,#243D5A,#6EC8A0)}
+[data-theme="chongyan"]{--bg:#0C0E12;--card:rgba(20,25,35,.65);--card-h:rgba(30,38,55,.88);--pri:#46A0DC;--pri-l:rgba(70,160,220,.1);--acc:#D4A040;--acc-l:rgba(212,160,64,.1);--txt:#E8E0D0;--txt2:rgba(232,224,208,.5);--txt3:rgba(232,224,208,.25);--bdr:rgba(70,160,220,.08);--nav:rgba(12,14,18,.95);--ban:linear-gradient(90deg,rgba(70,160,220,.04),rgba(212,160,64,.03));--mtn:rgba(70,160,220,.04);--mtn2:rgba(70,160,220,.07);--ink:rgba(70,160,220,.35);--shd:rgba(0,0,0,.4);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#0A2040,#46A0DC);--cover-g:linear-gradient(135deg,#3A1040,#46A0DC);--cover-b:linear-gradient(135deg,#182130,#46A0DC)}
+[data-theme="jiangshan"]{--bg:#F0EBE0;--card:rgba(255,255,255,.72);--card-h:rgba(255,255,255,.9);--pri:#2D5A47;--pri-l:rgba(58,112,92,.1);--acc:#C17240;--acc-l:rgba(193,114,64,.1);--txt:#1A1A1A;--txt2:#5A5040;--txt3:#8A8070;--bdr:rgba(0,0,0,.08);--nav:rgba(240,235,224,.92);--ban:linear-gradient(90deg,rgba(58,112,92,.06),rgba(193,114,64,.04));--mtn:rgba(58,112,92,.08);--mtn2:rgba(58,112,92,.14);--ink:rgba(58,112,92,.25);--shd:rgba(0,0,0,.08);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#3A705C,#5B9C7A);--cover-g:linear-gradient(135deg,#4A3D7A,#3A705C);--cover-b:linear-gradient(135deg,#2F5F80,#3A705C)}
+[data-theme="shuimo"]{--bg:#F2F0ED;--card:rgba(255,255,255,.82);--card-h:rgba(255,255,255,.95);--pri:#111;--pri-l:rgba(0,0,0,.06);--acc:#C44B3F;--acc-l:rgba(196,75,63,.08);--txt:#0A0A0A;--txt2:#555;--txt3:#888;--bdr:rgba(0,0,0,.1);--nav:rgba(242,240,237,.94);--ban:linear-gradient(90deg,rgba(0,0,0,.03),rgba(196,75,63,.03));--mtn:rgba(0,0,0,.06);--mtn2:rgba(0,0,0,.12);--ink:rgba(0,0,0,.15);--shd:rgba(0,0,0,.08);--ff:'Ma Shan Zheng','Noto Serif SC',cursive;--cover-t:linear-gradient(135deg,#2A2A2A,#555);--cover-g:linear-gradient(135deg,#444,#222);--cover-b:linear-gradient(135deg,#333,#666)}
+[data-theme="danxia"]{--bg:#2A1F1F;--card:rgba(50,38,38,.6);--card-h:rgba(65,48,48,.85);--pri:#E8624A;--pri-l:rgba(232,98,74,.12);--acc:#6EB89E;--acc-l:rgba(110,184,158,.1);--txt:#F0E8E0;--txt2:rgba(240,232,224,.55);--txt3:rgba(240,232,224,.3);--bdr:rgba(200,80,60,.1);--nav:rgba(42,31,31,.94);--ban:linear-gradient(90deg,rgba(200,80,60,.05),rgba(110,184,158,.03));--mtn:rgba(139,32,32,.1);--mtn2:rgba(139,32,32,.16);--ink:rgba(232,98,74,.3);--shd:rgba(0,0,0,.3);--ff:'ZCOOL XiaoWei','Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#8B2020,#C85040);--cover-g:linear-gradient(135deg,#3A5A4A,#8B2020);--cover-b:linear-gradient(135deg,#463E6A,#C85040)}
+[data-theme="qingtong"]{--bg:#222820;--card:rgba(40,50,36,.6);--card-h:rgba(55,65,48,.85);--pri:#C8B850;--pri-l:rgba(200,184,80,.1);--acc:#8ABB70;--acc-l:rgba(138,187,112,.12);--txt:#E0DCC8;--txt2:rgba(224,220,200,.55);--txt3:rgba(224,220,200,.3);--bdr:rgba(200,184,80,.08);--nav:rgba(34,40,32,.94);--ban:linear-gradient(90deg,rgba(200,184,80,.04),rgba(138,187,112,.03));--mtn:rgba(74,96,48,.1);--mtn2:rgba(200,184,80,.06);--ink:rgba(200,184,80,.25);--shd:rgba(0,0,0,.3);--ff:'ZCOOL QingKe HuangYou','Noto Serif SC',sans-serif;--cover-t:linear-gradient(135deg,#4A6030,#8ABB70);--cover-g:linear-gradient(135deg,#6A5020,#C8B850);--cover-b:linear-gradient(135deg,#355A60,#8ABB70)}
+[data-theme="moye"]{--bg:#08090E;--card:rgba(16,20,30,.65);--card-h:rgba(25,32,48,.88);--pri:#50DCB4;--pri-l:rgba(80,220,180,.1);--acc:#E8B44C;--acc-l:rgba(232,180,76,.1);--txt:#F0ECE2;--txt2:rgba(240,236,226,.45);--txt3:rgba(240,236,226,.22);--bdr:rgba(80,220,180,.08);--nav:rgba(8,9,14,.96);--ban:linear-gradient(90deg,rgba(80,220,180,.04),rgba(232,180,76,.03));--mtn:rgba(80,220,180,.03);--mtn2:rgba(80,220,180,.06);--ink:rgba(80,220,180,.4);--shd:rgba(0,0,0,.45);--ff:'Noto Serif SC',serif;--cover-t:linear-gradient(135deg,#0A2A20,#50DCB4);--cover-g:linear-gradient(135deg,#2A1550,#50DCB4);--cover-b:linear-gradient(135deg,#142446,#50DCB4)}
+[data-theme="ziqi"]{--bg:#0E0A14;--card:rgba(22,16,35,.65);--card-h:rgba(35,25,55,.88);--pri:#B478DC;--pri-l:rgba(180,120,220,.1);--acc:#E8A040;--acc-l:rgba(232,160,64,.1);--txt:#EAE4F0;--txt2:rgba(234,228,240,.45);--txt3:rgba(234,228,240,.22);--bdr:rgba(180,120,220,.08);--nav:rgba(14,10,20,.96);--ban:linear-gradient(90deg,rgba(180,120,220,.04),rgba(232,160,64,.03));--mtn:rgba(106,48,144,.06);--mtn2:rgba(180,120,220,.05);--ink:rgba(180,120,220,.4);--shd:rgba(0,0,0,.45);--ff:'Ma Shan Zheng','Noto Serif SC',cursive;--cover-t:linear-gradient(135deg,#2A1040,#B478DC);--cover-g:linear-gradient(135deg,#0A2A20,#6A3090);--cover-b:linear-gradient(135deg,#162B54,#B478DC)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--ff);background:var(--bg);color:var(--txt);overflow-x:hidden;transition:background .5s,color .4s;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
-button,input,select{font:inherit}
+button,input,select{font-family:inherit}
 button{cursor:pointer}
-.site-shell{min-height:100vh}
-.nav{
-  position:sticky;
-  top:0;
-  z-index:50;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:20px;
-  padding:14px clamp(18px,4vw,56px);
-  border-bottom:1px solid rgba(80,66,42,.14);
-  background:rgba(248,242,231,.88);
-  backdrop-filter:blur(16px);
-}
-.brand{display:flex;align-items:center;gap:12px;min-width:0}
-.brand-mark{
-  width:36px;
-  height:36px;
-  border:1px solid rgba(30,33,27,.18);
-  display:grid;
-  place-items:center;
-  background:var(--ink);
-  color:var(--paper);
-  font-family:"Noto Serif SC",serif;
-  font-weight:900;
-  border-radius:8px;
-}
-.brand-name{font-weight:900;letter-spacing:.04em;white-space:nowrap}
-.brand-sub{font-size:12px;color:var(--muted);white-space:nowrap}
-.nav-links{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.nav-links a,.ghost-btn{
-  border:1px solid transparent;
-  background:transparent;
-  color:var(--muted);
-  padding:8px 10px;
-  border-radius:8px;
-  font-size:13px;
-  font-weight:700;
-}
-.nav-links a:hover,.ghost-btn:hover{color:var(--ink);background:rgba(255,255,255,.55);border-color:rgba(80,66,42,.12)}
-.hero{
-  min-height:calc(100vh - 65px);
-  display:grid;
-  grid-template-columns:minmax(0,1.02fr) minmax(360px,.98fr);
-  gap:34px;
-  align-items:center;
-  padding:40px clamp(18px,5vw,72px) 28px;
-  border-bottom:1px solid rgba(80,66,42,.13);
-}
-.hero-copy{max-width:760px}
-.eyebrow{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  color:var(--green);
-  font-size:12px;
-  font-weight:900;
-  letter-spacing:.18em;
-  text-transform:uppercase;
-  margin-bottom:18px;
-}
-.eyebrow::before{content:"";width:28px;height:2px;background:var(--green)}
-h1{
-  margin:0;
-  font-family:"Noto Serif SC",serif;
-  font-size:clamp(44px,7vw,96px);
-  line-height:1.02;
-  letter-spacing:0;
-}
-.hero-lead{
-  max-width:650px;
-  margin:22px 0 0;
-  color:var(--muted);
-  font-size:clamp(16px,2vw,20px);
-  line-height:1.85;
-}
-.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
-.btn{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  min-height:42px;
-  border:1px solid rgba(30,33,27,.14);
-  border-radius:8px;
-  padding:0 16px;
-  font-weight:900;
-  background:var(--ink);
-  color:var(--paper);
-  box-shadow:0 10px 24px rgba(30,33,27,.16);
-}
-.btn.secondary{background:rgba(255,255,255,.5);color:var(--ink);box-shadow:none}
-.metric-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:34px;max-width:690px}
-.metric{
-  border:1px solid rgba(80,66,42,.14);
-  border-radius:8px;
-  background:rgba(255,250,240,.55);
-  padding:14px;
-}
-.metric strong{display:block;font-size:24px;line-height:1;color:var(--ink)}
-.metric span{display:block;margin-top:7px;font-size:12px;color:var(--muted);font-weight:700}
-.atlas{
-  position:relative;
-  min-height:540px;
-  border:1px solid rgba(80,66,42,.16);
-  border-radius:8px;
-  overflow:hidden;
-  background:
-    linear-gradient(135deg,rgba(47,125,104,.12),transparent 38%),
-    linear-gradient(225deg,rgba(176,122,36,.12),transparent 36%),
-    rgba(255,250,240,.66);
-  box-shadow:var(--shadow);
-}
-.atlas::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    linear-gradient(90deg,rgba(30,33,27,.07) 1px,transparent 1px) 0 0/54px 54px,
-    linear-gradient(0deg,rgba(30,33,27,.05) 1px,transparent 1px) 0 0/54px 54px;
-  mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),rgba(0,0,0,.08));
-}
-.atlas-svg{position:absolute;inset:0;width:100%;height:100%;opacity:.86}
-.node{
-  position:absolute;
-  width:170px;
-  border:1px solid rgba(30,33,27,.15);
-  border-radius:8px;
-  background:rgba(255,252,246,.86);
-  backdrop-filter:blur(12px);
-  padding:12px;
-  box-shadow:0 12px 28px rgba(51,40,24,.1);
-}
-.node small{display:block;color:var(--soft);font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
-.node strong{display:block;margin-top:5px;font-size:15px}
-.node span{display:block;margin-top:6px;color:var(--muted);font-size:12px;line-height:1.5}
-.node.a{left:7%;top:10%;border-color:rgba(47,125,104,.35)}
-.node.b{right:8%;top:17%;border-color:rgba(46,111,158,.35)}
-.node.c{left:12%;bottom:15%;border-color:rgba(185,75,63,.35)}
-.node.d{right:13%;bottom:12%;border-color:rgba(176,122,36,.38)}
-.node.center{
-  width:210px;
-  left:50%;
-  top:49%;
-  transform:translate(-50%,-50%);
-  background:var(--ink);
-  color:var(--paper);
-}
-.node.center span,.node.center small{color:rgba(255,250,240,.72)}
-.section{padding:58px clamp(18px,5vw,72px)}
-.section-head{
-  display:flex;
-  align-items:end;
-  justify-content:space-between;
-  gap:24px;
-  margin-bottom:22px;
-}
-.section-kicker{margin:0 0 8px;color:var(--green);font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
-h2{margin:0;font-size:clamp(28px,4vw,48px);letter-spacing:0;font-family:"Noto Serif SC",serif;line-height:1.15}
-.section-note{max-width:520px;margin:0;color:var(--muted);line-height:1.7}
-.control-bar{
-  position:sticky;
-  top:65px;
-  z-index:40;
-  display:grid;
-  grid-template-columns:minmax(260px,1fr) 180px 180px 132px;
-  gap:10px;
-  padding:14px clamp(18px,5vw,72px);
-  border-top:1px solid rgba(80,66,42,.12);
-  border-bottom:1px solid rgba(80,66,42,.12);
-  background:rgba(246,239,226,.9);
-  backdrop-filter:blur(16px);
-}
-.field{position:relative}
-.field input,.field select{
-  width:100%;
-  height:42px;
-  border:1px solid rgba(80,66,42,.18);
-  border-radius:8px;
-  background:rgba(255,250,240,.78);
-  color:var(--ink);
-  padding:0 12px;
-  outline:none;
-}
-.field input{padding-left:38px}
-.field svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--soft)}
-.field input:focus,.field select:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(47,125,104,.11)}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.project-card{
-  border:1px solid rgba(80,66,42,.14);
-  border-radius:8px;
-  background:rgba(255,250,240,.68);
-  overflow:hidden;
-  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
-}
-.project-card:hover{transform:translateY(-4px);border-color:rgba(47,125,104,.44);box-shadow:0 18px 44px rgba(51,40,24,.12)}
-.cover{
-  min-height:128px;
-  padding:16px;
-  display:flex;
-  align-items:end;
-  justify-content:space-between;
-  color:#fff;
-  background:#2f7d68;
-  position:relative;
-  overflow:hidden;
-}
-.cover::after{
-  content:"";
-  position:absolute;
-  inset:auto -30px -56px auto;
-  width:190px;
-  height:150px;
-  border:1px solid rgba(255,255,255,.24);
-  transform:rotate(-17deg);
-}
-.cover strong{position:relative;z-index:1;font-size:26px;font-weight:900;letter-spacing:.02em}
-.cover span{position:relative;z-index:1;font-size:12px;font-weight:900;text-transform:uppercase;opacity:.85}
-.project-body{padding:16px}
-.project-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.project-title{margin:0;font-size:19px;line-height:1.3}
-.badge{
-  flex:none;
-  display:inline-flex;
-  align-items:center;
-  min-height:24px;
-  padding:0 8px;
-  border:1px solid rgba(80,66,42,.14);
-  border-radius:999px;
-  color:var(--muted);
-  font-size:11px;
-  font-weight:900;
-  background:rgba(255,255,255,.5);
-}
-.project-desc{margin:0;color:var(--muted);font-size:14px;line-height:1.72;min-height:72px}
-.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
-.tag{font-size:11px;font-weight:800;color:var(--soft);background:rgba(30,33,27,.05);border-radius:999px;padding:5px 8px}
-.project-links{display:flex;gap:8px;margin-top:16px}
-.project-links a{
-  flex:1;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  min-height:36px;
-  border:1px solid rgba(80,66,42,.14);
-  border-radius:8px;
-  color:var(--ink);
-  font-size:13px;
-  font-weight:900;
-  background:rgba(255,255,255,.46);
-}
-.project-links a.primary-link{background:var(--ink);color:var(--paper)}
-.empty-state{
-  display:none;
-  border:1px dashed rgba(80,66,42,.25);
-  border-radius:8px;
-  padding:28px;
-  text-align:center;
-  color:var(--muted);
-  background:rgba(255,250,240,.5);
-}
-.timeline-wrap{
-  display:grid;
-  grid-template-columns:280px minmax(0,1fr);
-  gap:28px;
-  align-items:start;
-}
-.timeline-index{
-  position:sticky;
-  top:142px;
-  border:1px solid rgba(80,66,42,.14);
-  border-radius:8px;
-  background:rgba(255,250,240,.68);
-  padding:16px;
-}
-.timeline-index h3{margin:0 0 12px;font-size:16px}
-.timeline-index button{
-  display:flex;
-  width:100%;
-  justify-content:space-between;
-  align-items:center;
-  border:0;
-  border-radius:8px;
-  background:transparent;
-  padding:10px;
-  color:var(--muted);
-  font-weight:800;
-}
-.timeline-index button.active,.timeline-index button:hover{background:rgba(47,125,104,.1);color:var(--green)}
-.timeline{
-  position:relative;
-  padding-left:28px;
-}
-.timeline::before{
-  content:"";
-  position:absolute;
-  left:8px;
-  top:0;
-  bottom:0;
-  width:2px;
-  background:linear-gradient(var(--green),var(--gold),var(--red),var(--blue));
-}
-.event{
-  position:relative;
-  margin-bottom:14px;
-  border:1px solid rgba(80,66,42,.14);
-  border-radius:8px;
-  background:rgba(255,250,240,.68);
-  padding:16px;
-}
-.event::before{
-  content:"";
-  position:absolute;
-  left:-26px;
-  top:20px;
-  width:12px;
-  height:12px;
-  border-radius:50%;
-  background:var(--paper);
-  border:3px solid var(--green);
-}
-.event time{display:inline-flex;color:var(--gold);font-weight:900;font-size:12px;letter-spacing:.08em}
-.event h3{margin:7px 0 8px;font-size:20px}
-.event p{margin:0;color:var(--muted);line-height:1.75}
-.lab-board{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:16px;
-}
-.lab-panel{
-  border:1px solid rgba(80,66,42,.14);
-  border-radius:8px;
-  background:rgba(255,250,240,.66);
-  padding:18px;
-}
-.lab-panel h3{margin:0 0 10px;font-size:20px}
-.lab-panel p{margin:0;color:var(--muted);line-height:1.75}
-.pipeline{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
-  margin-top:18px;
-}
-.pipe-step{
-  border:1px solid rgba(80,66,42,.14);
-  border-radius:8px;
-  background:rgba(255,255,255,.48);
-  padding:14px;
-}
-.pipe-step strong{display:block;font-size:15px}
-.pipe-step span{display:block;margin-top:8px;color:var(--muted);font-size:13px;line-height:1.55}
-.footer{
-  padding:34px clamp(18px,5vw,72px);
-  border-top:1px solid rgba(80,66,42,.14);
-  color:var(--muted);
-  display:flex;
-  justify-content:space-between;
-  gap:18px;
-  flex-wrap:wrap;
-}
-.hidden{display:none!important}
-@media(max-width:1060px){
-  .hero{grid-template-columns:1fr;min-height:auto}
-  .atlas{min-height:470px}
-  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .control-bar{grid-template-columns:1fr 1fr}
-  .timeline-wrap{grid-template-columns:1fr}
-  .timeline-index{position:relative;top:auto}
-}
-@media(max-width:720px){
-  .nav{align-items:flex-start}
-  .brand-sub,.nav-links a[href="#timeline"],.nav-links a[href="#lab"]{display:none}
-  .hero{padding-top:28px}
-  .metric-row{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .control-bar{position:relative;top:auto;grid-template-columns:1fr}
-  .grid,.lab-board,.pipeline{grid-template-columns:1fr}
-  .node{width:148px}
-  .node.center{width:180px}
-}
+.mtn-bg{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden}
+.mtn-bg svg{width:100%;height:100%}
+nav{position:fixed;top:0;width:100%;z-index:100;padding:0 4%;height:56px;display:flex;align-items:center;justify-content:space-between;background:var(--nav);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--bdr);transition:background .5s}
+.n-brand{font-size:24px;font-weight:900;color:var(--pri);letter-spacing:6px}
+.n-motto{font-size:12px;color:var(--txt2);letter-spacing:3px}
+.n-ctrls{display:flex;align-items:center;gap:10px}
+.n-btn{background:var(--pri-l);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;color:var(--pri);font-size:12px;cursor:pointer;transition:all .3s;letter-spacing:1px}
+.n-btn:hover{background:var(--pri);color:var(--bg)}
+select.n-btn{appearance:none;-webkit-appearance:none;padding-right:24px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:10px}
+main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:74px 20px 30px}
+.ban{background:var(--ban);border:1px solid var(--bdr);border-radius:12px;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;transition:all .4s;font-size:13px}
+.ban strong{color:var(--pri)}.ban-t{color:var(--txt2)}
+.ban-l{color:var(--acc);font-weight:700;font-size:12px;white-space:nowrap;transition:opacity .3s}
+.ban-l:hover{opacity:.7}
+.tabs{display:flex;border-bottom:2px solid var(--bdr);margin-bottom:28px}
+.tab{flex:1;padding:14px 0;text-align:center;font-size:15px;font-weight:700;letter-spacing:4px;color:var(--txt3);background:none;border:none;position:relative;transition:color .3s}
+.tab:hover{color:var(--pri)}
+.tab.on{color:var(--pri)}
+.tab::after{content:'';position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:0;height:3px;background:var(--pri);border-radius:2px;transition:width .4s cubic-bezier(.22,.61,.36,1);box-shadow:0 0 10px var(--ink)}
+.tab.on::after{width:55%}
+.pan{display:none;animation:fi .4s ease}.pan.on{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px}
+.panel-head h1,.panel-head h2{font-size:26px;letter-spacing:3px}
+.panel-head p{max-width:470px;color:var(--txt2);font-size:13px;line-height:1.7}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+.pc{background:var(--card);border:1px solid var(--bdr);border-radius:16px;overflow:hidden;color:inherit;transition:all .35s cubic-bezier(.175,.885,.32,1.1);backdrop-filter:blur(8px);display:flex;flex-direction:column}
+.pc:hover{transform:translateY(-5px);background:var(--card-h);box-shadow:0 16px 40px var(--shd);border-color:var(--pri)}
+.pc-cv{height:128px;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative;overflow:hidden}
+.pc-cv-bg{position:absolute;top:0;left:0;width:100%;height:100%;opacity:.88}
+.pc-bd{padding:17px;flex:1;display:flex;flex-direction:column}
+.pc-tag{display:inline-block;font-family:Inter,sans-serif;font-size:10px;letter-spacing:1.8px;color:var(--pri);background:var(--pri-l);padding:3px 10px;border-radius:20px;margin-bottom:8px;width:fit-content;font-weight:800}
+.pc-ti{font-size:18px;font-weight:900;margin-bottom:6px;letter-spacing:1px}
+.pc-de{font-size:13px;color:var(--txt2);line-height:1.65;flex:1}
+.pc-go{margin-top:14px;font-size:12px;color:var(--acc);font-weight:700;letter-spacing:1px;opacity:0;transform:translateX(-8px);transition:all .3s}
+.pc:hover .pc-go{opacity:1;transform:translateX(0)}
+.ph{background:var(--card);border:2px dashed var(--bdr);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:225px;color:var(--txt3);font-size:13px;letter-spacing:2px}
+.ph-i{font-size:32px;margin-bottom:10px;opacity:.45}
+.nav-tools{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px}
+.nav-side,.nav-main{background:var(--card);border:1px solid var(--bdr);border-radius:16px;backdrop-filter:blur(8px)}
+.nav-side{padding:14px;height:max-content}
+.nav-side h3{font-size:16px;margin-bottom:12px;letter-spacing:2px}
+.cat-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:transparent;border:1px solid transparent;border-radius:10px;color:var(--txt2);padding:10px 12px;font-size:13px;font-weight:800;text-align:left}
+.cat-btn:hover,.cat-btn.on{background:var(--pri-l);border-color:var(--bdr);color:var(--pri)}
+.cat-btn span:last-child{font-family:Inter,sans-serif;color:var(--txt3);font-size:12px}
+.nav-main{padding:16px}
+.search-row{display:flex;gap:10px;margin-bottom:14px}
+.search-row input{flex:1;height:42px;border:1px solid var(--bdr);border-radius:10px;background:rgba(255,255,255,.35);color:var(--txt);padding:0 14px;outline:none;font-size:14px}
+.search-row input:focus{border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-l)}
+.search-row button{border:1px solid var(--bdr);background:var(--pri-l);color:var(--pri);border-radius:10px;padding:0 14px;font-weight:800;font-size:13px}
+.ai-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.ai-card{display:flex;flex-direction:column;min-height:154px;background:rgba(255,255,255,.28);border:1px solid var(--bdr);border-radius:12px;padding:14px;transition:all .25s}
+.ai-card:hover{background:var(--card-h);border-color:var(--pri);transform:translateY(-3px);box-shadow:0 10px 28px var(--shd)}
+.ai-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ai-ico{width:34px;height:34px;border-radius:10px;background:var(--pri-l);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.ai-card h3{font-size:15px;letter-spacing:1px}
+.ai-card p{font-size:12px;color:var(--txt2);line-height:1.58;flex:1}
+.ai-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
+.ai-label{font-size:11px;color:var(--txt3);background:var(--acc-l);padding:4px 8px;border-radius:20px;font-weight:800}
+.ai-open{font-size:12px;color:var(--acc);font-weight:900}
+.empty{display:none;text-align:center;color:var(--txt3);border:1px dashed var(--bdr);border-radius:12px;padding:28px;margin-top:12px}
+.log{display:grid;gap:12px}
+.log-item{display:grid;grid-template-columns:110px minmax(0,1fr);gap:16px;background:var(--card);border:1px solid var(--bdr);border-radius:14px;padding:16px;backdrop-filter:blur(8px)}
+.log-time{font-family:Inter,sans-serif;color:var(--acc);font-weight:900;font-size:12px;letter-spacing:1px}
+.log-item h3{font-size:17px;margin-bottom:6px}
+.log-item p{font-size:13px;color:var(--txt2);line-height:1.7}
+footer{text-align:center;padding:36px 0 24px;border-top:1px solid var(--bdr);margin-top:50px;color:var(--txt3);font-size:12px;letter-spacing:2px}
+.f-stats{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:6px;opacity:.6}
+@media(max-width:820px){.n-motto{display:none}.n-brand{font-size:20px;letter-spacing:4px}.tab{font-size:13px;letter-spacing:1px}.panel-head{display:block}.panel-head p{margin-top:8px}.nav-tools{grid-template-columns:1fr}.cards,.ai-grid{grid-template-columns:1fr}.search-row{display:grid}.log-item{grid-template-columns:1fr}}
 </style>
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<script>var _hmt=_hmt||[];(function(){var h=document.createElement("script");h.src="https://hm.baidu.com/hm.js?bd20cb072169d13aec6393a5328314f6";var s=document.getElementsByTagName("script")[0];s.parentNode.insertBefore(h,s)})();</script>
 </head>
 <body>
-<div class="site-shell">
-  <nav class="nav">
-    <a class="brand" href="#">
-      <span class="brand-mark">悬</span>
-      <span>
-        <span class="brand-name">悬象 Xuán Xiàng</span>
-        <span class="brand-sub">AI Product Lab</span>
-      </span>
-    </a>
-    <div class="nav-links">
-      <a href="#projects">项目</a>
-      <a href="#timeline">时间线</a>
-      <a href="#lab">实验室</a>
-      <button class="ghost-btn" id="resetAll">重置筛选</button>
-    </div>
-  </nav>
-
-  <header class="hero">
-    <section class="hero-copy">
-      <p class="eyebrow">Personal AI Product Operating System</p>
-      <h1>悬象 Xuán Xiàng</h1>
-      <p class="hero-lead">这里不是普通作品集，而是一张持续生长的 AI 产品地图。写作、排版、学习、游戏、视频、知识工程都被放在同一个可探索界面里，方便快速理解每个项目能做什么、走到哪一步、下一步要往哪里去。</p>
-      <div class="hero-actions">
-        <a class="btn" href="#projects">探索项目</a>
-        <a class="btn secondary" href="#timeline">查看演化时间线</a>
-      </div>
-      <div class="metric-row" id="metrics"></div>
-    </section>
-
-    <section class="atlas" aria-label="项目地图">
-      <svg class="atlas-svg" viewBox="0 0 640 540" role="img" aria-label="悬象项目关系图">
-        <path d="M112 98 C188 160 238 200 320 266" fill="none" stroke="rgba(47,125,104,.42)" stroke-width="2"/>
-        <path d="M520 132 C460 176 408 220 320 266" fill="none" stroke="rgba(46,111,158,.38)" stroke-width="2"/>
-        <path d="M126 426 C196 364 246 316 320 266" fill="none" stroke="rgba(185,75,63,.34)" stroke-width="2"/>
-        <path d="M510 420 C446 358 398 314 320 266" fill="none" stroke="rgba(176,122,36,.38)" stroke-width="2"/>
-        <path d="M156 160 C274 104 410 102 506 168" fill="none" stroke="rgba(30,33,27,.16)" stroke-width="1.5" stroke-dasharray="8 8"/>
-        <path d="M154 390 C278 470 412 466 512 382" fill="none" stroke="rgba(30,33,27,.16)" stroke-width="1.5" stroke-dasharray="8 8"/>
-      </svg>
-      <article class="node a"><small>Creation</small><strong>StoryForge</strong><span>小说、世界观、章节生产线</span></article>
-      <article class="node b"><small>Publishing</small><strong>YunType</strong><span>公众号排版与图文输出</span></article>
-      <article class="node center"><small>Portfolio Core</small><strong>项目不是列表，是地图</strong><span>搜索、筛选、时间线、路线图合成一个入口</span></article>
-      <article class="node c"><small>Learning</small><strong>视觉探索书</strong><span>图片即 UI，点击生成下一层知识页面</span></article>
-      <article class="node d"><small>Promotion</small><strong>Promo Video Maker</strong><span>截图和文稿自动生成推广视频</span></article>
-    </section>
-  </header>
-
-  <section class="control-bar" id="projects">
-    <label class="field">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="searchInput" type="search" placeholder="搜索项目、能力、关键词">
-    </label>
-    <label class="field">
-      <select id="categoryFilter"><option value="">全部类别</option></select>
-    </label>
-    <label class="field">
-      <select id="statusFilter"><option value="">全部状态</option></select>
-    </label>
-    <label class="field">
-      <select id="sortSelect">
-        <option value="priority">重点优先</option>
-        <option value="recent">最近更新</option>
-        <option value="name">名称排序</option>
-      </select>
-    </label>
-  </section>
-
-  <section class="section">
-    <div class="section-head">
-      <div>
-        <p class="section-kicker">Project Explorer</p>
-        <h2>自研项目矩阵</h2>
-      </div>
-      <p class="section-note">参考 `easy-learn-ai` 的时间线和筛选思路，这里把个人项目变成可检索的数据面板。后续新增项目时，只需要补数据，就能自动进入筛选、统计和时间线。</p>
-    </div>
-    <div class="grid" id="projectGrid"></div>
-    <div class="empty-state" id="emptyState">没有匹配的项目。换个关键词或重置筛选。</div>
-  </section>
-
-  <section class="section" id="timeline">
-    <div class="section-head">
-      <div>
-        <p class="section-kicker">Timeline</p>
-        <h2>产品演化时间线</h2>
-      </div>
-      <p class="section-note">这部分直接吸收了 `easy-learn-ai` 最有价值的结构：用时间线组织信息，用筛选和搜索降低浏览成本。</p>
-    </div>
-    <div class="timeline-wrap">
-      <aside class="timeline-index">
-        <h3>按方向查看</h3>
-        <div id="timelineIndex"></div>
-      </aside>
-      <div class="timeline" id="timelineList"></div>
-    </div>
-  </section>
-
-  <section class="section" id="lab">
-    <div class="section-head">
-      <div>
-        <p class="section-kicker">Operating Model</p>
-        <h2>下一阶段主线</h2>
-      </div>
-      <p class="section-note">个人网站不只展示作品，还要承接产品分发、路线图、演示材料和学习实验。</p>
-    </div>
-    <div class="lab-board">
-      <article class="lab-panel">
-        <h3>AI 视觉探索书</h3>
-        <p>最终形态是“图片就是 UI”：输入主题或上传图片，AI 生成第一层视觉页面；用户点击任意区域后，视觉模型理解点击位置并生成下一层页面；导出的单 HTML 保留所有已探索层级。</p>
-      </article>
-      <article class="lab-panel">
-        <h3>项目推广自动化</h3>
-        <p>Promo Video Maker 负责把截图和文稿变成配音字幕视频。个人网站负责承接这些项目入口，形成从开发、展示、传播到反馈的闭环。</p>
-      </article>
-    </div>
-    <div class="pipeline">
-      <div class="pipe-step"><strong>输入</strong><span>项目、截图、文稿、学习材料、知识主题。</span></div>
-      <div class="pipe-step"><strong>生成</strong><span>页面、课件、互动节点、视频脚本、项目说明。</span></div>
-      <div class="pipe-step"><strong>探索</strong><span>搜索、筛选、点击下钻、时间线回看。</span></div>
-      <div class="pipe-step"><strong>分发</strong><span>网站、单 HTML、视频、公众号和 GitHub。</span></div>
-    </div>
-  </section>
-
-  <footer class="footer">
-    <span>© 2026 悬象 Xuán Xiàng</span>
-    <span>Built as a searchable AI product atlas.</span>
-  </footer>
+<div class="mtn-bg">
+<svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+<path d="M0,900 L0,600 Q80,460 180,530 Q280,380 400,480 Q520,340 650,440 Q780,320 900,420 Q1020,300 1150,390 Q1280,310 1440,370 L1440,900Z" fill="var(--mtn)" opacity=".7"/>
+<path d="M0,900 L0,680 Q120,560 260,640 Q400,520 560,610 Q720,490 880,590 Q1040,480 1200,560 Q1340,500 1440,540 L1440,900Z" fill="var(--mtn)" opacity="1"/>
+<path d="M0,900 L0,760 Q180,700 380,740 Q580,680 780,730 Q980,670 1180,720 Q1340,690 1440,710 L1440,900Z" fill="var(--mtn2)" opacity="1"/>
+<path d="M150,740 L155,700 L160,740Z M155,710 L160,680 L165,710Z" fill="var(--mtn2)" opacity=".6"/>
+<path d="M350,720 L356,670 L362,720Z M356,685 L362,650 L368,685Z" fill="var(--mtn2)" opacity=".5"/>
+<path d="M900,700 L907,645 L914,700Z M907,660 L914,620 L921,660Z" fill="var(--mtn)" opacity=".5"/>
+<path d="M1100,680 L1108,625 L1116,680Z" fill="var(--mtn)" opacity=".4"/>
+<circle cx="1300" cy="120" r="35" fill="var(--acc)" opacity=".06"/>
+</svg>
 </div>
 
+<nav>
+  <div class="n-brand">悬 象</div>
+  <div class="n-motto">却顾所来径，苍苍横翠微</div>
+  <div class="n-ctrls">
+    <select class="n-btn" id="thm">
+      <optgroup label="精选">
+        <option value="juanben">绢本</option>
+        <option value="muse">暮色</option>
+        <option value="chongyan">重岩</option>
+      </optgroup>
+      <optgroup label="浅色">
+        <option value="jiangshan">千里江山</option>
+        <option value="shuimo">水墨晴岚</option>
+      </optgroup>
+      <optgroup label="中色">
+        <option value="danxia">丹霞赤壁</option>
+        <option value="qingtong">青铜鼎彝</option>
+      </optgroup>
+      <optgroup label="深色">
+        <option value="moye">墨夜苍穹</option>
+        <option value="ziqi">紫气东来</option>
+      </optgroup>
+    </select>
+  </div>
+</nav>
+
+<main>
+  <div class="ban">
+    <span><strong>悬象 Xuán Xiàng</strong> <span class="ban-t">— 自研 AI 工具、创作项目与个人 AI 导航</span></span>
+    <a href="#ai-nav" class="ban-l" data-open-tab="navs">打开 AI 导航 →</a>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-t="tools">器 · 工具</button>
+    <button class="tab" data-t="navs" id="ai-nav">AI 导航</button>
+    <button class="tab" data-t="books">卷 · 书籍</button>
+    <button class="tab" data-t="games">弈 · 游戏</button>
+    <button class="tab" data-t="log">录 · 进展</button>
+  </div>
+
+  <section class="pan on" id="p-tools">
+    <div class="panel-head">
+      <h1>自研工具</h1>
+      <p>这里放真正属于“悬象”的项目入口。网站保持作品集气质，同时加入搜索、导航和开发记录这类实用功能。</p>
+    </div>
+    <div class="cards">
+      <a href="/infiniteskill/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-t)"></div><span style="position:relative;z-index:1">🔮</span></div><div class="pc-bd"><span class="pc-tag">AI SKILL COMPILER</span><h3 class="pc-ti">InfiniteSkill</h3><p class="pc-de">将专业书籍和文档编译为大模型可调用的结构化 Skill 技能包。</p><div class="pc-go">进入 →</div></div></a>
+      <a href="/yuntype/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-g)"></div><span style="position:relative;z-index:1">☁️</span></div><div class="pc-bd"><span class="pc-tag" style="background:var(--acc-l);color:var(--acc)">AI TYPESETTING</span><h3 class="pc-ti">云中书 YunType</h3><p class="pc-de">AI 排版工具，支持公众号富文本、小红书图片组和多种内容样式组合。</p><div class="pc-go">进入 →</div></div></a>
+      <a href="/storyforge/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-t)"></div><span style="position:relative;z-index:1">🔥</span></div><div class="pc-bd"><span class="pc-tag">AI NOVEL WORKSHOP</span><h3 class="pc-ti">故事熔炉 StoryForge</h3><p class="pc-de">AI 小说创作工坊，覆盖世界观、大纲、章节、角色、伏笔和素材导入。</p><div class="pc-go">进入 →</div></div></a>
+      <a href="/ai-slides/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-b)"></div><span style="position:relative;z-index:1">📊</span></div><div class="pc-bd"><span class="pc-tag">AI SLIDES</span><h3 class="pc-ti">AI 幻灯片编辑器</h3><p class="pc-de">AI 生成内容、可视化拖拽编辑、PPTX 导入分析与导出。</p><div class="pc-go">进入 →</div></div></a>
+      <a href="/ai-presentation/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-g)"></div><span style="position:relative;z-index:1">🎬</span></div><div class="pc-bd"><span class="pc-tag">AI PRESENTATION</span><h3 class="pc-ti">AI 演示稿生成器</h3><p class="pc-de">一句话描述主题，快速生成可放映的交互式演示稿。</p><div class="pc-go">进入 →</div></div></a>
+      <a href="https://github.com/yuanbw2025/ai-visual-exploration-book" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-b)"></div><span style="position:relative;z-index:1">🧭</span></div><div class="pc-bd"><span class="pc-tag">VISUAL LEARNING</span><h3 class="pc-ti">AI 视觉探索书</h3><p class="pc-de">图片即 UI，点击区域生成下一层知识页面，并导出可交互单 HTML。</p><div class="pc-go">查看仓库 →</div></div></a>
+      <a href="https://github.com/yuanbw2025/promo-video-maker" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-t)"></div><span style="position:relative;z-index:1">🎞️</span></div><div class="pc-bd"><span class="pc-tag">PROMO VIDEO</span><h3 class="pc-ti">项目推广视频生成器</h3><p class="pc-de">用截图和文稿生成配音、字幕和 MP4，面向项目推广视频。</p><div class="pc-go">查看仓库 →</div></div></a>
+      <a href="/wechat-plugin/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:linear-gradient(135deg,#667eea,#764ba2)"></div><span style="position:relative;z-index:1">🧩</span></div><div class="pc-bd"><span class="pc-tag">CHROME EXTENSION</span><h3 class="pc-ti">公众号 HTML 插件</h3><p class="pc-de">配合云中书把精美 HTML 排版插入公众号编辑器。</p><div class="pc-go">进入 →</div></div></a>
+    </div>
+  </section>
+
+  <section class="pan" id="p-navs">
+    <div class="panel-head">
+      <h2>AI 导航</h2>
+      <p>常用 AI 工具与学习入口集中放在这里。支持搜索和分类筛选，后续可以继续扩成完整个人 AI 工具箱。</p>
+    </div>
+    <div class="nav-tools">
+      <aside class="nav-side">
+        <h3>工具分类</h3>
+        <div id="catList"></div>
+      </aside>
+      <div class="nav-main">
+        <div class="search-row">
+          <input id="aiSearch" type="search" placeholder="搜索工具名、用途或关键词...">
+          <button id="aiReset">重置</button>
+        </div>
+        <div class="ai-grid" id="aiGrid"></div>
+        <div class="empty" id="aiEmpty">没有匹配的工具。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pan" id="p-books">
+    <div class="panel-head"><h2>书卷</h2><p>这里将用于放置阅读、知识库、AI 视觉探索书和长期学习内容。</p></div>
+    <div class="cards">
+      <a href="https://github.com/yuanbw2025/ai-visual-exploration-book" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-b)"></div><span style="position:relative;z-index:1">📖</span></div><div class="pc-bd"><span class="pc-tag">LEARNING PAGE</span><h3 class="pc-ti">AI 视觉探索书</h3><p class="pc-de">面向知识内容的可点击、可下钻、可导出的 HTML 学习页面。</p><div class="pc-go">查看规划 →</div></div></a>
+      <div class="ph"><span class="ph-i">📜</span><span>书卷未展，静候墨香</span></div>
+    </div>
+  </section>
+
+  <section class="pan" id="p-games">
+    <div class="panel-head"><h2>游戏</h2><p>互动作品和实验性玩法放在这里。</p></div>
+    <div class="cards">
+      <a href="/game.html" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-g)"></div><span style="position:relative;z-index:1">⚔️</span></div><div class="pc-bd"><span class="pc-tag" style="background:var(--acc-l);color:var(--acc)">CANVAS GAME</span><h3 class="pc-ti">飞剑弹珠</h3><p class="pc-de">用飞剑击碎弹珠，摧毁核心。纯 Canvas、零依赖、打开即玩。</p><div class="pc-go">进入 →</div></div></a>
+      <a href="/cyber-flying-sword/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-t)"></div><span style="position:relative;z-index:1">🗡️</span></div><div class="pc-bd"><span class="pc-tag">GESTURE ACTION GAME</span><h3 class="pc-ti">赛博飞剑</h3><p class="pc-de">摄像头手势操控飞剑鞭子的 3D 动作游戏。</p><div class="pc-go">进入 →</div></div></a>
+      <a href="/novel-game/" class="pc"><div class="pc-cv"><div class="pc-cv-bg" style="background:var(--cover-b)"></div><span style="position:relative;z-index:1">📖</span></div><div class="pc-bd"><span class="pc-tag">AI GAME GEN</span><h3 class="pc-ti">小说转文本交互游戏</h3><p class="pc-de">将小说或剧本转换为可游玩的分支叙事游戏。</p><div class="pc-go">进入 →</div></div></a>
+    </div>
+  </section>
+
+  <section class="pan" id="p-log">
+    <div class="panel-head"><h2>开发进展</h2><p>记录当前重要项目方向，方便回看下一步要做什么。</p></div>
+    <div class="log">
+      <article class="log-item"><div class="log-time">2026-05-28</div><div><h3>个人网站回归悬象风格</h3><p>保留原有山水主题和作品集气质，在此基础上加入 AI 导航、项目入口和开发进展。</p></div></article>
+      <article class="log-item"><div class="log-time">2026-05-27</div><div><h3>项目推广视频生成器</h3><p>独立仓库已建立，后续聚焦截图、文稿、配音、字幕和 MP4 导出。</p></div></article>
+      <article class="log-item"><div class="log-time">2026-05-27</div><div><h3>AI 视觉探索书</h3><p>项目愿景确定：图片即 UI，点击生成下一层，导出时保留已探索层级。</p></div></article>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 悬象 · Xuán Xiàng</p>
+    <div class="f-stats">SYS_VISITS( <span id="busuanzi_value_site_pv">--</span> ) | USERS( <span id="busuanzi_value_site_uv">--</span> )</div>
+  </footer>
+</main>
+
 <script>
-const projects = [
-  {
-    name: "StoryForge",
-    cn: "故事熔炉",
-    category: "创作",
-    status: "重点开发",
-    updated: "2026-05-26",
-    priority: 1,
-    href: "/storyforge/",
-    repo: "https://github.com/yuanbw2025/storyforge",
-    color: "#b94b3f",
-    label: "AI Novel Workshop",
-    desc: "AI 小说创作工坊，覆盖世界观、大纲、章节、角色、伏笔、导入分析和本地数据库。",
-    tags: ["小说", "工作台", "本地数据", "AI 写作"]
-  },
-  {
-    name: "YunType",
-    cn: "云中书",
-    category: "发布",
-    status: "重点开发",
-    updated: "2026-05-27",
-    priority: 2,
-    href: "/yuntype/",
-    repo: "https://github.com/yuanbw2025/yuntype",
-    color: "#2f7d68",
-    label: "AI Typesetting",
-    desc: "AI 排版工具，支持公众号富文本、小红书图片组和多种内容样式组合。",
-    tags: ["排版", "公众号", "图文", "PPT"]
-  },
-  {
-    name: "InfiniteSkill",
-    cn: "智能文档技能编译器",
-    category: "知识工程",
-    status: "可体验",
-    updated: "2026-04-21",
-    priority: 3,
-    href: "/infiniteskill/",
-    repo: "https://github.com/yuanbw2025/infiniteskill",
-    color: "#76548a",
-    label: "Skill Compiler",
-    desc: "把专业书籍和文档编译成大模型可调用的结构化 Skill Pack。",
-    tags: ["文档", "Skill", "知识库", "Agent"]
-  },
-  {
-    name: "AI Visual Exploration Book",
-    cn: "AI 视觉探索书",
-    category: "学习",
-    status: "规划中",
-    updated: "2026-05-27",
-    priority: 4,
-    href: "https://github.com/yuanbw2025/ai-visual-exploration-book",
-    repo: "https://github.com/yuanbw2025/ai-visual-exploration-book",
-    color: "#2e6f9e",
-    label: "Visual Learning",
-    desc: "图片即 UI 的知识探索工具，支持点击下钻、互动课件、单 HTML 导出和学习页面生成。",
-    tags: ["视觉学习", "HTML 导出", "交互课件", "多层节点"]
-  },
-  {
-    name: "Promo Video Maker",
-    cn: "项目推广视频生成器",
-    category: "传播",
-    status: "MVP",
-    updated: "2026-05-27",
-    priority: 5,
-    href: "https://github.com/yuanbw2025/promo-video-maker",
-    repo: "https://github.com/yuanbw2025/promo-video-maker",
-    color: "#b07a24",
-    label: "Video Automation",
-    desc: "上传项目截图，填写每张图的文稿，自动生成配音、字幕并导出 MP4。",
-    tags: ["视频", "配音", "字幕", "Electron"]
-  },
-  {
-    name: "AI Slides",
-    cn: "AI 幻灯片编辑器",
-    category: "学习",
-    status: "可体验",
-    updated: "2026-05-26",
-    priority: 6,
-    href: "/ai-slides/",
-    repo: "https://github.com/yuanbw2025/ai-slides",
-    color: "#2e6f9e",
-    label: "Slides Editor",
-    desc: "AI 生成内容、可视化拖拽编辑、PPTX 导入分析与多格式导出。",
-    tags: ["课件", "PPTX", "编辑器", "导出"]
-  },
-  {
-    name: "AI Presentation",
-    cn: "AI 演示稿生成器",
-    category: "学习",
-    status: "可体验",
-    updated: "2026-05-26",
-    priority: 7,
-    href: "/ai-presentation/",
-    repo: "https://github.com/yuanbw2025/ai-presentation",
-    color: "#5e6b3d",
-    label: "Presentation",
-    desc: "一句话描述主题，快速生成可放映的精美交互式演示稿。",
-    tags: ["演示", "生成", "HTML", "放映"]
-  },
-  {
-    name: "Novel Game",
-    cn: "小说转文本交互游戏",
-    category: "游戏",
-    status: "可体验",
-    updated: "2026-05-26",
-    priority: 8,
-    href: "/novel-game/",
-    repo: "https://github.com/yuanbw2025/novel-game",
-    color: "#6c5a36",
-    label: "Narrative Game",
-    desc: "把小说或剧本转换成可游玩的分支叙事游戏，支持变量、成就和离线 HTML。",
-    tags: ["游戏", "小说", "分支叙事", "导出"]
-  },
-  {
-    name: "Cyber Flying Sword",
-    cn: "赛博飞剑",
-    category: "游戏",
-    status: "可体验",
-    updated: "2026-05-26",
-    priority: 9,
-    href: "/cyber-flying-sword/",
-    repo: "https://github.com/yuanbw2025/cyber-flying-sword",
-    color: "#2f5963",
-    label: "Gesture Game",
-    desc: "摄像头手势操控的 3D 横版动作平台游戏，结合 Three.js 和 MediaPipe。",
-    tags: ["Three.js", "手势", "动作", "游戏"]
-  },
-  {
-    name: "Flying Sword Pinball",
-    cn: "飞剑弹珠",
-    category: "游戏",
-    status: "可体验",
-    updated: "2026-05-22",
-    priority: 10,
-    href: "/game.html",
-    repo: "https://github.com/yuanbw2025/flying-sword-pinball",
-    color: "#874c3d",
-    label: "Canvas Game",
-    desc: "中国神话主题 HTML5 弹珠游戏，单文件、零依赖、打开即玩。",
-    tags: ["Canvas", "单文件", "弹珠", "游戏"]
-  },
-  {
-    name: "WeChat HTML Injector",
-    cn: "公众号 HTML 插入器",
-    category: "发布",
-    status: "工具",
-    updated: "2026-05-26",
-    priority: 11,
-    href: "/wechat-plugin/",
-    repo: "https://github.com/yuanbw2025/wechat-html-injector",
-    color: "#3f7d58",
-    label: "Chrome Extension",
-    desc: "微信公众号 HTML 插入器，配合云中书把排版结果插入公众号编辑器。",
-    tags: ["插件", "公众号", "HTML", "发布"]
-  }
+const thmSel=document.getElementById('thm');
+const saved=localStorage.getItem('xx-thm');
+if(saved){document.documentElement.setAttribute('data-theme',saved);thmSel.value=saved}
+thmSel.addEventListener('change',()=>{document.documentElement.setAttribute('data-theme',thmSel.value);localStorage.setItem('xx-thm',thmSel.value)});
+
+function openTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===name));
+  document.querySelectorAll('.pan').forEach(p=>p.classList.toggle('on',p.id==='p-'+name));
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.t)));
+document.querySelectorAll('[data-open-tab]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();openTab(a.dataset.openTab);}));
+
+const aiTools=[
+  {name:'ChatGPT',cat:'通用对话',url:'https://chatgpt.com/',icon:'💬',desc:'通用问答、写作、代码和多模态助手。',tags:'对话 写作 代码 多模态'},
+  {name:'Claude',cat:'通用对话',url:'https://claude.ai/',icon:'🧠',desc:'长文本阅读、写作、分析和代码协作。',tags:'长文本 写作 代码'},
+  {name:'Gemini',cat:'通用对话',url:'https://gemini.google.com/',icon:'✦',desc:'Google 多模态 AI 助手，适合搜索、文档和图像理解。',tags:'搜索 多模态 文档'},
+  {name:'DeepSeek',cat:'通用对话',url:'https://chat.deepseek.com/',icon:'🔎',desc:'中文体验较好的推理、写作和代码模型入口。',tags:'中文 推理 代码'},
+  {name:'GitHub Copilot',cat:'编程开发',url:'https://github.com/features/copilot',icon:'⌨️',desc:'代码补全、仓库理解和开发辅助。',tags:'代码 IDE GitHub'},
+  {name:'Cursor',cat:'编程开发',url:'https://cursor.com/',icon:'🧑‍💻',desc:'面向 AI 编程的编辑器。',tags:'代码 编辑器 Agent'},
+  {name:'Bolt',cat:'编程开发',url:'https://bolt.new/',icon:'⚡',desc:'用自然语言快速生成和迭代 Web 应用。',tags:'Web 原型 全栈'},
+  {name:'Vercel v0',cat:'编程开发',url:'https://v0.dev/',icon:'⬡',desc:'用提示词生成前端界面和组件。',tags:'前端 UI React'},
+  {name:'Midjourney',cat:'图像设计',url:'https://www.midjourney.com/',icon:'🎨',desc:'高质量图像生成，适合概念图和视觉探索。',tags:'图像 设计 海报'},
+  {name:'Ideogram',cat:'图像设计',url:'https://ideogram.ai/',icon:'🖼️',desc:'图像生成，适合带文字的视觉设计。',tags:'图像 字体 海报'},
+  {name:'Canva',cat:'图像设计',url:'https://www.canva.com/',icon:'🧩',desc:'在线设计工具，适合封面、海报和演示素材。',tags:'设计 模板 封面'},
+  {name:'Runway',cat:'视频音频',url:'https://runwayml.com/',icon:'🎞️',desc:'AI 视频生成、编辑和视觉创作工具。',tags:'视频 生成 剪辑'},
+  {name:'ElevenLabs',cat:'视频音频',url:'https://elevenlabs.io/',icon:'🎙️',desc:'高质量文本转语音和声音克隆。',tags:'配音 TTS 音频'},
+  {name:'Suno',cat:'视频音频',url:'https://suno.com/',icon:'🎵',desc:'AI 音乐生成工具。',tags:'音乐 音频 生成'},
+  {name:'Perplexity',cat:'搜索研究',url:'https://www.perplexity.ai/',icon:'📚',desc:'带来源的 AI 搜索和研究入口。',tags:'搜索 研究 来源'},
+  {name:'Consensus',cat:'搜索研究',url:'https://consensus.app/',icon:'📄',desc:'面向论文和学术问题的检索工具。',tags:'论文 学术 研究'},
+  {name:'Hugging Face',cat:'模型平台',url:'https://huggingface.co/',icon:'🤗',desc:'模型、数据集和 AI 应用社区。',tags:'模型 数据集 开源'},
+  {name:'OpenRouter',cat:'模型平台',url:'https://openrouter.ai/',icon:'🧬',desc:'统一访问多家模型的 API 平台。',tags:'API 模型 聚合'}
 ];
-
-const timelineEvents = [
-  {time:"2026-05-27", track:"传播", title:"Promo Video Maker 独立仓库建立", desc:"确定桌面端方向，支持截图、文稿、配音、字幕和 MP4 导出，并接入主仓库同步体系。"},
-  {time:"2026-05-27", track:"学习", title:"AI 视觉探索书进入产品规划", desc:"明确图片即 UI、点击下钻、互动学习组件和单 HTML 多层导出的最终形态。"},
-  {time:"2026-05-27", track:"门户", title:"个人网站重构为项目地图", desc:"吸收 easy-learn-ai 的搜索、筛选、时间线结构，把作品集升级为可探索的 AI 产品地图。"},
-  {time:"2026-05-26", track:"创作", title:"StoryForge 完成阶段性强化", desc:"小说创作工作台继续完善，覆盖素材导入、世界地图、主控台和创作流程。"},
-  {time:"2026-05-26", track:"发布", title:"YunType 持续作为排版正本", desc:"云中书承担公众号排版、小红书图片、PPT/课件方向的内容输出基础设施。"},
-  {time:"2026-05-22", track:"游戏", title:"游戏项目进入门户", desc:"赛博飞剑、飞剑弹珠、小说转文本交互游戏共同组成互动作品区。"},
-  {time:"2026-04-21", track:"知识工程", title:"InfiniteSkill 作为知识编译入口", desc:"把书籍、文档和专业知识压缩成可被 AI 调用的结构化技能包。"}
-];
-
-const state = {query:"", category:"", status:"", sort:"priority", track:""};
-const grid = document.getElementById("projectGrid");
-const emptyState = document.getElementById("emptyState");
-const metrics = document.getElementById("metrics");
-const categoryFilter = document.getElementById("categoryFilter");
-const statusFilter = document.getElementById("statusFilter");
-const searchInput = document.getElementById("searchInput");
-const sortSelect = document.getElementById("sortSelect");
-const timelineList = document.getElementById("timelineList");
-const timelineIndex = document.getElementById("timelineIndex");
-
-function unique(values){return [...new Set(values)].sort((a,b)=>a.localeCompare(b,"zh-CN"))}
-function byDate(value){return new Date(value).getTime() || 0}
-function escapeHtml(value){
-  return String(value).replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char]));
+const state={cat:'全部',q:''};
+const catList=document.getElementById('catList');
+const aiGrid=document.getElementById('aiGrid');
+const aiEmpty=document.getElementById('aiEmpty');
+const aiSearch=document.getElementById('aiSearch');
+function cats(){return ['全部',...Array.from(new Set(aiTools.map(t=>t.cat)))]}
+function renderCats(){
+  catList.innerHTML=cats().map(cat=>{
+    const count=cat==='全部'?aiTools.length:aiTools.filter(t=>t.cat===cat).length;
+    return `<button class="cat-btn ${state.cat===cat?'on':''}" data-cat="${cat}"><span>${cat}</span><span>${count}</span></button>`;
+  }).join('');
+  catList.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{state.cat=btn.dataset.cat;renderCats();renderTools();}));
 }
-function initFilters(){
-  for(const category of unique(projects.map(item=>item.category))){
-    categoryFilter.insertAdjacentHTML("beforeend",`<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`);
-  }
-  for(const status of unique(projects.map(item=>item.status))){
-    statusFilter.insertAdjacentHTML("beforeend",`<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`);
-  }
+function renderTools(){
+  const q=state.q.trim().toLowerCase();
+  const list=aiTools.filter(t=>(state.cat==='全部'||t.cat===state.cat)&&(!q||[t.name,t.cat,t.desc,t.tags].join(' ').toLowerCase().includes(q)));
+  aiGrid.innerHTML=list.map(t=>`<a class="ai-card" href="${t.url}" target="_blank" rel="noreferrer"><div class="ai-top"><div class="ai-ico">${t.icon}</div><h3>${t.name}</h3></div><p>${t.desc}</p><div class="ai-meta"><span class="ai-label">${t.cat}</span><span class="ai-open">打开 →</span></div></a>`).join('');
+  aiEmpty.style.display=list.length?'none':'block';
 }
-function filteredProjects(){
-  const q = state.query.trim().toLowerCase();
-  let data = projects.filter(item=>{
-    const haystack = [item.name,item.cn,item.category,item.status,item.desc,...item.tags].join(" ").toLowerCase();
-    return (!q || haystack.includes(q)) &&
-      (!state.category || item.category === state.category) &&
-      (!state.status || item.status === state.status);
-  });
-  data.sort((a,b)=>{
-    if(state.sort === "recent") return byDate(b.updated) - byDate(a.updated);
-    if(state.sort === "name") return a.name.localeCompare(b.name);
-    return a.priority - b.priority;
-  });
-  return data;
-}
-function renderMetrics(){
-  const categories = unique(projects.map(item=>item.category)).length;
-  const live = projects.filter(item=>item.status === "可体验").length;
-  const recent = projects.filter(item=>item.updated.startsWith("2026-05")).length;
-  const tracks = unique(timelineEvents.map(item=>item.track)).length;
-  const rows = [
-    [projects.length,"自研项目"],
-    [categories,"产品方向"],
-    [live,"可体验入口"],
-    [tracks,"演化主线"]
-  ];
-  metrics.innerHTML = rows.map(([num,label])=>`<div class="metric"><strong>${num}</strong><span>${label}</span></div>`).join("");
-}
-function renderProjects(){
-  const data = filteredProjects();
-  grid.innerHTML = data.map(item=>`
-    <article class="project-card">
-      <div class="cover" style="background:${item.color}">
-        <strong>${escapeHtml(item.cn)}</strong>
-        <span>${escapeHtml(item.label)}</span>
-      </div>
-      <div class="project-body">
-        <div class="project-top">
-          <h3 class="project-title">${escapeHtml(item.name)}</h3>
-          <span class="badge">${escapeHtml(item.status)}</span>
-        </div>
-        <p class="project-desc">${escapeHtml(item.desc)}</p>
-        <div class="tags">${item.tags.map(tag=>`<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
-        <div class="project-links">
-          <a class="primary-link" href="${escapeHtml(item.href)}">打开</a>
-          <a href="${escapeHtml(item.repo)}" target="_blank" rel="noreferrer">GitHub</a>
-        </div>
-      </div>
-    </article>
-  `).join("");
-  emptyState.style.display = data.length ? "none" : "block";
-}
-function renderTimelineIndex(){
-  const tracks = ["",...unique(timelineEvents.map(item=>item.track))];
-  timelineIndex.innerHTML = tracks.map(track=>{
-    const count = track ? timelineEvents.filter(item=>item.track===track).length : timelineEvents.length;
-    const label = track || "全部";
-    return `<button class="${state.track===track?"active":""}" data-track="${escapeHtml(track)}"><span>${escapeHtml(label)}</span><span>${count}</span></button>`;
-  }).join("");
-  timelineIndex.querySelectorAll("button").forEach(button=>{
-    button.addEventListener("click",()=>{
-      state.track = button.dataset.track || "";
-      renderTimeline();
-      renderTimelineIndex();
-    });
-  });
-}
-function renderTimeline(){
-  const data = timelineEvents
-    .filter(item=>!state.track || item.track === state.track)
-    .sort((a,b)=>byDate(b.time)-byDate(a.time));
-  timelineList.innerHTML = data.map(item=>`
-    <article class="event">
-      <time>${escapeHtml(item.time)} · ${escapeHtml(item.track)}</time>
-      <h3>${escapeHtml(item.title)}</h3>
-      <p>${escapeHtml(item.desc)}</p>
-    </article>
-  `).join("");
-}
-function resetAll(){
-  Object.assign(state,{query:"",category:"",status:"",sort:"priority",track:""});
-  searchInput.value = "";
-  categoryFilter.value = "";
-  statusFilter.value = "";
-  sortSelect.value = "priority";
-  renderProjects();
-  renderTimeline();
-  renderTimelineIndex();
-}
-searchInput.addEventListener("input",(event)=>{state.query = event.target.value;renderProjects();});
-categoryFilter.addEventListener("change",(event)=>{state.category = event.target.value;renderProjects();});
-statusFilter.addEventListener("change",(event)=>{state.status = event.target.value;renderProjects();});
-sortSelect.addEventListener("change",(event)=>{state.sort = event.target.value;renderProjects();});
-document.getElementById("resetAll").addEventListener("click",resetAll);
-
-initFilters();
-renderMetrics();
-renderProjects();
-renderTimeline();
-renderTimelineIndex();
+aiSearch.addEventListener('input',e=>{state.q=e.target.value;renderTools();});
+document.getElementById('aiReset').addEventListener('click',()=>{state.cat='全部';state.q='';aiSearch.value='';renderCats();renderTools();});
+renderCats();
+renderTools();
 </script>
 </body>
 </html>
