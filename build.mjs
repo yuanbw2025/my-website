@@ -19,7 +19,7 @@
  */
 
 import { execSync } from 'child_process';
-import { cpSync, mkdirSync, copyFileSync, existsSync } from 'fs';
+import { cpSync, mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const ROOT = process.cwd();
@@ -82,6 +82,20 @@ mkdirSync(join(ROOT, 'public', 'wechat-plugin'), { recursive: true });
 // Copy portal HTML
 copyFileSync(join(ROOT, 'index.html'), join(ROOT, 'public', 'index.html'));
 console.log('  ✓ Copied index.html → public/index.html');
+
+const portalHtml = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const aiToolsMatch = portalHtml.match(/const aiTools=\[(.*?)\];/s);
+if (!aiToolsMatch) {
+  throw new Error('Cannot find aiTools data in index.html');
+}
+writeFileSync(join(ROOT, 'ai-tools-data.js'), `window.AI_TOOLS = [${aiToolsMatch[1]}];\n`);
+console.log('  ✓ Generated ai-tools-data.js from index.html');
+
+copyFileSync(join(ROOT, 'sinan.html'), join(ROOT, 'public', 'sinan.html'));
+console.log('  ✓ Copied sinan.html → public/sinan.html');
+
+copyFileSync(join(ROOT, 'ai-tools-data.js'), join(ROOT, 'public', 'ai-tools-data.js'));
+console.log('  ✓ Copied ai-tools-data.js → public/ai-tools-data.js');
 
 // Copy game page
 copyFileSync(join(ROOT, 'game.html'), join(ROOT, 'public', 'game.html'));
