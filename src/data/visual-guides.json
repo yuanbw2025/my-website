@@ -1,0 +1,220 @@
+{
+  "scenes": [
+    {
+      "id": "xiaohongshu-cover",
+      "title": { "zh": "小红书知识封面", "en": "Xiaohongshu Knowledge Cover" },
+      "useCase": { "zh": "适合教程、经验分享、清单类内容的首图。", "en": "For tutorial, tips, and checklist cover images." },
+      "ratio": "3:4",
+      "models": ["GPT Image", "Midjourney", "即梦", "通义万相"],
+      "slots": [
+        { "key": "topic", "label": { "zh": "主题", "en": "Topic" }, "placeholder": { "zh": "例如：AI 学习方法", "en": "e.g. AI learning methods" } },
+        { "key": "headline", "label": { "zh": "标题文案", "en": "Headline" }, "placeholder": { "zh": "例如：3 个高效 AI 学习技巧", "en": "e.g. 3 efficient AI learning tips" } },
+        { "key": "audience", "label": { "zh": "目标人群", "en": "Audience" }, "placeholder": { "zh": "例如：新手、自媒体人、老师", "en": "e.g. beginners, creators, teachers" } },
+        { "key": "visualSubject", "label": { "zh": "视觉主体", "en": "Visual subject" }, "placeholder": { "zh": "例如：桌面、笔记本、人物剪影", "en": "e.g. desk, notebook, person silhouette" } },
+        { "key": "style", "label": { "zh": "风格", "en": "Style" }, "placeholder": { "zh": "例如：清爽杂志风、轻拟物、知识卡片", "en": "e.g. clean magazine, soft neumorphism" } },
+        { "key": "palette", "label": { "zh": "配色", "en": "Palette" }, "placeholder": { "zh": "例如：奶白、湖蓝、黄色点缀", "en": "e.g. ivory, lake blue, yellow accent" } }
+      ],
+      "mustHave": ["标题可读", "主体明确", "留白足够", "信息层级清晰"],
+      "avoid": ["标题太小", "文字过多", "装饰抢主体", "比例不适合移动端"],
+      "promptTemplate": {
+        "zh": "生成一张适合小红书发布的知识类封面，主题是「{{topic}}」，标题文字必须清晰显示为「{{headline}}」。目标读者是{{audience}}。画面主体为{{visualSubject}}，整体风格为{{style}}，配色使用{{palette}}。构图采用移动端 3:4 竖版，上方或中心保留清晰标题区，主体和标题形成明确层级，画面干净、高级、适合社交媒体点击。",
+        "en": "Create a Xiaohongshu-style knowledge cover about \"{{topic}}\". The headline text must be clearly readable: \"{{headline}}\". Target audience: {{audience}}. Main visual subject: {{visualSubject}}. Style: {{style}}. Palette: {{palette}}. Use a vertical 3:4 mobile-first composition with clear headline space, strong hierarchy, clean premium social-media appeal."
+      }
+    },
+    {
+      "id": "wechat-article-cover",
+      "title": { "zh": "公众号文章首图", "en": "WeChat Article Cover" },
+      "useCase": { "zh": "适合深度文章、观点文、产品介绍的横版首图。", "en": "For long-form articles, essays, and product explainers." },
+      "ratio": "2.35:1",
+      "models": ["GPT Image", "Midjourney", "即梦"],
+      "slots": [
+        { "key": "topic", "label": { "zh": "文章主题", "en": "Article topic" }, "placeholder": { "zh": "例如：AI 时代的学习方式", "en": "e.g. learning in the AI era" } },
+        { "key": "headline", "label": { "zh": "主标题", "en": "Main title" }, "placeholder": { "zh": "例如：学习正在变成一种新能力", "en": "e.g. Learning is becoming a new capability" } },
+        { "key": "mood", "label": { "zh": "情绪基调", "en": "Mood" }, "placeholder": { "zh": "例如：克制、理性、未来感", "en": "e.g. restrained, rational, futuristic" } },
+        { "key": "visualSubject", "label": { "zh": "视觉隐喻", "en": "Visual metaphor" }, "placeholder": { "zh": "例如：书本与光束、知识地图", "en": "e.g. books and light beams, knowledge map" } },
+        { "key": "style", "label": { "zh": "版式风格", "en": "Layout style" }, "placeholder": { "zh": "例如：杂志封面、极简科技、东方留白", "en": "e.g. magazine cover, minimal tech, eastern whitespace" } },
+        { "key": "palette", "label": { "zh": "配色", "en": "Palette" }, "placeholder": { "zh": "例如：米白、深蓝、金色", "en": "e.g. ivory, deep blue, gold" } }
+      ],
+      "mustHave": ["横版安全区", "主标题醒目", "缩略图可读", "品牌气质稳定"],
+      "avoid": ["文字贴边", "元素太散", "背景太暗", "标题与主体抢层级"],
+      "promptTemplate": {
+        "zh": "生成一张公众号文章横版首图，文章主题是「{{topic}}」，主标题必须清晰显示为「{{headline}}」。整体情绪为{{mood}}，使用{{visualSubject}}作为视觉隐喻，版式风格为{{style}}，配色为{{palette}}。画面比例 2.35:1，标题区域留出安全边距，缩略图尺寸下依然清晰，整体高级、克制、有传播感。",
+        "en": "Create a wide WeChat article cover for the topic \"{{topic}}\". The main title must be clearly readable: \"{{headline}}\". Mood: {{mood}}. Use {{visualSubject}} as the visual metaphor. Layout style: {{style}}. Palette: {{palette}}. Aspect ratio 2.35:1, with safe margins, readable thumbnail text, premium restrained editorial quality."
+      }
+    },
+    {
+      "id": "bilibili-thumbnail",
+      "title": { "zh": "B 站视频封面", "en": "Bilibili Thumbnail" },
+      "useCase": { "zh": "适合知识视频、工具测评、项目介绍。", "en": "For knowledge videos, tool reviews, and project demos." },
+      "ratio": "16:9",
+      "models": ["GPT Image", "Midjourney", "即梦"],
+      "slots": [
+        { "key": "topic", "label": { "zh": "视频主题", "en": "Video topic" }, "placeholder": { "zh": "例如：AI 做课件到底行不行", "en": "e.g. Can AI make courseware?" } },
+        { "key": "headline", "label": { "zh": "封面大字", "en": "Thumbnail text" }, "placeholder": { "zh": "例如：PPT 时代过去了吗？", "en": "e.g. Is the PPT era over?" } },
+        { "key": "visualSubject", "label": { "zh": "主体元素", "en": "Main elements" }, "placeholder": { "zh": "例如：电脑屏幕、课件页面、夸张问号", "en": "e.g. laptop screen, lesson page, question mark" } },
+        { "key": "style", "label": { "zh": "视觉风格", "en": "Visual style" }, "placeholder": { "zh": "例如：高对比科技感、综艺感知识封面", "en": "e.g. high-contrast tech, variety-show educational cover" } },
+        { "key": "palette", "label": { "zh": "配色", "en": "Palette" }, "placeholder": { "zh": "例如：蓝紫渐变、黄色强调", "en": "e.g. blue-purple gradient, yellow accent" } }
+      ],
+      "mustHave": ["大字强对比", "主体一眼可辨", "16:9 构图", "移动端缩略图可读"],
+      "avoid": ["信息太碎", "标题太长", "人物或主体遮挡标题"],
+      "promptTemplate": {
+        "zh": "生成一张 B 站视频封面，主题是「{{topic}}」，封面大字必须清晰显示「{{headline}}」。主体元素包括{{visualSubject}}，风格为{{style}}，配色为{{palette}}。16:9 横版构图，标题强对比、主体夸张但不凌乱，适合在移动端缩略图中快速吸引点击。",
+        "en": "Create a Bilibili video thumbnail for \"{{topic}}\". The large thumbnail text must read \"{{headline}}\" clearly. Main elements: {{visualSubject}}. Style: {{style}}. Palette: {{palette}}. 16:9 layout, high contrast, bold but not cluttered, readable on mobile thumbnails."
+      }
+    },
+    {
+      "id": "ecommerce-hero",
+      "title": { "zh": "电商产品主图", "en": "E-commerce Hero Image" },
+      "useCase": { "zh": "适合商品主图、卖点海报、详情页首屏。", "en": "For product hero shots, selling point posters, and landing hero images." },
+      "ratio": "1:1 / 4:5",
+      "models": ["GPT Image", "Midjourney", "Flux"],
+      "slots": [
+        { "key": "product", "label": { "zh": "产品", "en": "Product" }, "placeholder": { "zh": "例如：便携咖啡机", "en": "e.g. portable coffee maker" } },
+        { "key": "sellingPoint", "label": { "zh": "核心卖点", "en": "Selling point" }, "placeholder": { "zh": "例如：30 秒萃取、户外可用", "en": "e.g. 30-second extraction, outdoor ready" } },
+        { "key": "scene", "label": { "zh": "使用场景", "en": "Usage scene" }, "placeholder": { "zh": "例如：露营桌面、晨光厨房", "en": "e.g. camping table, morning kitchen" } },
+        { "key": "material", "label": { "zh": "材质质感", "en": "Material" }, "placeholder": { "zh": "例如：磨砂金属、透明水箱", "en": "e.g. matte metal, transparent water tank" } },
+        { "key": "palette", "label": { "zh": "品牌配色", "en": "Brand palette" }, "placeholder": { "zh": "例如：黑银、暖橙点缀", "en": "e.g. black silver, warm orange accent" } }
+      ],
+      "mustHave": ["产品清楚", "卖点可视化", "材质真实", "商业质感"],
+      "avoid": ["产品变形", "Logo 错乱", "卖点太多", "背景喧宾夺主"],
+      "promptTemplate": {
+        "zh": "生成一张电商产品主图，产品是{{product}}，核心卖点是{{sellingPoint}}，使用场景为{{scene}}。突出{{material}}材质质感，品牌配色为{{palette}}。画面主体居中或三分构图，产品边缘清晰，光影真实，背景辅助卖点但不抢主体，适合商品详情页首屏。",
+        "en": "Create an e-commerce hero image for {{product}}. Core selling point: {{sellingPoint}}. Usage scene: {{scene}}. Emphasize material quality: {{material}}. Brand palette: {{palette}}. Clear product silhouette, realistic lighting, premium commercial feel, background supports the selling point without stealing focus."
+      }
+    },
+    {
+      "id": "course-cover",
+      "title": { "zh": "课程封面", "en": "Course Cover" },
+      "useCase": { "zh": "适合线上课程、训练营、知识付费封面。", "en": "For online courses, bootcamps, and knowledge products." },
+      "ratio": "16:9 / 4:3",
+      "models": ["GPT Image", "Midjourney", "即梦"],
+      "slots": [
+        { "key": "topic", "label": { "zh": "课程主题", "en": "Course topic" }, "placeholder": { "zh": "例如：AI 写作从入门到实战", "en": "e.g. AI writing from beginner to practice" } },
+        { "key": "headline", "label": { "zh": "课程标题", "en": "Course title" }, "placeholder": { "zh": "例如：AI 写作实战课", "en": "e.g. Practical AI Writing" } },
+        { "key": "audience", "label": { "zh": "学习者", "en": "Learners" }, "placeholder": { "zh": "例如：内容创作者、职场人", "en": "e.g. creators, professionals" } },
+        { "key": "visualSubject", "label": { "zh": "视觉主体", "en": "Visual subject" }, "placeholder": { "zh": "例如：打开的笔记本、知识网络", "en": "e.g. open notebook, knowledge network" } },
+        { "key": "style", "label": { "zh": "信任感风格", "en": "Trust style" }, "placeholder": { "zh": "例如：专业、干净、有学习氛围", "en": "e.g. professional, clean, learning atmosphere" } }
+      ],
+      "mustHave": ["标题清楚", "专业可信", "学习收益明确", "适合平台缩略图"],
+      "avoid": ["像广告诈骗", "元素廉价", "字太多", "主体不相关"],
+      "promptTemplate": {
+        "zh": "生成一张课程封面，课程主题是「{{topic}}」，标题必须清晰显示为「{{headline}}」。目标学习者是{{audience}}，视觉主体为{{visualSubject}}，整体风格{{style}}。画面专业、可信、干净，突出学习收益和课程价值，适合线上课程平台展示。",
+        "en": "Create a course cover for \"{{topic}}\". The title must be clearly readable: \"{{headline}}\". Target learners: {{audience}}. Visual subject: {{visualSubject}}. Style: {{style}}. Professional, trustworthy, clean, benefit-oriented, suitable for online course platforms."
+      }
+    },
+    {
+      "id": "knowledge-card",
+      "title": { "zh": "知识卡片", "en": "Knowledge Card" },
+      "useCase": { "zh": "适合概念解释、知识总结、社媒图文。", "en": "For concept explanations, summaries, and social educational posts." },
+      "ratio": "1:1 / 4:5",
+      "models": ["GPT Image", "Ideogram", "即梦"],
+      "slots": [
+        { "key": "topic", "label": { "zh": "知识点", "en": "Concept" }, "placeholder": { "zh": "例如：Prompt Cache", "en": "e.g. Prompt Cache" } },
+        { "key": "headline", "label": { "zh": "卡片标题", "en": "Card title" }, "placeholder": { "zh": "例如：为什么它能省钱？", "en": "e.g. Why does it save money?" } },
+        { "key": "structure", "label": { "zh": "信息结构", "en": "Information structure" }, "placeholder": { "zh": "例如：定义、原理、应用", "en": "e.g. definition, principle, use cases" } },
+        { "key": "visualSubject", "label": { "zh": "图解元素", "en": "Diagram element" }, "placeholder": { "zh": "例如：缓存层、箭头、计费模块", "en": "e.g. cache layer, arrows, billing module" } },
+        { "key": "palette", "label": { "zh": "配色", "en": "Palette" }, "placeholder": { "zh": "例如：深色科技、蓝绿高亮", "en": "e.g. dark tech, blue-green highlights" } }
+      ],
+      "mustHave": ["文字少而清楚", "结构明确", "图解辅助理解", "标题醒目"],
+      "avoid": ["信息过密", "箭头混乱", "文字无法识别", "像 PPT 截图"],
+      "promptTemplate": {
+        "zh": "生成一张知识卡片，知识点是「{{topic}}」，标题为「{{headline}}」。信息结构包含{{structure}}，用{{visualSubject}}作为图解元素，配色为{{palette}}。要求文字简洁可读，模块层级清楚，图解能帮助理解概念，适合社媒传播。",
+        "en": "Create a knowledge card explaining \"{{topic}}\" with the title \"{{headline}}\". Information structure: {{structure}}. Use {{visualSubject}} as diagram elements. Palette: {{palette}}. Keep text concise and readable, hierarchy clear, diagram useful for understanding, social-media ready."
+      }
+    },
+    {
+      "id": "character-design",
+      "title": { "zh": "角色设定图", "en": "Character Design Sheet" },
+      "useCase": { "zh": "适合小说、游戏、IP 角色、短视频人设。", "en": "For novels, games, IP characters, and persona design." },
+      "ratio": "3:4 / 16:9",
+      "models": ["Midjourney", "GPT Image", "Stable Diffusion"],
+      "slots": [
+        { "key": "character", "label": { "zh": "角色身份", "en": "Character identity" }, "placeholder": { "zh": "例如：未来城市的女侦探", "en": "e.g. female detective in a future city" } },
+        { "key": "personality", "label": { "zh": "性格", "en": "Personality" }, "placeholder": { "zh": "例如：冷静、敏锐、带一点疲惫", "en": "e.g. calm, sharp, slightly tired" } },
+        { "key": "costume", "label": { "zh": "服装道具", "en": "Costume and props" }, "placeholder": { "zh": "例如：长风衣、旧式相机、电子烟", "en": "e.g. trench coat, old camera, e-cigarette" } },
+        { "key": "world", "label": { "zh": "世界观", "en": "World" }, "placeholder": { "zh": "例如：霓虹雨夜、赛博唐人街", "en": "e.g. neon rainy night, cyber Chinatown" } },
+        { "key": "style", "label": { "zh": "画风", "en": "Art style" }, "placeholder": { "zh": "例如：半写实概念设定", "en": "e.g. semi-realistic concept art" } }
+      ],
+      "mustHave": ["身份一眼可辨", "服装服务人设", "道具体现故事", "风格一致"],
+      "avoid": ["脸太网红", "服装无信息", "背景抢戏", "多视图不一致"],
+      "promptTemplate": {
+        "zh": "生成一张角色设定图，角色是{{character}}，性格为{{personality}}。服装和道具包含{{costume}}，所处世界观为{{world}}，画风为{{style}}。画面需要体现角色身份、职业和故事感，服装细节清楚，姿态自然，适合作为小说、游戏或 IP 的角色设定参考。",
+        "en": "Create a character design sheet for {{character}}. Personality: {{personality}}. Costume and props: {{costume}}. World setting: {{world}}. Art style: {{style}}. The image should clearly communicate identity, profession, and story potential, with readable costume details and natural pose."
+      }
+    },
+    {
+      "id": "ppt-illustration",
+      "title": { "zh": "PPT 概念插图", "en": "Presentation Concept Illustration" },
+      "useCase": { "zh": "适合演示文稿、商业汇报、AI 课程讲解。", "en": "For decks, business reports, and AI teaching slides." },
+      "ratio": "16:9",
+      "models": ["GPT Image", "Midjourney", "Napkin"],
+      "slots": [
+        { "key": "concept", "label": { "zh": "概念", "en": "Concept" }, "placeholder": { "zh": "例如：多智能体协作", "en": "e.g. multi-agent collaboration" } },
+        { "key": "message", "label": { "zh": "要表达的信息", "en": "Message" }, "placeholder": { "zh": "例如：多个 Agent 分工完成复杂任务", "en": "e.g. agents divide work to complete complex tasks" } },
+        { "key": "metaphor", "label": { "zh": "视觉隐喻", "en": "Metaphor" }, "placeholder": { "zh": "例如：控制塔、协作网络、流水线", "en": "e.g. control tower, collaboration network, assembly line" } },
+        { "key": "style", "label": { "zh": "风格", "en": "Style" }, "placeholder": { "zh": "例如：现代商务、扁平 3D、深色科技", "en": "e.g. modern business, flat 3D, dark tech" } },
+        { "key": "palette", "label": { "zh": "配色", "en": "Palette" }, "placeholder": { "zh": "例如：深蓝、青色、白色", "en": "e.g. navy, cyan, white" } }
+      ],
+      "mustHave": ["可放入幻灯片", "主题突出", "背景不干扰文字", "概念准确"],
+      "avoid": ["太复杂", "像海报不是插图", "无法留出文字区"],
+      "promptTemplate": {
+        "zh": "生成一张 16:9 PPT 概念插图，概念是「{{concept}}」，要表达的信息是{{message}}。使用{{metaphor}}作为视觉隐喻，风格为{{style}}，配色为{{palette}}。画面适合放入演示文稿，保留可放置标题或说明文字的留白，视觉清晰、专业、不过度复杂。",
+        "en": "Create a 16:9 presentation concept illustration for \"{{concept}}\". Message: {{message}}. Visual metaphor: {{metaphor}}. Style: {{style}}. Palette: {{palette}}. Suitable for slides, with clean whitespace for title or notes, clear professional composition, not overly complex."
+      }
+    }
+  ],
+  "failureModes": [
+    {
+      "id": "text-garbled",
+      "title": { "zh": "文字错乱", "en": "Garbled Text" },
+      "symptom": { "zh": "标题、标签或按钮文字出现错字、乱码、缺字。", "en": "Headlines, labels, or buttons contain wrong or broken text." },
+      "causes": ["文字太多", "没有明确必须显示的文本", "字体层级和安全区不清楚"],
+      "fixes": [
+        "减少画面文字，只保留主标题和 1-2 个短标签",
+        "使用“必须清晰显示为……”指定原文",
+        "要求大字号、强对比、留出安全边距"
+      ],
+      "fixPrompt": "文字必须清晰准确显示为「...」，只保留这一句主标题，使用大字号高对比排版，标题区域留出安全边距，不生成额外乱码或装饰性文字。"
+    },
+    {
+      "id": "cluttered-layout",
+      "title": { "zh": "信息太满", "en": "Cluttered Layout" },
+      "symptom": { "zh": "画面元素过多，主体和信息层级不清楚。", "en": "Too many elements; the subject and hierarchy are unclear." },
+      "causes": ["槽位一次性塞太多", "没有指定主次层级", "背景和装饰过强"],
+      "fixes": ["明确一个主视觉", "限制辅助元素数量", "指定留白比例"],
+      "fixPrompt": "画面只保留一个主视觉主体和不超过三个辅助元素，使用明确前中后景层级，保留 30% 干净留白，背景弱化，不要堆叠过多装饰。"
+    },
+    {
+      "id": "weak-subject",
+      "title": { "zh": "主体不突出", "en": "Weak Subject" },
+      "symptom": { "zh": "用户一眼看不出这张图在表达什么。", "en": "The viewer cannot immediately understand the main subject." },
+      "causes": ["主体没有位置和尺寸要求", "背景细节抢戏", "缺少视觉焦点"],
+      "fixes": ["指定主体占画面比例", "使用光线和对比集中焦点", "减少背景复杂度"],
+      "fixPrompt": "主体占画面 45%-60%，放在中心或三分线焦点位置，使用光线、景深和对比把注意力集中到主体，背景只作为氛围辅助。"
+    },
+    {
+      "id": "cheap-color",
+      "title": { "zh": "色彩廉价", "en": "Cheap Color" },
+      "symptom": { "zh": "颜色过艳、对比粗糙、像廉价模板。", "en": "Colors look harsh, cheap, or template-like." },
+      "causes": ["没有指定色彩系统", "高饱和颜色过多", "缺少中性色承托"],
+      "fixes": ["限定主色、辅色、强调色", "降低饱和度", "加入材质和光影层次"],
+      "fixPrompt": "使用克制高级的配色系统：一个主色、一个辅色、一个强调色，避免大面积高饱和撞色，加入柔和光影和细腻材质。"
+    },
+    {
+      "id": "style-drift",
+      "title": { "zh": "风格不统一", "en": "Style Drift" },
+      "symptom": { "zh": "同一张图里混入多种不协调风格。", "en": "The image mixes incompatible visual styles." },
+      "causes": ["风格词过多", "同时要求写实、卡通、3D、手绘", "缺少优先级"],
+      "fixes": ["只保留一个主风格", "把材质、光线、镜头和排版统一到同一体系"],
+      "fixPrompt": "统一为一种视觉风格：...。所有角色、背景、道具、文字和光影都遵循同一风格，不混用写实、卡通、3D、手绘等冲突方向。"
+    },
+    {
+      "id": "bad-product",
+      "title": { "zh": "产品不像", "en": "Product Inaccuracy" },
+      "symptom": { "zh": "商品外观、结构、材质和真实产品不一致。", "en": "The product shape, structure, or material is inaccurate." },
+      "causes": ["产品结构描述不足", "没有约束角度和关键部件", "材质词太模糊"],
+      "fixes": ["列出关键部件", "指定视角", "指定材质和比例"],
+      "fixPrompt": "严格保持产品结构：包含...关键部件，使用...视角，材质为...，比例真实，边缘清楚，不添加不存在的按钮、接口或装饰。"
+    }
+  ]
+}
