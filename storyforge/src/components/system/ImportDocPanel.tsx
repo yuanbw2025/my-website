@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { extractTextFromFile, FILE_LIMIT_HINTS } from '../../lib/doc-parser'
 import { chunkDocument, quickHash, type ChunkPlan } from '../../lib/import/chunker'
+import { detectVolumeStructure, type VolumeDetectResult } from '../../lib/import/volume-detector'
 import {
   runSession, pausePipeline, cancelPipeline, retryFailedChunks,
   registerChunkTexts, hasChunkTexts, clearChunkTexts,
@@ -47,6 +48,7 @@ export default function ImportDocPanel({ project }: Props) {
   const [plans, setPlans] = useState<ChunkPlan[] | null>(null)
   const [chunkSize, setChunkSize] = useState(DEFAULT_CHUNK_SIZE)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [volumeDetect, setVolumeDetect] = useState<VolumeDetectResult | null>(null)
 
   // 报告 modal + 未完成会话
   const [reportSession, setReportSession] = useState<ImportSession | null>(null)
@@ -178,6 +180,9 @@ export default function ImportDocPanel({ project }: Props) {
     if (!rawText.trim()) return
     const p = chunkDocument(rawText, { targetChars: chunkSize })
     setPlans(p)
+    // Phase 28.4: 本地检测分卷结构
+    const vd = detectVolumeStructure(rawText)
+    setVolumeDetect(vd)
     setShowConfirm(true)
   }
 
@@ -235,6 +240,35 @@ export default function ImportDocPanel({ project }: Props) {
     } catch (err) {
       // 存 Blob 失败不应阻塞主流程（本次内存里原文还在，依然能跑完）
       console.warn('[import] saveBlob 失败（本次跑不受影响，但下次刷新将无法自动续跑）：', err)
+    }
+
+    // Phase 28.4: 如果检测到分卷结构，且是导入当前项目，先预写卷结构骨架
+    if (importTarget === 'project' && volumeDetect?.hasVolumes) {
+      try {
+        const { useOutlineStore } = await import('../../stores/outline')
+        const olStore = useOutlineStore.getState()
+        await olStore.loadAll(project.id!)
+        const startOrder = useOutlineStore.getState().nodes
+          .filter(n => n.parentId === null).length
+
+        for (let vi = 0; vi < volumeDetect.volumes.length; vi++) {
+          const vol = volumeDetect.volumes[vi]
+          await olStore.addNode({
+            projectId: project.id!,
+            parentId: null,
+            type: 'volume',
+            title: vol.title,
+            summary: '',
+            order: startOrder + vi,
+          })
+        }
+        useImportStatusStore.getState().pushActivity(
+          'info',
+          `📚 已创建 ${volumeDetect.volumes.length} 个卷结构骨架`,
+        )
+      } catch (err) {
+        console.warn('[import] 预写卷结构失败（不影响主流程）：', err)
+      }
     }
 
     // 刷新未完成列表（新 session 本身就是未完成态）
@@ -507,6 +541,7 @@ export default function ImportDocPanel({ project }: Props) {
           totalChars={rawText.length}
           chunks={plans}
           chunkSize={chunkSize}
+          volumeDetect={volumeDetect}
           onChunkSizeChange={handleChunkSizeChange}
           onConfirm={handleConfirmStart}
           onCancel={() => setShowConfirm(false)}

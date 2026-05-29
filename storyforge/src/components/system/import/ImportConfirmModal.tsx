@@ -1,12 +1,15 @@
-import { useMemo } from 'react'
-import { X, Wand2, AlertTriangle, Info, Gauge, Timer, Coins } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { X, Wand2, AlertTriangle, Info, Gauge, Timer, Coins, BookOpen, ChevronDown, ChevronRight } from 'lucide-react'
 import type { ChunkPlan } from '../../../lib/import/chunker'
+import type { VolumeDetectResult } from '../../../lib/import/volume-detector'
 
 interface Props {
   filename: string
   totalChars: number
   chunks: ChunkPlan[]
   chunkSize: number
+  /** 本地检测到的分卷结构 */
+  volumeDetect?: VolumeDetectResult | null
   /** 单块估算用时（秒），给总时预估用 */
   estSecondsPerChunk?: number
   onChunkSizeChange: (size: number) => void
@@ -22,9 +25,11 @@ interface Props {
  */
 export default function ImportConfirmModal({
   filename, totalChars, chunks, chunkSize,
+  volumeDetect,
   estSecondsPerChunk = 35,
   onChunkSizeChange, onConfirm, onCancel,
 }: Props) {
+  const [showStructure, setShowStructure] = useState(false)
   const stats = useMemo(() => {
     const totalChunks = chunks.length
     const totalSeconds = totalChunks * estSecondsPerChunk
@@ -77,6 +82,51 @@ export default function ImportConfirmModal({
               {totalChars.toLocaleString()} 字符 · 预计拆成 {stats.totalChunks} 块
             </div>
           </div>
+
+          {/* 分卷结构检测 */}
+          {volumeDetect && (volumeDetect.hasVolumes || volumeDetect.totalChapters > 0) && (
+            <div className="bg-bg-base border border-border rounded-lg p-3">
+              <button
+                onClick={() => setShowStructure(v => !v)}
+                className="flex items-center gap-2 w-full text-left"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-accent" />
+                <span className="text-xs font-medium text-text-primary flex-1">
+                  📖 检测到文档结构：
+                  {volumeDetect.hasVolumes
+                    ? `${volumeDetect.totalVolumes} 卷 · ${volumeDetect.totalChapters} 章`
+                    : `${volumeDetect.totalChapters} 章（未检测到分卷）`}
+                </span>
+                {showStructure
+                  ? <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+                  : <ChevronRight className="w-3.5 h-3.5 text-text-muted" />}
+              </button>
+              {showStructure && (
+                <div className="mt-2 max-h-[200px] overflow-y-auto text-xs space-y-1">
+                  {volumeDetect.orphanChapters.length > 0 && (
+                    <div className="space-y-0.5 mb-2">
+                      {volumeDetect.orphanChapters.map((ch, i) => (
+                        <div key={i} className="pl-4 text-text-muted truncate">📄 {ch.title}</div>
+                      ))}
+                    </div>
+                  )}
+                  {volumeDetect.volumes.map((vol, vi) => (
+                    <div key={vi}>
+                      <div className="font-medium text-accent truncate">📚 {vol.title}</div>
+                      {vol.chapters.map((ch, ci) => (
+                        <div key={ci} className="pl-6 text-text-muted truncate">📄 {ch.title}</div>
+                      ))}
+                    </div>
+                  ))}
+                  {volumeDetect.hasVolumes && (
+                    <div className="pt-1 text-text-muted italic">
+                      导入时将自动创建卷→章层级大纲结构
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* chunkSize 调节 */}
           <div>
