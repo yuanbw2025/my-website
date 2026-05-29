@@ -23,6 +23,7 @@ PROJECTS=(
   "ai-presentation:ai-presentation-mirror"
   "cyber-flying-sword:cyber-flying-sword-mirror"
   "promo-video-maker:promo-video-maker-mirror"
+  "awesome-gpt-image-2:awesome-gpt-image-2-mirror"
 )
 
 # 如果传了参数，只同步指定项目

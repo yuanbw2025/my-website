@@ -8,7 +8,9 @@
  * 4. 构建 AI Presentation React 应用（输出到 ai-presentation/dist/）
  * 5. 构建 Cyber Flying Sword React 应用（输出到 cyber-flying-sword/dist/）
  * 6. 构建 StoryForge React 应用（输出到 storyforge/dist/）
- * 5. 组装 public/ 目录：
+ * 7. 构建 novel-game React 应用（输出到 novel-game/dist/）
+ * 8. 构建 AI 视觉场景库（输出到 awesome-gpt-image-2/dist/）
+ * 9. 组装 public/ 目录：
  *    - public/index.html            ← 主门户
  *    - public/infiniteskill/        ← 编译后的 React 应用
  *    - public/yuntype/              ← 编译后的 React 应用
@@ -16,6 +18,7 @@
  *    - public/ai-presentation/      ← 编译后的 React 应用
  *    - public/cyber-flying-sword/   ← 编译后的 React 应用
  *    - public/storyforge/           ← 编译后的 React 应用
+ *    - public/awesome-gpt-image-2/   ← 编译后的 React 应用
  */
 
 import { execSync } from 'child_process';
@@ -66,7 +69,13 @@ execSync('npm install', { cwd: join(ROOT, 'novel-game'), stdio: 'inherit' });
 execSync('npm run build', { cwd: join(ROOT, 'novel-game'), stdio: 'inherit' });
 console.log('✅ novel-game built successfully.');
 
-// Step 8: Assemble public/ directory
+// Step 8: Build AI Visual Patterns
+console.log('\n🔨 Building AI Visual Patterns...');
+execSync('npm install', { cwd: join(ROOT, 'awesome-gpt-image-2'), stdio: 'inherit' });
+execSync('VITE_BASE_PATH=/awesome-gpt-image-2/ npm run build', { cwd: join(ROOT, 'awesome-gpt-image-2'), stdio: 'inherit' });
+console.log('✅ AI Visual Patterns built successfully.');
+
+// Step 9: Assemble public/ directory
 console.log('\n📦 Assembling portal output...');
 
 mkdirSync(join(ROOT, 'public'), { recursive: true });
@@ -77,6 +86,7 @@ mkdirSync(join(ROOT, 'public', 'ai-presentation'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'cyber-flying-sword'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'storyforge'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'novel-game'), { recursive: true });
+mkdirSync(join(ROOT, 'public', 'awesome-gpt-image-2'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'wechat-plugin'), { recursive: true });
 
 // Copy portal HTML
@@ -156,6 +166,14 @@ cpSync(
   { recursive: true }
 );
 console.log('  ✓ Copied novel-game/dist → public/novel-game/');
+
+// Copy AI Visual Patterns build output
+cpSync(
+  join(ROOT, 'awesome-gpt-image-2', 'dist'),
+  join(ROOT, 'public', 'awesome-gpt-image-2'),
+  { recursive: true }
+);
+console.log('  ✓ Copied awesome-gpt-image-2/dist → public/awesome-gpt-image-2/');
 
 // Copy WeChat plugin static page
 cpSync(

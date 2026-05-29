@@ -31,6 +31,10 @@
       "destination": "/novel-game/index.html"
     },
     {
+      "source": "/awesome-gpt-image-2/(.*)",
+      "destination": "/awesome-gpt-image-2/index.html"
+    },
+    {
       "source": "/wechat-plugin/(.*)",
       "destination": "/wechat-plugin/index.html"
     }
