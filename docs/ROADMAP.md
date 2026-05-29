@@ -315,13 +315,26 @@
 
 ---
 
-### Phase 26.3 — 角色驱动剧情模式
+### Phase 26.3 — ✅ 角色驱动剧情模式（2026-05-29）
 
-> 来源：社区反馈 | 状态：未开始
+> 来源：社区反馈 | 状态：已完成
 
-- 用户设定角色的「初始状态」和「目标状态/结局」
-- AI 根据两端状态 + 世界观约束，生成中间情节/大纲
-- 与现有大纲系统集成：生成结果可导入为卷/章结构
+- 用户为角色设定「初始状态」和「目标状态/结局」，AI 推演中间情节并生成卷/章大纲
+- 支持多角色弧光交织、自动注入世界观/故事核心/世界规则上下文
+- 结构化预览（卷/章树）+ 一键导入大纲系统
+- 新增 prompt seed: `plot.character-driven`
+- 侧边栏创作区新增「角色驱动」入口
+
+**文件变更**：
+
+| 操作 | 文件 |
+|------|------|
+| 新增 | `src/lib/ai/character-driven-plot.ts` |
+| 新增 | `src/components/outline/CharacterDrivenPlotPanel.tsx` |
+| 修改 | `src/lib/types/prompt.ts` — 增加 `plot.character-driven` |
+| 修改 | `src/lib/ai/prompt-seeds.ts` — 新增角色驱动剧情 seed |
+| 修改 | `src/components/layout/sidebar-tree.ts` — 新增侧边栏入口 |
+| 修改 | `src/pages/WorkspacePage.tsx` — 注册面板 |
 
 ### Phase 26.4 — 灵感反推入口
 

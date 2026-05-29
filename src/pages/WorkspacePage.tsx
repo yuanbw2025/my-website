@@ -50,6 +50,7 @@ import CharacterRelationPanel from '../components/relations/CharacterRelationPan
 import WorldMapPanel from '../components/geography/WorldMapPanel'
 import StatePanel from '../components/state/StatePanel'
 import StoryArcPanel from '../components/outline/StoryArcPanel'
+import CharacterDrivenPlotPanel from '../components/outline/CharacterDrivenPlotPanel'
 import LocationPanel from '../components/location/LocationPanel'
 import { useLocationStore } from '../stores/location'
 
@@ -179,6 +180,8 @@ export default function WorkspacePage() {
         return <CreativeRulesPanel project={project} />
       case 'outline':
         return <OutlinePanel project={project} onOpenChapter={handleOpenChapter} />
+      case 'character-driven-plot':
+        return <CharacterDrivenPlotPanel project={project} />
       case 'detailed-outline':
         return <DetailedOutlinePanel project={project} />
       case 'chapters-list':

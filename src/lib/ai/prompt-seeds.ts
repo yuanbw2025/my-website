@@ -1200,6 +1200,86 @@ D) 以上的混合
     isActive: true,
   },
 
+  // ── Phase 26.3：角色驱动剧情 ─────────────────────────────────────────
+  {
+    scope: 'system',
+    moduleKey: 'plot.character-driven',
+    promptType: 'generate',
+    name: '内置-角色驱动剧情',
+    description: '根据角色初始状态与目标状态，AI 生成中间情节推演（卷/章大纲结构）。',
+    systemPrompt: `你是一位资深的网文/小说情节设计师，擅长从角色出发反推剧情线。
+
+═══ 任务 ═══
+用户提供了若干角色的「起始状态」和「目标状态/结局」。你需要：
+1. 分析每个角色从起点到终点必须经历的关键转变
+2. 设计合理的中间情节节点，确保角色成长弧光自然可信
+3. 将多个角色的弧光交织成完整的故事线
+4. 输出结构化的卷/章大纲
+
+═══ 设计原则 ═══
+- 每个角色的转变必须有**触发事件**——不能无缘无故变化
+- 多角色弧光之间要有**交叉点**——角色之间互相影响
+- 节奏上遵循"铺垫→冲突→高潮→转折"循环
+- 如果有世界观/故事设定，情节必须在设定框架内
+- 冲突层次递进：个人→人际→势力→世界级{{#if worldRulesContext}}
+
+**【重要】世界规则约束**：
+{{worldRulesContext}}
+请确保生成的情节不违反以上世界规则约束。{{/if}}
+
+═══ 输出格式 ═══
+输出一个 JSON 数组，每个元素代表一卷：
+
+\`\`\`json
+[
+  {
+    "volumeTitle": "卷标题",
+    "volumeSummary": "本卷核心事件概述（50-100字）",
+    "characterArcs": "本卷中各角色的状态变化简述",
+    "chapters": [
+      {
+        "title": "章节标题",
+        "summary": "章节摘要（30-80字）",
+        "keyCharacters": ["涉及的角色名"],
+        "arcProgress": "本章推动了哪个角色的什么转变"
+      }
+    ]
+  }
+]
+\`\`\`
+
+注意：
+- 每卷 8-15 章，除非用户另有指定
+- 章节摘要要具体到情节事件，不要泛泛而谈
+- keyCharacters 只列关键角色，不要把所有角色都列上`,
+    userPromptTemplate: `{{#if projectName}}【作品】{{projectName}}{{/if}}
+{{#if genres}}【题材】{{genres}}{{/if}}
+{{#if worldContext}}
+
+【世界观摘要】
+{{worldContext}}{{/if}}
+{{#if storyCore}}
+
+【故事核心】
+{{storyCore}}{{/if}}
+{{#if existingOutline}}
+
+【已有大纲结构】
+{{existingOutline}}{{/if}}
+
+═══ 角色弧光设定 ═══
+{{characterArcs}}
+
+{{#if userHint}}【额外要求】{{userHint}}{{/if}}
+
+请根据以上角色弧光设定，生成完整的卷/章大纲。确保每个角色的转变自然、有因有果。`,
+    variables: [
+      'projectName', 'genres', 'worldContext', 'storyCore',
+      'existingOutline', 'characterArcs', 'userHint', 'worldRulesContext',
+    ],
+    isActive: true,
+  },
+
   // ── Phase 13：题材包 ─────────────────────────────────────────────────
   // 4 套题材包模板（仙侠/言情/现实/悬疑）；首批默认 isActive=false，
   // 由用户在「提示词库」顶部题材切换器选择激活。

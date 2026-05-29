@@ -40,6 +40,8 @@ export type PromptModuleKey =
   | 'import.merge-characters'
   // —— Phase 30.2 角色关系提取 ——
   | 'relation.extract'
+  // —— Phase 26.3 角色驱动剧情 ——
+  | 'plot.character-driven'
   // —— Phase 19 作品学习 ——
   | 'master.analyze-chunk'
   | 'master.extract-beats'

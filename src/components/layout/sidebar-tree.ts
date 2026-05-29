@@ -5,6 +5,7 @@ import {
   Ruler, BookOpen, FilePen, Eye,
   FileCog, History, Upload, Download, Settings,
   Map, ClipboardList, GitBranch, Clock, Gem, MapPin, Scale,
+  Drama,
 } from 'lucide-react'
 
 /**
@@ -35,6 +36,7 @@ export type SidebarModule =
   // 创作区
   | 'rules'
   | 'outline'
+  | 'character-driven-plot'  // Phase 26.3 — 角色驱动剧情
   | 'detailed-outline'      // 占位 (P8)
   | 'chapters-list'         // 占位 (P8)
   | 'editor'
@@ -151,6 +153,7 @@ export const NAV_TREE: TreeSection[] = [
     children: [
       leaf('rules',            '创作规则', Ruler),
       leaf('outline',          '大纲',     BookOpen),
+      leaf('character-driven-plot', '角色驱动', Drama),
       leaf('story-arc',        '故事线',   GitBranch),
       leaf('chapters-list',    '章节',     FilePen),
       leaf('foreshadow',       '伏笔',     Eye),
