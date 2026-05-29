@@ -4,7 +4,8 @@ import { useOutlineStore } from '../../stores/outline'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildVolumeOutlinePrompt, buildChapterOutlinePrompt } from '../../lib/ai/adapters/outline-adapter'
-import { buildWorldContext, buildCharacterContext, buildHistoricalContext } from '../../lib/ai/context-builder'
+import { buildWorldContext, buildCharacterContext } from '../../lib/ai/context-builder'
+import { buildWorldRulesContext } from '../../lib/ai/world-rules-manifest'
 import { useCharacterStore } from '../../stores/character'
 import {
   parseVolumeOutlineOutput, parseChapterOutlineOutput,
@@ -127,9 +128,9 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     const worldCtx = buildWorldContext(worldview, storyCore, powerSystem)
     const scCtx = storyCore ? `主题：${storyCore.theme}\n冲突：${storyCore.centralConflict}\n故事线：${storyCore.storyLines}` : ''
     const charCtx = buildCharacterContext(characters)
-    // Phase 31: 历史模式注入
-    const histCtx = project.creativeMode === 'historical' ? await buildHistoricalContext(project.id!) : ''
-    const messages = buildVolumeOutlinePrompt(project.name, project.genre, worldCtx, scCtx, project.targetWordCount || 500000, hint, buildOpts(), charCtx, histCtx, project.creativeMode)
+    // Phase 32: 世界规则清单注入
+    const rulesCtx = await buildWorldRulesContext(project.id!)
+    const messages = buildVolumeOutlinePrompt(project.name, project.genre, worldCtx, scCtx, project.targetWordCount || 500000, hint, buildOpts(), charCtx, rulesCtx)
     ai.start(messages)
   }
 
@@ -142,9 +143,9 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     const volIdx = volumes.indexOf(selectedVol)
     const prevSummary = volIdx > 0 ? volumes[volIdx - 1].summary : ''
     const charCtx = buildCharacterContext(characters)
-    // Phase 31: 历史模式注入
-    const histCtx = project.creativeMode === 'historical' ? await buildHistoricalContext(project.id!) : ''
-    const messages = buildChapterOutlinePrompt(selectedVol.title, selectedVol.summary, worldCtx, prevSummary, hint, buildOpts(), charCtx, histCtx, project.creativeMode)
+    // Phase 32: 世界规则清单注入
+    const rulesCtx = await buildWorldRulesContext(project.id!)
+    const messages = buildChapterOutlinePrompt(selectedVol.title, selectedVol.summary, worldCtx, prevSummary, hint, buildOpts(), charCtx, rulesCtx)
     ai.start(messages)
   }
 
@@ -161,10 +162,8 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
 
     const worldCtx = buildWorldContext(worldview, storyCore, powerSystem)
     const charCtx = buildCharacterContext(characters)
-    // Phase 31: 历史模式
-    const histCtx = project.creativeMode === 'historical'
-      ? await buildHistoricalContext(project.id!)
-      : ''
+    // Phase 32: 世界规则清单
+    const rulesCtx = await buildWorldRulesContext(project.id!)
 
     try {
       const result = await runBatchOutlineGeneration({
@@ -172,8 +171,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
         worldContext: worldCtx,
         userHint: hint || undefined,
         characterContext: charCtx,
-        historicalContext: histCtx,
-        creativeMode: project.creativeMode,
+        worldRulesContext: rulesCtx,
         signal: controller.signal,
         onProgress: setBatchProgress,
       })

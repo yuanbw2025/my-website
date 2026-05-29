@@ -36,6 +36,8 @@ import type {
   StoryArc,
   HistoricalTimelineEvent,
   HistoricalKeyword,
+  ImportantLocation,
+  WorldRulesProfile,
 } from '../types'
 
 class StoryForgeDB extends Dexie {
@@ -93,6 +95,12 @@ class StoryForgeDB extends Dexie {
 
   // PHASE-H2 —— 历史关键词与细节
   historicalKeywords!: Table<HistoricalKeyword, number>
+
+  // Phase 25.3 —— 重要地点
+  importantLocations!: Table<ImportantLocation, number>
+
+  // Phase 32 —— 世界规则（真实与幻想）
+  worldRulesProfiles!: Table<WorldRulesProfile, number>
 
   constructor() {
     super('storyforge')
@@ -207,6 +215,16 @@ class StoryForgeDB extends Dexie {
     // PHASE-H2: 历史关键词与细节
     this.version(19).stores({
       historicalKeywords: '++id, projectId, category, era',
+    })
+
+    // Phase 25.3: 重要地点
+    this.version(20).stores({
+      importantLocations: '++id, projectId, parentId, sortOrder',
+    })
+
+    // Phase 32: 世界规则（真实与幻想）—— singleton per project
+    this.version(21).stores({
+      worldRulesProfiles: '++id, &projectId',
     })
   }
 }

@@ -88,6 +88,12 @@ export default defineConfig({
         rewrite: (path: string) => path.replace(/^\/claude-proxy/, ''),
         secure: true,
       },
+      '/nvidia-proxy': {
+        target: 'https://integrate.api.nvidia.com',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/nvidia-proxy/, ''),
+        secure: true,
+      },
     },
   },
   build: {

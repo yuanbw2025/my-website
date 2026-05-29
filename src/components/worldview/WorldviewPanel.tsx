@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Sparkles, ShieldCheck, Compass } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useWorldviewStore } from '../../stores/worldview'
-import { useProjectStore } from '../../stores/project'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildWorldviewPrompt } from '../../lib/ai/adapters/worldview-adapter'
 import { buildExistingWorldview } from '../../lib/ai/context-builder'
+import { buildWorldRulesContext } from '../../lib/ai/world-rules-manifest'
 import AIStreamOutput from '../shared/AIStreamOutput'
-import type { Project, CreativeMode } from '../../lib/types'
+import type { Project } from '../../lib/types'
 
-const FANTASY_DIMENSIONS = [
+const DIMENSIONS = [
   { key: 'geography', label: '🌍 地理环境' },
   { key: 'history', label: '📜 历史年表' },
   { key: 'society', label: '🏛️ 社会结构' },
@@ -18,17 +18,7 @@ const FANTASY_DIMENSIONS = [
   { key: 'summary', label: '📋 精华摘要' },
 ] as const
 
-const HISTORICAL_DIMENSIONS = [
-  { key: 'geography', label: '🗺️ 真实地理与地名考据' },
-  { key: 'history', label: '📜 历史时期与架空度' },
-  { key: 'society', label: '🏛️ 社会等级与官职' },
-  { key: 'culture', label: '🎭 宗教与民间信仰' },
-  { key: 'economy', label: '💰 经济与赋税制度' },
-  { key: 'rules', label: '⚡ 时代科技与生产力' },
-  { key: 'summary', label: '📋 精华摘要' },
-] as const
-
-type DimensionKey = typeof FANTASY_DIMENSIONS[number]['key']
+type DimensionKey = typeof DIMENSIONS[number]['key']
 
 interface Props {
   project: Project
@@ -36,14 +26,10 @@ interface Props {
 
 export default function WorldviewPanel({ project }: Props) {
   const { worldview, saveWorldview, loadAll } = useWorldviewStore()
-  const { updateProject } = useProjectStore()
   const [activeTab, setActiveTab] = useState<DimensionKey>('geography')
   const [editValue, setEditValue] = useState('')
   const [hint, setHint] = useState('')
   const ai = useAIStream()
-
-  const creativeMode: CreativeMode = project.creativeMode || 'fantasy'
-  const dimensions = creativeMode === 'historical' ? HISTORICAL_DIMENSIONS : FANTASY_DIMENSIONS
 
   useEffect(() => {
     loadAll(project.id!)
@@ -62,14 +48,9 @@ export default function WorldviewPanel({ project }: Props) {
     })
   }
 
-  const handleModeChange = async (mode: CreativeMode) => {
-    if (confirm(`确定切换到「${mode === 'historical' ? '历史考证' : '幻想设定'}」模式？这会改变 AI 生成世界观时的考证倾向。`)) {
-      await updateProject(project.id!, { creativeMode: mode })
-      ai.reset()
-    }
-  }
-
   const handleGenerate = async () => {
+    // Phase 32: 注入世界规则清单
+    const rulesCtx = await buildWorldRulesContext(project.id!)
     const messages = buildWorldviewPrompt(
       activeTab,
       project.name,
@@ -78,7 +59,7 @@ export default function WorldviewPanel({ project }: Props) {
       hint,
       {
         parameterValues: {
-          creativeMode,
+          worldRulesContext: rulesCtx,
         }
       }
     )
@@ -96,55 +77,23 @@ export default function WorldviewPanel({ project }: Props) {
 
   return (
     <div className="max-w-4xl">
-      {/* 头部与模式切换 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-text-primary">🌍 世界观构建</h2>
-          <p className="text-xs text-text-muted mt-0.5">
-            {creativeMode === 'historical'
-              ? '当前处于历史考证模式，AI 将严格遵循历史真实性进行细节推导。'
-              : '当前处于幻想设定模式，支持天马行空的创世神话与力量体系。'}
-          </p>
-        </div>
-
-        {/* 模式切换开关 */}
-        <div className="flex bg-bg-elevated rounded-lg p-1 shrink-0 border border-border/40">
-          <button
-            onClick={() => handleModeChange('fantasy')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-all ${
-              creativeMode === 'fantasy'
-                ? 'bg-accent text-white shadow-sm font-medium'
-                : 'text-text-muted hover:text-text-primary'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5" />
-            幻想设定
-          </button>
-          <button
-            onClick={() => handleModeChange('historical')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-all ${
-              creativeMode === 'historical'
-                ? 'bg-amber-500 text-white shadow-sm font-medium'
-                : 'text-text-muted hover:text-text-primary'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            历史考证
-          </button>
-        </div>
+      {/* 头部 */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-text-primary">🌍 世界观构建</h2>
+        <p className="text-xs text-text-muted mt-0.5">
+          构建故事世界的各个维度。如需设定真实与幻想的规则，请前往「⚖️ 真实与幻想」面板。
+        </p>
       </div>
 
       {/* Tab 栏 */}
       <div className="flex flex-wrap gap-1 mb-4">
-        {dimensions.map(d => (
+        {DIMENSIONS.map(d => (
           <button
             key={d.key}
             onClick={() => { setActiveTab(d.key); ai.reset() }}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
               activeTab === d.key
-                ? creativeMode === 'historical'
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-accent text-white'
+                ? 'bg-accent text-white'
                 : 'bg-bg-elevated text-text-secondary hover:text-text-primary'
             }`}
           >
@@ -159,7 +108,7 @@ export default function WorldviewPanel({ project }: Props) {
           value={editValue}
           onChange={e => setEditValue(e.target.value)}
           onBlur={handleSave}
-          placeholder={`在此编辑${dimensions.find(d => d.key === activeTab)?.label || ''}内容...`}
+          placeholder={`在此编辑${DIMENSIONS.find(d => d.key === activeTab)?.label || ''}内容...`}
           className="w-full h-48 p-3 bg-bg-surface border border-border rounded-lg text-text-primary text-sm resize-y focus:outline-none focus:border-accent"
         />
 
