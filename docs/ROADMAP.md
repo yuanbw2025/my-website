@@ -235,31 +235,60 @@
 | 修改 | `src/components/layout/sidebar-tree.ts` |
 | 修改 | `src/pages/WorkspacePage.tsx` |
 
-### Phase 28.4 — 导入分卷支持
+### Phase 28.4 — ✅ 导入分卷支持（2026-05-29）
 
-> 来源：社区反馈 | 状态：未开始
+> 来源：社区反馈 | 状态：已完成
 
-- 识别卷标题（「第一卷 xxx」「卷一」等）自动分卷
-- 支持手动拖拽分卷
+- 本地正则检测卷标题（第X卷/部/篇、卷X、【第X卷】等格式）和章标题
+- 确认弹窗显示检测到的分卷结构预览（可展开/折叠）
+- 导入时自动创建卷结构骨架（先建空卷，AI 解析的章节自动挂到匹配的卷下）
+- chunk-writer 增强：写入大纲时检测已有同名卷，跳过重复创建并复用已有卷 ID
+- 卷匹配支持模糊匹配（标题包含关系）
 
-### Phase 30.2 — 角色关系自动提取
+**文件变更**：
 
-> 来源：社区用户 | 状态：未开始
+| 操作 | 文件 |
+|------|------|
+| 新增 | `src/lib/import/volume-detector.ts` |
+| 修改 | `src/lib/import/chunk-writer.ts` — 卷匹配 + 子章节挂载 |
+| 修改 | `src/components/system/ImportDocPanel.tsx` — 分卷检测 + 预写卷骨架 |
+| 修改 | `src/components/system/import/ImportConfirmModal.tsx` — 分卷结构预览 UI |
 
-- 数据源：大纲摘要 + 细纲场景 + 章节正文
-- AI 输出 JSON `[{char1, char2, type, description}]`
+### Phase 30.2 — ✅ 角色关系自动提取（2026-05-29）
+
+> 来源：社区用户 | 状态：已完成
+
+- 数据源：大纲摘要 + 章节正文（自动截取，控制在 ~8000 字内）
+- AI 输出 JSON `[{char1, char2, type, label, description, bidirectional}]`
 - 关系类型：亲属、恋人、朋友、对手、敌人、师徒、盟友、上下级、其他
-- 去重：同对角色同类型关系跳过已存在
+- 智能匹配：AI 返回的角色名自动匹配已有角色（精确 + 包含匹配）
+- 去重：同对角色同类型关系自动标记「已存在」
+- 预览面板：勾选要导入的关系，批量写入
 - 新增 prompt seed：`relation.extract`
 
-### Phase 30.5 — 导入去重增强
+**文件变更**：
 
-> 来源：社区用户 | 状态：未开始 | 与 Phase 28.1 协同
+| 操作 | 文件 |
+|------|------|
+| 新增 | `src/lib/ai/relation-extractor.ts` |
+| 修改 | `src/lib/types/prompt.ts` — 增加 `relation.extract` |
+| 修改 | `src/lib/ai/prompt-seeds.ts` — 新增关系提取 seed |
+| 修改 | `src/components/relations/CharacterRelationPanel.tsx` — AI 提取按钮 + 预览面板 |
 
-- 世界观字段：句子级相似度过滤（本地计算，无需 AI）
-- 角色按名字聚合：同名角色合并为一张卡片
-- 项目参考中角色手动合并：多选 → 合并字段 → 自定义名称
-- 大纲按内容去重：相似度高的章节提示用户确认
+### Phase 30.5 — ✅ 导入去重增强（2026-05-29）
+
+> 来源：社区用户 | 状态：已完成 | 与 Phase 28.1 协同
+
+- 世界观字段：句子级 bigram 相似度过滤（本地计算，阈值 0.7，无需 AI）
+- 角色按名字聚合：同名角色自动合并字段（追加不覆盖），支持去标点/空格的模糊匹配
+- 大纲按标题/摘要去重：bigram 相似度检测（阈值 0.8），重复节点跳过创建但补充摘要
+
+**文件变更**：
+
+| 操作 | 文件 |
+|------|------|
+| 新增 | `src/lib/import/dedup.ts` — 三类去重工具函数 |
+| 修改 | `src/lib/import/chunk-writer.ts` — 集成世界观/角色/大纲去重逻辑 |
 
 ---
 

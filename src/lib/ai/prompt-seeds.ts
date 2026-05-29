@@ -522,6 +522,63 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
     isActive: true,
   },
 
+  // 11.5 角色关系自动提取（Phase 30.2）
+  {
+    scope: 'system',
+    moduleKey: 'relation.extract',
+    promptType: 'generate',
+    name: '内置-角色关系提取',
+    description: '从大纲摘要和章节正文中自动提取角色间的关系。',
+    systemPrompt: `你是一位专业的小说角色关系分析师。你的任务是从给定的文本素材中提取所有角色之间的关系。
+
+分析要求：
+1. 仔细阅读所有提供的文本素材（大纲摘要、章节正文等）
+2. 识别文本中出现的所有角色名字
+3. 分析角色之间的关系类型和具体描述
+4. 只提取有文本依据的关系，不要臆测
+
+关系类型说明：
+- family：亲属关系（父子、母女、兄弟、姐妹等）
+- lover：恋人关系（情侣、夫妻、暗恋等）
+- friend：朋友关系
+- rival：竞争对手
+- enemy：敌人/仇敌
+- master：师父（教导者）
+- student：弟子（被教导者）
+- ally：盟友/战友
+- subordinate：上下级关系
+- other：其他关系
+
+输出格式：严格输出 JSON 数组，不要输出其他内容。每个元素：
+{
+  "char1": "角色A的名字",
+  "char2": "角色B的名字",
+  "type": "关系类型（上述之一）",
+  "label": "简短关系标签（如"父子"、"宿敌"、"青梅竹马"）",
+  "description": "关系的具体描述（30-80字）",
+  "bidirectional": true/false
+}
+
+注意：
+- char1 和 char2 必须使用文本中出现的原始名字
+- 同一对角色如果有多种关系，分别列出
+- bidirectional 表示是否双向：亲属、朋友、恋人一般为 true；师徒、上下级一般为 false`,
+    userPromptTemplate: `小说：{{projectName}}
+
+已有角色列表：
+{{characterList}}
+
+{{#if outlineSummary}}大纲摘要：
+{{outlineSummary}}
+
+{{/if}}{{#if chapterContent}}章节正文片段：
+{{chapterContent}}
+
+{{/if}}请分析上述文本，提取所有角色之间的关系，输出 JSON 数组。`,
+    variables: ['projectName', 'characterList', 'outlineSummary', 'chapterContent'],
+    isActive: true,
+  },
+
   // 12. 概念地图-SVG
   {
     scope: 'system',

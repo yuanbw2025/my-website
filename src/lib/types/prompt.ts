@@ -38,6 +38,8 @@ export type PromptModuleKey =
   | 'import.parse-all'
   | 'import.parse-chunk'
   | 'import.merge-characters'
+  // —— Phase 30.2 角色关系提取 ——
+  | 'relation.extract'
   // —— Phase 19 作品学习 ——
   | 'master.analyze-chunk'
   | 'master.extract-beats'
