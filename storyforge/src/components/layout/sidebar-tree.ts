@@ -16,6 +16,7 @@ export type SidebarModule =
   // 著作信息
   | 'info'
   | 'references'
+  | 'inspiration'              // Phase 26.4 — 灵感反推
 
   // 设定库
   | 'world-rules'           // Phase 32 — 真实与幻想
@@ -108,8 +109,9 @@ export const NAV_TREE: TreeSection[] = [
     sectionId: 'project',
     label: '著作信息',
     children: [
-      leaf('info',       '项目概况', FileText),
-      leaf('references', '项目参考', Library),
+      leaf('info',         '项目概况', FileText),
+      leaf('inspiration',  '灵感反推', Sparkles),
+      leaf('references',   '项目参考', Library),
     ],
   },
   {

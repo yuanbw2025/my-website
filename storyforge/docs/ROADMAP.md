@@ -336,13 +336,27 @@
 | 修改 | `src/components/layout/sidebar-tree.ts` — 新增侧边栏入口 |
 | 修改 | `src/pages/WorkspacePage.tsx` — 注册面板 |
 
-### Phase 26.4 — 灵感反推入口
+### Phase 26.4 — ✅ 灵感反推入口（2026-05-29）
 
-> 来源：社区反馈 | 状态：未开始
+> 来源：社区反馈 | 状态：已完成
 
-- 项目概况或独立面板，用户写碎片想法
-- AI 反向生成：世界观草稿、故事核心、初始角色卡
-- 生成结果填入对应模块，用户可二次编辑
+- 独立面板：用户写碎片灵感（一句话/关键词/场景片段都行）
+- AI 反向生成：世界观草稿（摘要+地理+社会+规则）、故事核心（一句话故事+主题+冲突+模式+主线）、2-5 个初始角色卡
+- 结构化预览：三大模块可展开/折叠，角色可逐个勾选
+- 分模块采纳或一键全部采纳，写入对应 Store（世界观/故事设计/角色库）
+- 新增 prompt seed: `inspiration.reverse`
+- 侧边栏著作信息下新增「灵感反推」入口（Sparkles 图标）
+
+**文件变更**：
+
+| 操作 | 文件 |
+|------|------|
+| 新增 | `src/lib/ai/inspiration-reverse.ts` |
+| 新增 | `src/components/project/InspirationPanel.tsx` |
+| 修改 | `src/lib/types/prompt.ts` — 增加 `inspiration.reverse` |
+| 修改 | `src/lib/ai/prompt-seeds.ts` — 新增灵感反推 seed |
+| 修改 | `src/components/layout/sidebar-tree.ts` — 新增侧边栏入口 |
+| 修改 | `src/pages/WorkspacePage.tsx` — 注册面板 |
 
 ### ~~Phase 31.3 — creativeMode 联动题材包~~
 
