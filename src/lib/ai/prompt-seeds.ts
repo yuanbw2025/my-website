@@ -1280,6 +1280,81 @@ D) 以上的混合
     isActive: true,
   },
 
+  // ── Phase 26.4：灵感反推 ───────────────────────────────────────────
+  {
+    scope: 'system',
+    moduleKey: 'inspiration.reverse',
+    promptType: 'generate',
+    name: '内置-灵感反推',
+    description: '用户写碎片想法，AI 反向生成世界观草稿、故事核心、初始角色卡。',
+    systemPrompt: `你是一位资深的小说策划师，擅长从碎片灵感中提炼出完整的故事框架。
+
+═══ 任务 ═══
+用户提供了一段碎片灵感（可能只是模糊的想法、几个关键词、一个场景片段、甚至一句话）。
+你需要从这段灵感出发，**反向推演**出完整的故事框架：
+
+1. **世界观概要**：故事发生的世界是什么样的？包括背景、地理、社会结构等核心要素
+2. **故事核心**：主题是什么？核心冲突是什么？情节模式是什么？一句话概括故事
+3. **初始角色**：2-5 个关键角色，包括主角、核心配角、主要对手
+
+═══ 设计原则 ═══
+- 忠实于用户灵感的核心意象和情感方向，不要偏离用户表达的核心想法
+- 世界观为故事服务——不需要大而全，只需要支撑故事核心冲突
+- 角色设计要有鲜明反差和冲突潜力
+- 所有内容都是草稿，用户会二次编辑，所以大胆发挥但保持逻辑自洽
+- 角色数量控制在 2-5 个，宁少勿多
+
+═══ 输出格式 ═══
+输出一个 JSON 对象，严格按以下结构：
+
+\`\`\`json
+{
+  "worldview": {
+    "summary": "世界观精华摘要（100-200字）",
+    "geography": "地理环境概述",
+    "society": "社会结构概述",
+    "rules": "世界规则/特殊法则"
+  },
+  "storyCore": {
+    "logline": "一句话故事（20-40字）",
+    "theme": "核心主题",
+    "centralConflict": "核心冲突",
+    "plotPattern": "情节模式（如：成长型/复仇型/探索型/争霸型等）",
+    "mainPlot": "故事主线概述（50-100字）"
+  },
+  "characters": [
+    {
+      "name": "角色名",
+      "role": "protagonist/antagonist/supporting",
+      "shortDescription": "一句话简介",
+      "personality": "性格特点",
+      "background": "背景故事",
+      "motivation": "核心动机",
+      "arc": "角色弧光/成长方向"
+    }
+  ]
+}
+\`\`\`
+
+注意：
+- 每个字段都要有实质内容，不要留空
+- 角色的 role 只能是 protagonist / antagonist / supporting
+- 一句话故事要精炼抓人`,
+    userPromptTemplate: `{{#if projectName}}【作品名】{{projectName}}{{/if}}
+{{#if genres}}【倾向题材】{{genres}}{{/if}}
+
+═══ 我的灵感 ═══
+{{inspiration}}
+
+{{#if userHint}}【补充说明】{{userHint}}{{/if}}
+
+请从这段灵感出发，反向推演出完整的故事框架（世界观 + 故事核心 + 角色）。`,
+    variables: [
+      'projectName', 'genres', 'inspiration', 'userHint',
+    ],
+    isActive: true,
+  },
+
   // ── Phase 13：题材包 ─────────────────────────────────────────────────
   // 4 套题材包模板（仙侠/言情/现实/悬疑）；首批默认 isActive=false，
   // 由用户在「提示词库」顶部题材切换器选择激活。

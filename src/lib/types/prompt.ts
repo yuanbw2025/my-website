@@ -42,6 +42,8 @@ export type PromptModuleKey =
   | 'relation.extract'
   // —— Phase 26.3 角色驱动剧情 ——
   | 'plot.character-driven'
+  // —— Phase 26.4 灵感反推 ——
+  | 'inspiration.reverse'
   // —— Phase 19 作品学习 ——
   | 'master.analyze-chunk'
   | 'master.extract-beats'

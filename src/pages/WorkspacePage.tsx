@@ -51,6 +51,7 @@ import WorldMapPanel from '../components/geography/WorldMapPanel'
 import StatePanel from '../components/state/StatePanel'
 import StoryArcPanel from '../components/outline/StoryArcPanel'
 import CharacterDrivenPlotPanel from '../components/outline/CharacterDrivenPlotPanel'
+import InspirationPanel from '../components/project/InspirationPanel'
 import LocationPanel from '../components/location/LocationPanel'
 import { useLocationStore } from '../stores/location'
 
@@ -132,6 +133,8 @@ export default function WorkspacePage() {
         return <ProjectInfoPanel project={project} onUpdate={() => useProjectStore.getState().loadProjects()} />
       case 'references':
         return <ReferencePanel project={project} />
+      case 'inspiration':
+        return <InspirationPanel project={project} />
 
       // ── 设定库 - 世界观 ─────────────────────────────────────────────
       case 'world-rules':
