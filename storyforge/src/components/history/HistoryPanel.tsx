@@ -374,8 +374,13 @@ ${kw.location ? `- 地理位置/范围：${kw.location}` : ''}
                                   ? 'border-blue-500/20 text-blue-400 bg-blue-500/5'
                                   : 'border-purple-500/20 text-purple-400 bg-purple-500/5'
                               }`}>
-                                {evt.isHistorical ? '史实' : '虚构/架空'}
+                                {evt.isHistorical ? '⚓ 史实锚点' : '✨ 虚构/架空'}
                               </span>
+                              {evt.isHistorical && (
+                                <span className="text-[10px] text-amber-400/70" title="此事件为史实锚点，AI 生成时不可违反">
+                                  AI 不可违反
+                                </span>
+                              )}
                             </div>
                             <h4 className="text-sm font-medium text-text-primary truncate">{evt.title}</h4>
                             {!isExpanded && evt.description && (

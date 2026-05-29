@@ -37,6 +37,8 @@ export interface Reference {
   analysisProgress?: number
   /** 分析失败时的错误信息 */
   analysisError?: string
+  /** Phase 28.3: AI 全书总结 JSON（各维度 100-200 字精炼总结） */
+  analysisSummary?: string
 
   createdAt: number
   updatedAt: number

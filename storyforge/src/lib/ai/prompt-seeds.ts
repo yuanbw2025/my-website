@@ -14,21 +14,17 @@ export type PromptSeed = Omit<PromptTemplate, 'id' | 'createdAt' | 'updatedAt'>
 
 // ── 公用 system prompts ────────────────────────────────────────────────────
 
-const WORLDVIEW_SYSTEM = `{{#if (eq creativeMode "historical")}}你是一位极其严谨、甚至有些挑剔的全球历史学家与小说考证顾问。
-你的首要原则是：**绝对不迎合、不顺从作者可能存在的错误假设，坚决捍卫历史真实性，杜绝时代错乱（Anachronism）**。
-
-你的职责：
-1. 根据用户提供的小说类型、历史时期和基本设定，为其构建极其严谨、符合时代特征的世界观要素。
-2. 确保所有细节（如官职、赋税、器物、称谓、科技水平）完全符合所选历史时期的真实生产力水平，绝不出现超前或跨地域的违和设定。
-3. 如果发现作者的前提存在史实硬伤（如宋代出现近视眼镜、唐代出现红薯、汉代出现铁锅炒菜），必须在回答的最开头予以明确否定，并给出历史替代方案。
-4. 提供具体、生动、有史料支撑的细节，帮助作者增加小说的真实感和沉浸感。
-{{else}}你是一位资深的奇幻/科幻世界设计师，擅长构建宏大、自洽、有深度的虚构世界{{#if usesTone}}，写作基调偏{{tone}}{{/if}}。
+const WORLDVIEW_SYSTEM = `你是一位资深的世界设计师，擅长构建宏大、自洽、有深度的虚构世界{{#if usesTone}}，写作基调偏{{tone}}{{/if}}。
 
 你的职责：
 1. 根据用户提供的小说类型和基本设定，为其构建详细的世界观要素
 2. 确保世界观各维度之间逻辑自洽
 3. 提供具体、生动的细节，而非泛泛而谈
-4. 用条理清晰的格式组织内容{{/if}}
+4. 用条理清晰的格式组织内容{{#if worldRulesContext}}
+
+**【重要】世界规则约束**：本作品设定了「真实与幻想」规则。你必须严格遵守以下世界规则清单中的约束——标注为「📜取自真实」的内容必须准确，不得出现时代错乱（anachronism）；标注为「✨架空改造」的内容尊重作者设定；冲突时按各维度的优先级裁决。
+
+如果发现用户的前提与世界规则中的史实锚点矛盾，必须在回答开头予以明确指出，并给出符合规则的替代方案。{{/if}}
 
 输出要求：
 - 直接输出内容，不需要重复用户的输入
@@ -49,22 +45,15 @@ const CHARACTER_SYSTEM = `你是一位角色设计大师，擅长创造有深度
 输出格式：直接输出内容，使用 Markdown{{#if usesDetailLevel}}
 详尽度：{{detailLevel}}（简略=要点列表 / 中等=每项 50-80 字 / 详尽=每项 100-200 字 + 例子）{{/if}}`
 
-const OUTLINE_SYSTEM = `{{#if (eq creativeMode "historical")}}你是一位精通历史小说结构设计的大纲师，擅长在真实历史框架中编织精彩故事。
-
-你的职责：
-1. 严格遵循历史背景设定，大纲中的事件、人物行为、社会环境必须符合所选时代
-2. 明确标注哪些情节是基于史实，哪些是合理虚构（架空），不得混淆
-3. 每一卷要有明确的主线冲突、角色成长和高潮转折
-4. 章节安排要有节奏感：开篇引入 → 矛盾升级 → 高潮 → 过渡/伏笔
-5. 虚构情节不能违反基本史实（如时代科技水平、社会制度、重大历史事件走向）{{#if usesPace}}
-6. 整体节奏偏：{{pace}}{{/if}}
-{{else}}你是一位经验丰富的小说大纲师，擅长设计跌宕起伏的故事结构。
+const OUTLINE_SYSTEM = `你是一位经验丰富的小说大纲师，擅长设计跌宕起伏的故事结构。
 
 你的职责：
 1. 根据世界观和故事核心，设计精彩的故事大纲
 2. 每一卷要有明确的主线冲突、角色成长和高潮转折
 3. 章节安排要有节奏感：开篇引入 → 矛盾升级 → 高潮 → 过渡/伏笔{{#if usesPace}}
-4. 整体节奏偏：{{pace}}（慢=多铺垫多情感线 / 中=平衡 / 快=多冲突多反转 / 极快=每章必有爽点）{{/if}}{{/if}}
+4. 整体节奏偏：{{pace}}（慢=多铺垫多情感线 / 中=平衡 / 快=多冲突多反转 / 极快=每章必有爽点）{{/if}}{{#if worldRulesContext}}
+
+**【重要】世界规则约束**：本作品设定了「真实与幻想」规则。大纲设计必须遵守世界规则清单——史实锚点（⚓）标注的事件不可违背，虚构情节不能与「📜取自真实」的设定矛盾，冲突时按各维度优先级裁决。{{/if}}
 
 输出格式要求：
 - 卷级大纲：每卷包含标题和 2-3 句情节摘要
@@ -72,21 +61,7 @@ const OUTLINE_SYSTEM = `{{#if (eq creativeMode "historical")}}你是一位精通
 - 使用编号列表
 - 直接输出内容`
 
-const CHAPTER_SYSTEM = `{{#if (eq creativeMode "historical")}}你是一位精通历史小说创作的连载作者{{#if usesTone}}，擅长写出{{tone}}风格{{/if}}{{#if usesPace}}、节奏{{pace}}{{/if}}的章节。
-
-你的写作风格：
-1. 开篇即抓人——第一段就要制造悬念或冲突
-2. 善用对话推进剧情，对话必须符合时代语境（称谓、语气、措辞），不可出现现代口语
-3. 动作场面要有画面感，武器/战术/器物必须符合时代
-4. 每章结尾留钩子（伏笔/悬念/反转）
-5. 环境描写注重时代质感（建筑/服饰/食物/交通工具均须考据）
-
-写作原则：
-- 严格遵循历史背景设定，不得出现时代错乱（anachronism）
-- 展示而非告知（Show, don't tell）
-- 角色行为要符合其性格、动机和所处时代的社会规范
-- 保持世界观一致性，虚构部分不违反基本史实
-{{else}}你是一位经验丰富的长篇连载作者{{#if usesTone}}，擅长写出{{tone}}风格{{/if}}{{#if usesPace}}、节奏{{pace}}{{/if}}的章节。
+const CHAPTER_SYSTEM = `你是一位经验丰富的长篇连载作者{{#if usesTone}}，擅长写出{{tone}}风格{{/if}}{{#if usesPace}}、节奏{{pace}}{{/if}}的章节。
 
 你的写作风格：
 1. 开篇即抓人——第一段就要制造悬念或冲突
@@ -99,7 +74,8 @@ const CHAPTER_SYSTEM = `{{#if (eq creativeMode "historical")}}你是一位精通
 - 展示而非告知（Show, don't tell）
 - 角色行为要符合其性格和动机
 - 保持世界观一致性
-- 注意前后文的连贯性{{/if}}
+- 注意前后文的连贯性{{#if worldRulesContext}}
+- **【重要】世界规则约束**：本作品设定了「真实与幻想」规则。写作中必须遵守世界规则清单——涉及「📜取自真实」的内容（器物、称谓、制度、地理等）必须准确，不得出现时代错乱；涉及「✨架空改造」的内容尊重作者设定。对话、描写、环境须符合规则中声明的时代质感。{{/if}}
 
 输出要求：
 - 直接输出正文内容
@@ -177,24 +153,17 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
     systemPrompt: WORLDVIEW_SYSTEM,
     userPromptTemplate: `小说名称：{{projectName}}
 小说类型：{{genres}}
-需要生成的维度：{{dimension}}{{#if (eq creativeMode "historical")}} (历史考证模式){{/if}}{{#if worldContext}}
+需要生成的维度：{{dimension}}{{#if worldContext}}
 
 已有世界观设定（请保持一致）：
-{{worldContext}}{{/if}}{{#if userHint}}
+{{worldContext}}{{/if}}{{#if worldRulesContext}}
 
-用户补充说明：{{userHint}}{{/if}}{{#if (eq creativeMode "historical")}}
+{{worldRulesContext}}{{/if}}{{#if userHint}}
 
-**历史考证维度指南**：
-- 如果是【真实地理与地名考据】：请提供该历史时期的真实行政区划、地名演变、关隘要塞、水系分布，并指出哪些是史实，哪些是为小说服务的合理虚构。
-- 如果是【历史时期与架空度】：请明确界定核心历史年份、皇帝年号、朝代背景，并详细阐述小说的“架空程度”（如：严格史实/适度架空/完全架空世界线），以及架空点（蝴蝶效应起点）在哪里。
-- 如果是【社会等级与官职】：请提供该时期真实的官制体系（如三省六部、九品中正）、爵位制度、社会阶层（士农工商/奴隶/贵族）以及真实的升迁/科举路径。
-- 如果是【宗教与民间信仰】：请提供该时期真实的国教、民间信仰、岁时节日、祭祀风俗、禁忌与避讳。
-- 如果是【经济与赋税制度】：请提供该时期真实的货币体系（如铜钱、飞钱、交子）、赋税制度（如租庸调制、两税法）、核心商品与商路（如丝绸之路、大运河）。
-- 如果是【时代科技与生产力】：请提供该时期真实的农业工具（如曲辕犁、水车）、手工业水平（如织布机、造纸术）、武器装备（如明光铠、神臂弓）以及交通工具。
-{{/if}}{{#if isSummary}}
+用户补充说明：{{userHint}}{{/if}}{{#if isSummary}}
 
 请将上述世界观浓缩为 200-400 字的精华摘要，后续 AI 写作时会作为核心上下文参考。{{/if}}`,
-    variables: ['projectName', 'genres', 'dimension', 'worldContext', 'userHint', 'isSummary', 'creativeMode'],
+    variables: ['projectName', 'genres', 'dimension', 'worldContext', 'worldRulesContext', 'userHint', 'isSummary'],
     parameters: [
       { key: 'tone', label: '基调', type: 'select',
         options: ['严肃', '史诗', '抒情', '硬核', '轻奇幻'],
@@ -290,8 +259,9 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
 {{#if characterContext}}
 已创建的角色：
 {{characterContext}}
-{{/if}}{{#if historicalContext}}
-{{historicalContext}}
+{{/if}}{{#if worldRulesContext}}
+
+{{worldRulesContext}}
 {{/if}}
 请生成卷级大纲。围绕核心角色展开主线，配角在合适时机登场推动剧情。
 
@@ -302,7 +272,7 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
 不要输出 JSON 以外的任何文字。{{#if userHint}}
 
 用户补充要求：{{userHint}}{{/if}}`,
-    variables: ['projectName', 'genres', 'targetWordCount', 'estimatedVolumes', 'worldContext', 'storyCore', 'characterContext', 'historicalContext', 'creativeMode', 'userHint'],
+    variables: ['projectName', 'genres', 'targetWordCount', 'estimatedVolumes', 'worldContext', 'storyCore', 'characterContext', 'worldRulesContext', 'userHint'],
     parameters: [
       { key: 'pace', label: '整体节奏', type: 'select',
         options: ['慢', '中', '快', '极快'],
@@ -335,8 +305,9 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
 {{#if characterContext}}
 已创建的角色：
 {{characterContext}}
-{{/if}}{{#if historicalContext}}
-{{historicalContext}}
+{{/if}}{{#if worldRulesContext}}
+
+{{worldRulesContext}}
 {{/if}}
 **输出格式**：请严格输出 JSON 数组，用 \`\`\`json 代码块包裹，每个元素包含 title（章节标题，如"第1章：XXX"）和 summary（1-2 句情节摘要）。示例：
 \`\`\`json
@@ -345,7 +316,7 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
 不要输出 JSON 以外的任何文字。{{#if userHint}}
 
 用户补充要求：{{userHint}}{{/if}}`,
-    variables: ['volumeTitle', 'volumeSummary', 'worldContext', 'prevVolumeSummary', 'characterContext', 'historicalContext', 'creativeMode', 'userHint'],
+    variables: ['volumeTitle', 'volumeSummary', 'worldContext', 'prevVolumeSummary', 'characterContext', 'worldRulesContext', 'userHint'],
     parameters: [
       { key: 'pace', label: '节奏', type: 'select',
         options: ['慢', '中', '快', '极快'], default: '中', optional: true },
@@ -377,12 +348,12 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
 {{characters}}
 
 前一章结尾（衔接用）：
-{{previousChapterEnding}}{{#if historicalContext}}
+{{previousChapterEnding}}{{#if worldRulesContext}}
 
-{{historicalContext}}{{/if}}{{#if userHint}}
+{{worldRulesContext}}{{/if}}{{#if userHint}}
 
 用户额外要求：{{userHint}}{{/if}}`,
-    variables: ['chapterTitle', 'chapterSummary', 'worldContext', 'characters', 'previousChapterEnding', 'historicalContext', 'creativeMode', 'userHint'],
+    variables: ['chapterTitle', 'chapterSummary', 'worldContext', 'characters', 'previousChapterEnding', 'worldRulesContext', 'userHint'],
     parameters: [
       {
         key: 'tone',

@@ -10,7 +10,6 @@ import type {
   Project, Reference, ReferenceType,
   ReferenceChunkAnalysis, ReferenceAnalysisDepth,
 } from '../../lib/types'
-import { DIMENSION_LABELS, ANALYSIS_DIMENSIONS } from '../../lib/types/reference'
 import type { WritingTechniques } from '../../lib/types/import-session-data'
 import {
   planRefChunks,
@@ -19,6 +18,7 @@ import {
   cancelRefAnalysisPipeline,
   setRefAnalysisPipelineListener,
 } from '../../lib/reference-analysis/pipeline'
+import AnalysisReportViewer from './AnalysisReportViewer'
 
 // ── 常量 ─────────────────────────────────────────────────────────
 
@@ -717,122 +717,9 @@ function DeepAnalysisTab({
         </div>
       )}
 
-      {/* 分块分析结果 */}
+      {/* 分块分析结果（结构化报告） */}
       {chunks.length > 0 && !isAnalyzing && (
-        <ChunkAnalysisViewer chunks={chunks} isHistorical={isHistorical} />
-      )}
-    </div>
-  )
-}
-
-/** 分块分析查看器 —— 可切换块 + 按维度展示 */
-function ChunkAnalysisViewer({ chunks, isHistorical }: { chunks: ReferenceChunkAnalysis[]; isHistorical: boolean }) {
-  const [selectedChunk, setSelectedChunk] = useState(0)
-  const [expandedDims, setExpandedDims] = useState<Set<string>>(new Set(ANALYSIS_DIMENSIONS))
-
-  const chunk = chunks[selectedChunk]
-  if (!chunk) return null
-
-  const toggleDim = (dim: string) => {
-    setExpandedDims(prev => {
-      const next = new Set(prev)
-      if (next.has(dim)) next.delete(dim)
-      else next.add(dim)
-      return next
-    })
-  }
-
-  const dimColors: Record<string, string> = {
-    narrativeStructure: 'text-blue-400 border-blue-400/30',
-    openingTechnique:   'text-amber-400 border-amber-400/30',
-    plotRhythm:         'text-green-400 border-green-400/30',
-    characterCraft:     'text-purple-400 border-purple-400/30',
-    conflictEscalation: 'text-red-400 border-red-400/30',
-    foreshadowing:      'text-cyan-400 border-cyan-400/30',
-    proseAndDialogue:   'text-pink-400 border-pink-400/30',
-    worldBuilding:      'text-teal-400 border-teal-400/30',
-    // 历史维度专属古风色彩
-    historicalContext:  'text-[#C17D5E] border-[#C17D5E]/30', // 古铜色
-    socialInstitutions: 'text-[#B06B7B] border-[#B06B7B]/30', // 朱砂红
-    dailyLife:          'text-[#7BA08A] border-[#7BA08A]/30', // 松石绿
-    materialCulture:    'text-[#B08B6B] border-[#B08B6B]/30', // 琥珀金
-    languageCustoms:    'text-[#8B7BB0] border-[#8B7BB0]/30', // 黛紫色
-  }
-
-  // 根据是否为历史资料，动态过滤展示的维度
-  const visibleDimensions = ANALYSIS_DIMENSIONS.filter(dim => {
-    const isHistDim = ['historicalContext', 'socialInstitutions', 'dailyLife', 'materialCulture', 'languageCustoms'].includes(dim)
-    if (isHistorical) {
-      // 历史资料：优先展示历史维度，文学维度有内容也展示
-      return isHistDim || (chunk[dim] && chunk[dim] !== '本块未涉及')
-    } else {
-      // 普通小说：只展示文学维度
-      return !isHistDim
-    }
-  })
-
-  return (
-    <div className="space-y-3">
-      {/* 块选择器 */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-text-muted">分块：</span>
-        <div className="flex flex-wrap gap-1">
-          {chunks.map((c, i) => (
-            <button
-              key={c.id}
-              onClick={() => setSelectedChunk(i)}
-              className={`px-2 py-0.5 text-xs rounded transition-colors ${
-                i === selectedChunk
-                  ? 'bg-accent text-white'
-                  : 'bg-bg-elevated text-text-muted hover:text-text-secondary'
-              }`}
-            >
-              {c.label || `块 ${i + 1}`}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 十三维内容 */}
-      <div className="space-y-1">
-        {visibleDimensions.map(dim => {
-          const content = chunk[dim]
-          if (!content || content === '本块未涉及') return null
-          const isExpanded = expandedDims.has(dim)
-          const colorClass = dimColors[dim] || 'text-text-muted border-border'
-
-          return (
-            <div key={dim} className="border border-border/40 rounded-lg overflow-hidden">
-              <button
-                onClick={() => toggleDim(dim)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-bg-hover transition-colors"
-              >
-                {isExpanded
-                  ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                  : <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                }
-                <span className={`text-xs font-medium ${colorClass.split(' ')[0]}`}>
-                  {DIMENSION_LABELS[dim]}
-                </span>
-              </button>
-              {isExpanded && (
-                <div className="px-3 pb-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
-                  {content}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* 精彩片段 */}
-      {chunk.rawExcerpt && (
-        <div className="border border-border/40 rounded-lg p-3">
-          <h4 className="text-xs font-medium text-text-muted mb-1.5">精彩片段引用</h4>
-          <div className="text-sm text-text-secondary italic leading-relaxed whitespace-pre-wrap">
-            {chunk.rawExcerpt}
-          </div>
-        </div>
+        <AnalysisReportViewer reference={reference} chunks={chunks} isHistorical={isHistorical} />
       )}
     </div>
   )

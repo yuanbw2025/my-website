@@ -13,6 +13,7 @@ import { useCreativeRulesStore } from '../stores/project-singletons'
 import { useCharacterRelationStore } from '../stores/character-relation'
 import { useReferenceStore } from '../stores/reference'
 import { useEmotionBeatStore } from '../stores/emotion-beat'
+import { useWorldRulesStore } from '../stores/world-rules'
 import { useAutoBackup } from '../hooks/useAutoBackup'
 import { PanelRight } from 'lucide-react'
 import Sidebar, { type SidebarModule } from '../components/layout/Sidebar'
@@ -26,6 +27,7 @@ import PromptManagerPanel from '../components/settings/prompt/PromptManagerPanel
 // MasterStudiesPanel 已整合进 ReferencePanel（Phase 20）
 import DataManagementPanel from '../components/data/DataManagementPanel'
 import WorldviewPanel from '../components/worldview/WorldviewPanel'
+import WorldRulesPanel from '../components/worldview/WorldRulesPanel'
 import StoryCorePanel from '../components/worldview/StoryCorePanel'
 import PowerSystemPanel from '../components/worldview/PowerSystemPanel'
 import WorldviewOriginPanel from '../components/worldview/WorldviewOriginPanel'
@@ -48,6 +50,8 @@ import CharacterRelationPanel from '../components/relations/CharacterRelationPan
 import WorldMapPanel from '../components/geography/WorldMapPanel'
 import StatePanel from '../components/state/StatePanel'
 import StoryArcPanel from '../components/outline/StoryArcPanel'
+import LocationPanel from '../components/location/LocationPanel'
+import { useLocationStore } from '../stores/location'
 
 export default function WorkspacePage() {
   const { projectId } = useParams()
@@ -97,6 +101,9 @@ export default function WorkspacePage() {
         useCharacterRelationStore.getState().loadAll(pid),
         useReferenceStore.getState().loadAll(pid),
         useEmotionBeatStore.getState().loadAll(pid),
+        useLocationStore.getState().loadAll(pid),
+        // Phase 32: 加载世界规则（首次访问自动创建空 profile，兼容旧项目）
+        useWorldRulesStore.getState().loadProfile(pid),
       ])
 
       setLoading(false)
@@ -125,7 +132,9 @@ export default function WorkspacePage() {
       case 'references':
         return <ReferencePanel project={project} />
 
-      // ── 设定库 - 世界观（v3 §2.1，三个新子模块）─────────────────────
+      // ── 设定库 - 世界观 ─────────────────────────────────────────────
+      case 'world-rules':
+        return <WorldRulesPanel project={project} />
       case 'worldview-origin':
         return <WorldviewOriginPanel project={project} />
       case 'worldview-natural':
@@ -178,6 +187,8 @@ export default function WorkspacePage() {
         return <ChaptersListPanel project={project} initialNodeId={editorNodeId} />
       case 'foreshadow':
         return <ForeshadowPanel project={project} />
+      case 'locations':
+        return <LocationPanel project={project} />
       case 'story-arc':
         return <StoryArcPanel project={project} />
       case 'state-table':

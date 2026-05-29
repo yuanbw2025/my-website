@@ -4,7 +4,7 @@ import {
   UserCircle, UsersRound, User, Footprints, Network,
   Ruler, BookOpen, FilePen, Eye,
   FileCog, History, Upload, Download, Settings,
-  Map, ClipboardList, GitBranch, Clock, Gem,
+  Map, ClipboardList, GitBranch, Clock, Gem, MapPin, Scale,
 } from 'lucide-react'
 
 /**
@@ -17,6 +17,7 @@ export type SidebarModule =
   | 'references'
 
   // 设定库
+  | 'world-rules'           // Phase 32 — 真实与幻想
   | 'worldview-origin'      // 占位 (P5)
   | 'worldview-natural'     // 占位 (P5)
   | 'worldview-humanity'    // 占位 (P6)
@@ -26,7 +27,8 @@ export type SidebarModule =
   | 'characters-npc'        // 占位 (P7)
   | 'characters-extra'      // 占位 (P7)
   | 'relations'             // 关系网
-  | 'geography'             // 地理环境
+  | 'geography'             // 地理环境（legacy）
+  | 'locations'             // 重要地点（Phase 25.3）
   | 'history'               // 历史年表
   | 'items'                 // 道具系统
 
@@ -118,6 +120,7 @@ export const NAV_TREE: TreeSection[] = [
         label: '世界观',
         icon: Globe,
         children: [
+          leaf('world-rules',        '真实与幻想', Scale),
           leaf('worldview-origin',   '世界起源', Sparkles),
           leaf('worldview-natural',  '自然环境', Mountain),
           leaf('worldview-humanity', '人文环境', Users2),
@@ -151,6 +154,7 @@ export const NAV_TREE: TreeSection[] = [
       leaf('story-arc',        '故事线',   GitBranch),
       leaf('chapters-list',    '章节',     FilePen),
       leaf('foreshadow',       '伏笔',     Eye),
+      leaf('locations',        '重要地点', MapPin),
       leaf('state-table',      '状态表',   ClipboardList),
     ],
   },
