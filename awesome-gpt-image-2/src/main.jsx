@@ -3157,9 +3157,10 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
+    const dataBase = import.meta.env.BASE_URL || '/';
     Promise.all([
-      fetch('/cases.json').then((response) => response.json()),
-      fetch('/style-library.json').then((response) => response.json())
+      fetch(`${dataBase}cases.json`).then((response) => response.json()),
+      fetch(`${dataBase}style-library.json`).then((response) => response.json())
     ])
       .then(([payload, library]) => {
         if (!cancelled) {
