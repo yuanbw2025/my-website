@@ -6,6 +6,34 @@
 
 ## 2026-05-29
 
+### Phase 26.3 — 角色驱动剧情模式
+
+**来源**：社区用户反馈
+
+从角色弧光反推情节大纲——用户设定角色的「起始状态」和「目标状态/结局」，AI 自动推演中间情节并生成结构化的卷/章大纲。
+
+**新增内容**：
+
+- **角色弧光设定面板**：从项目角色库中选择角色，为每个角色填写起始状态和目标状态描述。支持「自动填充」从角色卡已有的背景故事和弧光字段预填
+- **AI 剧情推演**：AI 分析多个角色从起点到终点的必经转变，设计触发事件和交叉点，生成完整的卷/章大纲。自动注入世界观、故事核心、世界规则约束等上下文
+- **结构化预览**：AI 输出解析为卷/章树形结构，每章显示标题、摘要、关键角色、弧光推进说明。支持展开/折叠、全选/单选
+- **一键导入大纲**：选中的卷可批量写入大纲系统，章节摘要自动包含角色弧光推进标注
+- **额外要求输入**：用户可补充约束（如卷数限制、侧重方向、感情线要求等）
+- 新增 prompt seed：`plot.character-driven`（角色弧光分析 → 多角色交织 → 冲突层次递进）
+- 侧边栏创作区新增「角色驱动」入口（Drama 图标）
+
+**改动文件**：
+| 文件 | 改动 |
+|------|------|
+| `src/lib/ai/character-driven-plot.ts` | 新增：prompt 构建（角色弧光格式化 + 已有大纲注入）+ AI 输出解析 |
+| `src/components/outline/CharacterDrivenPlotPanel.tsx` | 新增：角色弧光设定 + AI 生成 + 结果预览 + 导入大纲 |
+| `src/lib/types/prompt.ts` | `PromptModuleKey` 增加 `plot.character-driven` |
+| `src/lib/ai/prompt-seeds.ts` | 新增角色驱动剧情 seed（系统提示 + 用户模板） |
+| `src/components/layout/sidebar-tree.ts` | 侧边栏创作区新增 `character-driven-plot` 叶子 |
+| `src/pages/WorkspacePage.tsx` | 注册 `CharacterDrivenPlotPanel` |
+
+---
+
 ### Phase 30.5 — 导入去重增强
 
 **来源**：社区用户反馈
