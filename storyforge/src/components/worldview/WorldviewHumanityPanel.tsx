@@ -70,7 +70,7 @@ export default function WorldviewHumanityPanel({ project }: Props) {
   const buildCtx = useCallback((skipKey: string): string => {
     const parts: string[] = []
     if (worldview?.worldOrigin) parts.push(`【世界起源】${worldview.worldOrigin.slice(0, 200)}`)
-    if (worldview?.powerHierarchy) parts.push(`【力量层次】${worldview.powerHierarchy.slice(0, 150)}`)
+    if (worldview?.powerHierarchy) parts.push(`【力量体系】${worldview.powerHierarchy.slice(0, 150)}`)
     if (worldview?.continentLayout) parts.push(`【大陆分布】${worldview.continentLayout.slice(0, 150)}`)
     const map: [string, string, string][] = [
       ['history',   '世界历史线',   values.history || ''],

@@ -75,7 +75,7 @@ export default function HistoryPanel({ project }: Props) {
     if (!worldview) return ''
     const parts: string[] = []
     if (worldview.worldOrigin)    parts.push(`【世界来源】${worldview.worldOrigin.slice(0, 200)}`)
-    if (worldview.powerHierarchy) parts.push(`【力量层次】${worldview.powerHierarchy.slice(0, 150)}`)
+    if (worldview.powerHierarchy) parts.push(`【力量体系】${worldview.powerHierarchy.slice(0, 150)}`)
     if (worldview.historyLine)    parts.push(`【世界历史线】${worldview.historyLine.slice(0, 200)}`)
     if (worldview.worldEvents)    parts.push(`【世界大事记】${worldview.worldEvents.slice(0, 200)}`)
     if (worldview.races)          parts.push(`【种族与民族】${worldview.races.slice(0, 100)}`)

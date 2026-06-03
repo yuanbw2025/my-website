@@ -32,7 +32,7 @@ export interface Worldview {
   // ── v3 §2.1 新字段（全部可选，渐进填充） ─────────────────────────────────
   // 世界起源
   worldOrigin?: string                    // 世界来源（创世神话/科技起源等）
-  powerHierarchy?: string                 // 力量层次（替代独立 powerSystems 表）
+  powerHierarchy?: string                 // 力量体系（替代独立 powerSystems 表）
   divineDesign?: DivineDesign             // 神明设定
 
   // 自然环境
