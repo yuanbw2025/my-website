@@ -10,7 +10,7 @@
 
 import { chat } from './client'
 import { useAIConfigStore } from '../../stores/ai-config'
-import { buildEnhancedDetailPrompt, parseEnhancedDetailResult } from './adapters/detail-scene-adapter'
+import { buildEnhancedDetailPrompt, parseEnhancedDetailSmart } from './adapters/detail-scene-adapter'
 import { buildChapterContentPrompt } from './adapters/chapter-adapter'
 import type { OutlineNode, DetailedOutline } from '../types'
 import type { ScenePace } from '../types/detailed-outline'
@@ -107,7 +107,7 @@ export async function batchGenerateDetails(
         return { generated, skipped: chapters.length - todo.length, failed, cancelled: true, elapsed: Date.now() - start }
       }
 
-      const parsed = parseEnhancedDetailResult(rawOutput)
+      const parsed = await parseEnhancedDetailSmart(rawOutput, config)
       if (parsed) {
         const data: Partial<DetailedOutline> = {}
         if (parsed.openingHook) data.openingHook = parsed.openingHook

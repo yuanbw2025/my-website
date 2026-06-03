@@ -38,7 +38,9 @@ type DbTableKey = {
  */
 export type ProjectSingletonStore<K extends string, T extends ProjectScopedRecord> = {
   loading: boolean
-  loadAll: (projectId: number) => Promise<void>
+  /** 当前加载的世界组（null = 单世界 / 未指定，Phase 25.4） */
+  activeWorldGroupId: number | null
+  loadAll: (projectId: number, worldGroupId?: number | null) => Promise<void>
   save: (data: Partial<T>) => Promise<void>
 } & { [P in K]: T | null }
 
@@ -75,20 +77,30 @@ export function createProjectSingletonStore<K extends string, T extends ProjectS
     const initialState = {
       [key]: null,
       loading: false,
+      activeWorldGroupId: null,
     } as unknown as State
 
     return {
       ...initialState,
 
-      loadAll: async (projectId: number) => {
-        set({ loading: true } as Partial<State> as State)
-        const record = await getTable().where('projectId').equals(projectId).first()
+      loadAll: async (projectId: number, worldGroupId: number | null = null) => {
+        set({ loading: true, activeWorldGroupId: worldGroupId } as unknown as Partial<State> as State)
+        let record: T | undefined
+        if (worldGroupId == null) {
+          // 单世界 / 未指定：取第一条
+          record = await getTable().where('projectId').equals(projectId).first()
+        } else {
+          // 多世界：取匹配该世界组的记录
+          const all = await getTable().where('projectId').equals(projectId).toArray()
+          record = all.find(r => (r as { worldGroupId?: number | null }).worldGroupId === worldGroupId)
+        }
         set({ [key]: record ?? null, loading: false } as unknown as Partial<State> as State)
       },
 
       save: async (data: Partial<T>) => {
         const state = get()
         const current = (state as unknown as Record<string, T | null>)[key]
+        const activeWorldGroupId = (state as unknown as { activeWorldGroupId: number | null }).activeWorldGroupId
 
         if (current?.id) {
           const ts = now()
@@ -107,6 +119,8 @@ export function createProjectSingletonStore<K extends string, T extends ProjectS
           const toInsert = {
             ...(defaults as object),
             projectId: data.projectId,
+            // 多世界模式下盖章当前世界组（单世界时为 null，不影响）
+            ...(activeWorldGroupId != null ? { worldGroupId: activeWorldGroupId } : {}),
             createdAt: ts,
             updatedAt: ts,
             ...data,

@@ -26,6 +26,13 @@ export interface AIConfig {
   maxTokens: number
 }
 
+/** API 配置预设（多套配置一键切换） */
+export interface AIConfigPreset {
+  id: string
+  name: string
+  config: AIConfig
+}
+
 /** 聊天消息 */
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'

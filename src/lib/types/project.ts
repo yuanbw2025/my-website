@@ -105,6 +105,10 @@ export interface Project {
   /** 创作模式：fantasy=玄幻/幻想模式，historical=历史/考证模式 */
   creativeMode?: CreativeMode
 
+  // ── Phase 25.4 多世界 ──
+  /** 是否启用多世界模式（默认 false） */
+  enableMultiWorld?: boolean
+
   createdAt: number        // timestamp
   updatedAt: number        // timestamp
 }

@@ -44,6 +44,16 @@ export type PromptModuleKey =
   | 'plot.character-driven'
   // —— Phase 26.4 灵感反推 ——
   | 'inspiration.reverse'
+  | 'inspiration.reverse.multiworld'
+  // —— Phase 25.4 多世界 ——
+  | 'world-group.suggest'
+  | 'world-group.expand'
+  // —— Phase 25.5.2-b 物品栏 ——
+  | 'inventory.extract'
+  // —— Phase 25.5.2-a 故事进程年表 ——
+  | 'story-timeline.extract'
+  // —— Phase 27.2a 场景考证 ——
+  | 'scene.verify'
   // —— Phase 19 作品学习 ——
   | 'master.analyze-chunk'
   | 'master.extract-beats'

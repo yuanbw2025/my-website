@@ -14,6 +14,7 @@ import { buildChapterContentPrompt, buildContinuePrompt, buildPolishPrompt, buil
 import { buildStateExtractPrompt, parseStateDiffs } from '../../lib/ai/adapters/state-extract-adapter'
 import { buildSummaryPrompt } from '../../lib/ai/adapters/summary-adapter'
 import { buildWorldContext, buildCharacterContext, filterActiveCharacters, getContextMemo, buildRefAnalysisContext, buildMasterInsightContext } from '../../lib/ai/context-builder'
+import { buildCurrentWorldContext } from '../../lib/ai/world-group-context'
 import { buildGenreConstraintContext } from '../../lib/ai/genre-metadata'
 import { buildStylePromptInjection } from '../../lib/ai/writing-styles'
 import { buildMemory, type MemoryTaskType } from '../../lib/ai/memory-builder'
@@ -126,9 +127,40 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
 
   const outlineNode = currentChapter ? nodes.find(n => n.id === currentChapter.outlineNodeId) : null
   const memo = getContextMemo(project.id!)
-  const worldCtx = [memo, buildWorldContext(worldview, storyCore, powerSystem)].filter(Boolean).join('\n\n')
-  // Phase G2: 过滤活跃角色
-  const activeChars = filterActiveCharacters(characters, currentChapter?.id)
+
+  // 多世界：沿父链找到所属卷的 worldGroupId
+  const chapterWorldGroupId = useMemo(() => {
+    if (!project.enableMultiWorld || !outlineNode) return null
+    let cur: typeof outlineNode | undefined = outlineNode
+    const guard = new Set<number>()
+    while (cur && !guard.has(cur.id!)) {
+      if (cur.worldGroupId != null) return cur.worldGroupId
+      guard.add(cur.id!)
+      cur = cur.parentId != null ? nodes.find(n => n.id === cur!.parentId) : undefined
+    }
+    return null
+  }, [project.enableMultiWorld, outlineNode, nodes])
+
+  // 多世界：异步构建本卷所属世界的完整上下文
+  const [multiWorldCtx, setMultiWorldCtx] = useState('')
+  useEffect(() => {
+    if (chapterWorldGroupId == null) { setMultiWorldCtx(''); return }
+    let cancelled = false
+    buildCurrentWorldContext(project.id!, chapterWorldGroupId).then(ctx => {
+      if (!cancelled) setMultiWorldCtx(ctx)
+    })
+    return () => { cancelled = true }
+  }, [project.id, chapterWorldGroupId])
+
+  // 多世界模式且本卷有所属世界 → 用世界上下文；否则走原全局世界观
+  const worldCtx = chapterWorldGroupId != null
+    ? [memo, multiWorldCtx].filter(Boolean).join('\n\n')
+    : [memo, buildWorldContext(worldview, storyCore, powerSystem)].filter(Boolean).join('\n\n')
+  // Phase G2: 过滤活跃角色（多世界下先按所属世界过滤：本世界角色 + 跨世界角色）
+  const worldScopedChars = chapterWorldGroupId != null
+    ? characters.filter(c => c.isCrossWorld || c.homeWorldGroupId === chapterWorldGroupId)
+    : characters
+  const activeChars = filterActiveCharacters(worldScopedChars, currentChapter?.id)
   const charCtx = buildCharacterContext(activeChars)
 
   // A2: 按需召回 — 根据章节大纲+标题+已有文本筛选相关状态卡

@@ -201,7 +201,7 @@ export default function CharacterDrivenPlotPanel({ project }: Props) {
             {availableChars.length > 0 && (
               <div className="flex items-center gap-2">
                 <select
-                  className="text-xs bg-bg-input border border-border-default rounded px-2 py-1 text-text-primary"
+                  className="text-xs bg-bg-base border border-border-default rounded px-2 py-1 text-text-primary"
                   value=""
                   onChange={e => {
                     const id = Number(e.target.value)
@@ -260,7 +260,7 @@ export default function CharacterDrivenPlotPanel({ project }: Props) {
                         value={arc.initialState}
                         onChange={e => handleUpdateArc(i, 'initialState', e.target.value)}
                         placeholder="角色在故事开始时的状态、处境、性格特点..."
-                        className="w-full text-sm bg-bg-input border border-border-default rounded px-3 py-2 text-text-primary placeholder:text-text-muted resize-none"
+                        className="w-full text-sm bg-bg-base border border-border-default rounded px-3 py-2 text-text-primary placeholder:text-text-muted resize-none"
                         minRows={2}
                       />
                     </div>
@@ -272,7 +272,7 @@ export default function CharacterDrivenPlotPanel({ project }: Props) {
                         value={arc.targetState}
                         onChange={e => handleUpdateArc(i, 'targetState', e.target.value)}
                         placeholder="角色在故事结束时应达到的状态、成长结果..."
-                        className="w-full text-sm bg-bg-input border border-border-default rounded px-3 py-2 text-text-primary placeholder:text-text-muted resize-none"
+                        className="w-full text-sm bg-bg-base border border-border-default rounded px-3 py-2 text-text-primary placeholder:text-text-muted resize-none"
                         minRows={2}
                       />
                     </div>
@@ -300,7 +300,7 @@ export default function CharacterDrivenPlotPanel({ project }: Props) {
               value={userHint}
               onChange={e => setUserHint(e.target.value)}
               placeholder="例如：控制在3卷以内、侧重战斗场景、需要感情线贯穿始终..."
-              className="w-full text-sm bg-bg-input border border-border-default rounded px-3 py-2 text-text-primary placeholder:text-text-muted resize-none"
+              className="w-full text-sm bg-bg-base border border-border-default rounded px-3 py-2 text-text-primary placeholder:text-text-muted resize-none"
               minRows={2}
             />
           </section>

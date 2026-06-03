@@ -7,20 +7,25 @@
 import { useState, useEffect } from 'react'
 import {
   Lightbulb, Sparkles, Loader2, Check, ChevronDown, ChevronRight,
-  Globe, BookOpen, UserCircle, ArrowDownToLine,
+  Globe, BookOpen, UserCircle, ArrowDownToLine, Download,
 } from 'lucide-react'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useCharacterStore } from '../../stores/character'
+import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
 import {
   buildInspirationReversePrompt,
   parseReverseOutput,
+  buildInspirationReverseMultiWorldPrompt,
+  parseReverseMultiWorldOutput,
   type ReverseResult,
   type ReverseCharacter,
+  type ReverseMultiWorldResult,
 } from '../../lib/ai/inspiration-reverse'
+import { db } from '../../lib/db/schema'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import AutoResizeTextarea from '../shared/AutoResizeTextarea'
-import type { Project } from '../../lib/types'
+import type { Project, Worldview } from '../../lib/types'
 import type { CharacterRole } from '../../lib/types/character'
 
 interface Props {
@@ -42,39 +47,224 @@ const ROLE_LABELS: Record<string, string> = {
 export default function InspirationPanel({ project }: Props) {
   const wvStore = useWorldviewStore()
   const chStore = useCharacterStore()
+  const wgStore = useWorldGroupStore()
   const ai = useAIStream()
+  const isMW = !!project.enableMultiWorld
 
+  const draftKey = `sf-inspiration-draft-${project.id}`
   const [inspiration, setInspiration] = useState('')
   const [userHint, setUserHint] = useState('')
   const [result, setResult] = useState<ReverseResult | null>(null)
+
+  // 灵感草稿持久化：进入时加载、变化时保存（切走不丢）
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(draftKey)
+      if (saved) {
+        const d = JSON.parse(saved)
+        setInspiration(d.inspiration || '')
+        setUserHint(d.userHint || '')
+      }
+    } catch { /* ignore */ }
+  }, [draftKey])
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { localStorage.setItem(draftKey, JSON.stringify({ inspiration, userHint })) } catch { /* ignore */ }
+    }, 500)
+    return () => clearTimeout(t)
+  }, [draftKey, inspiration, userHint])
+  const [mwResult, setMwResult] = useState<ReverseMultiWorldResult | null>(null)
+  const [mwAdopted, setMwAdopted] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['worldview', 'storyCore', 'characters']))
   const [adoptedSections, setAdoptedSections] = useState<Set<string>>(new Set())
   const [selectedChars, setSelectedChars] = useState<Set<number>>(new Set())
   const [adopting, setAdopting] = useState(false)
 
-  // 解析 AI 输出
+  // 解析 AI 输出（多世界 / 单世界两条路径）
   useEffect(() => {
-    if (!ai.isStreaming && ai.output) {
+    if (ai.isStreaming || !ai.output) return
+    if (isMW) {
+      const parsed = parseReverseMultiWorldOutput(ai.output)
+      if (parsed) setMwResult(parsed)
+    } else {
       const parsed = parseReverseOutput(ai.output)
       if (parsed) {
         setResult(parsed)
         setSelectedChars(new Set(parsed.characters.map((_, i) => i)))
       }
     }
-  }, [ai.isStreaming, ai.output])
+  }, [ai.isStreaming, ai.output, isMW])
 
   const handleGenerate = async () => {
     if (!inspiration.trim()) return
     setResult(null)
+    setMwResult(null)
+    setMwAdopted(false)
     setAdoptedSections(new Set())
 
-    const messages = buildInspirationReversePrompt(
-      project.name,
-      project.genres?.join('/') || project.genre || '',
-      inspiration,
-      userHint || undefined,
-    )
+    const genres = project.genres?.join('/') || project.genre || ''
+    const messages = isMW
+      ? buildInspirationReverseMultiWorldPrompt(project.name, genres, inspiration, userHint || undefined)
+      : buildInspirationReversePrompt(project.name, genres, inspiration, userHint || undefined)
     await ai.start(messages)
+  }
+
+  // ── 多世界：一键采纳（创建世界组 + 各世界世界观 + 故事核心 + 角色归属）──
+  const handleAdoptMultiWorld = async () => {
+    if (!mwResult || mwAdopted) return
+    setAdopting(true)
+    try {
+      // 确保多世界已开启 + 主世界组存在
+      await wgStore.migrateToMultiWorld(project.id!)
+
+      // 1. 故事核心（项目级）
+      const sc = mwResult.storyCore
+      await wvStore.saveStoryCore({
+        projectId: project.id!,
+        theme: sc.theme || undefined,
+        centralConflict: sc.centralConflict || undefined,
+        plotPattern: sc.plotPattern || undefined,
+        mainPlot: sc.mainPlot || undefined,
+        logline: sc.logline || undefined,
+      })
+
+      // 2. 逐个世界：创建世界组 + 写入该世界的世界观（字段严格对齐 Worldview）
+      const nameToGroupId = new Map<string, number>()
+      // 已有主世界组（migrate 创建）：复用给输出中的 primary 世界（读最新 store 状态）
+      const primaryGroupId = useWorldGroupStore.getState().groups.find(g => g.type === 'primary')?.id ?? null
+      let primaryClaimed = false
+      for (let i = 0; i < mwResult.worlds.length; i++) {
+        const w = mwResult.worlds[i]
+        let groupId: number
+        if (w.type === 'primary' && primaryGroupId != null && !primaryClaimed) {
+          groupId = primaryGroupId
+          primaryClaimed = true
+          await wgStore.updateGroup(groupId, {
+            name: w.name, description: w.worldOrigin?.slice(0, 100) || '',
+          })
+        } else {
+          groupId = await wgStore.createGroup({
+            projectId: project.id!,
+            name: w.name,
+            description: w.worldOrigin?.slice(0, 100) || '',
+            type: w.type,
+            icon: '🌐',
+            order: i,
+            entryCondition: w.entryCondition || undefined,
+            powerRestriction: w.powerRestriction || undefined,
+          })
+        }
+        nameToGroupId.set(w.name, groupId)
+        // 写入该世界组的 worldview（直接操作 DB，字段名严格对齐 v3）
+        const existing = (await db.worldviews.where('projectId').equals(project.id!).toArray())
+          .find(x => x.worldGroupId === groupId)
+        const nowTs = Date.now()
+        const wvFields = {
+          worldOrigin: w.worldOrigin || '',
+          powerHierarchy: w.powerHierarchy || '',
+          continentLayout: w.continentLayout || '',
+          climateByRegion: w.climateByRegion || '',
+          historyLine: w.historyLine || '',
+          races: w.races || '',
+          factionLayout: w.factionLayout || '',
+        }
+        if (existing?.id) {
+          await db.worldviews.update(existing.id, { ...wvFields, updatedAt: nowTs })
+        } else {
+          await db.worldviews.add({
+            projectId: project.id!,
+            geography: '', history: '', society: '', culture: '', economy: '', rules: '', summary: '',
+            ...wvFields,
+            worldGroupId: groupId,
+            createdAt: nowTs, updatedAt: nowTs,
+          } as Worldview)
+        }
+      }
+
+      // 3. 角色：按 homeWorld 归属，跨世界角色标记
+      for (const c of mwResult.characters) {
+        if (!c.name) continue
+        const homeGroupId = c.isCrossWorld ? null : (nameToGroupId.get(c.homeWorld) ?? null)
+        await chStore.addCharacter({
+          projectId: project.id!,
+          name: c.name,
+          role: ROLE_MAP[c.role] || 'supporting',
+          shortDescription: c.shortDescription || '',
+          appearance: '',
+          personality: c.personality || '',
+          background: c.background || '',
+          motivation: c.motivation || '',
+          abilities: '',
+          relationships: '',
+          arc: c.arc || '',
+          homeWorldGroupId: homeGroupId,
+          isCrossWorld: c.isCrossWorld,
+        })
+      }
+
+      // 刷新世界组 store
+      await wgStore.loadAll(project.id!)
+      setMwAdopted(true)
+    } finally {
+      setAdopting(false)
+    }
+  }
+
+  // 导出反推结果为 Markdown 文件
+  const handleExportResult = () => {
+    const lines: string[] = [`# ${project.name} — 灵感反推结果\n`]
+    if (inspiration.trim()) lines.push(`## 原始灵感\n${inspiration}\n`)
+    if (mwResult) {
+      const sc = mwResult.storyCore
+      lines.push(`## 故事主线`)
+      if (sc.logline) lines.push(`- 一句话：${sc.logline}`)
+      if (sc.theme) lines.push(`- 主题：${sc.theme}`)
+      if (sc.centralConflict) lines.push(`- 核心冲突：${sc.centralConflict}`)
+      if (sc.mainPlot) lines.push(`- 主线：${sc.mainPlot}`)
+      lines.push('')
+      mwResult.worlds.forEach((w, i) => {
+        lines.push(`## 世界 ${i + 1}：${w.name}（${w.type}）`)
+        if (w.worldOrigin) lines.push(`- 世界来源：${w.worldOrigin}`)
+        if (w.powerHierarchy) lines.push(`- 力量层次：${w.powerHierarchy}`)
+        if (w.continentLayout) lines.push(`- 地貌分布：${w.continentLayout}`)
+        if (w.historyLine) lines.push(`- 世界历史：${w.historyLine}`)
+        if (w.factionLayout) lines.push(`- 势力分布：${w.factionLayout}`)
+        if (w.entryCondition) lines.push(`- 进入条件：${w.entryCondition}`)
+        if (w.powerRestriction) lines.push(`- 能力限制：${w.powerRestriction}`)
+        lines.push('')
+      })
+      if (mwResult.characters.length) {
+        lines.push(`## 初始角色`)
+        mwResult.characters.forEach(c => {
+          const home = c.isCrossWorld ? '跨世界' : (c.homeWorld || '')
+          lines.push(`- **${c.name}**（${ROLE_LABELS[c.role] || c.role}${home ? ` · ${home}` : ''}）：${c.shortDescription}`)
+        })
+      }
+    } else if (result) {
+      const wv = result.worldview, sc = result.storyCore
+      lines.push(`## 世界观`)
+      if (wv.worldOrigin) lines.push(`- 世界来源：${wv.worldOrigin}`)
+      if (wv.powerHierarchy) lines.push(`- 力量层次：${wv.powerHierarchy}`)
+      if (wv.continentLayout) lines.push(`- 地貌分布：${wv.continentLayout}`)
+      if (wv.historyLine) lines.push(`- 世界历史：${wv.historyLine}`)
+      if (wv.factionLayout) lines.push(`- 势力分布：${wv.factionLayout}`)
+      lines.push(`\n## 故事核心`)
+      if (sc.logline) lines.push(`- 一句话：${sc.logline}`)
+      if (sc.theme) lines.push(`- 主题：${sc.theme}`)
+      if (sc.centralConflict) lines.push(`- 核心冲突：${sc.centralConflict}`)
+      if (sc.mainPlot) lines.push(`- 主线：${sc.mainPlot}`)
+      if (result.characters.length) {
+        lines.push(`\n## 初始角色`)
+        result.characters.forEach(c => lines.push(`- **${c.name}**（${ROLE_LABELS[c.role] || c.role}）：${c.shortDescription}`))
+      }
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${project.name}-灵感反推.md`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const toggleSection = (key: string) => {
@@ -100,10 +290,13 @@ export default function InspirationPanel({ project }: Props) {
     const wv = result.worldview
     await wvStore.saveWorldview({
       projectId: project.id!,
-      summary: wv.summary || undefined,
-      geography: wv.geography || undefined,
-      society: wv.society || undefined,
-      rules: wv.rules || undefined,
+      worldOrigin: wv.worldOrigin || undefined,
+      powerHierarchy: wv.powerHierarchy || undefined,
+      continentLayout: wv.continentLayout || undefined,
+      climateByRegion: wv.climateByRegion || undefined,
+      historyLine: wv.historyLine || undefined,
+      races: wv.races || undefined,
+      factionLayout: wv.factionLayout || undefined,
     })
     setAdoptedSections(prev => new Set(prev).add('worldview'))
     setAdopting(false)
@@ -170,6 +363,14 @@ export default function InspirationPanel({ project }: Props) {
         <Lightbulb className="w-5 h-5 text-yellow-500" />
         <h2 className="text-lg font-semibold text-text-primary">灵感反推</h2>
         <span className="text-xs text-text-muted ml-2">从碎片想法反推完整故事框架</span>
+        {(result || mwResult) && (
+          <button
+            onClick={handleExportResult}
+            className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-bg-elevated text-text-secondary border border-border hover:text-accent hover:border-accent/50 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" /> 导出结果
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
@@ -182,7 +383,7 @@ export default function InspirationPanel({ project }: Props) {
             value={inspiration}
             onChange={e => setInspiration(e.target.value)}
             placeholder={"随便写点什么...\n\n例如：\n- 一个在末世废墟中寻找失踪妹妹的退役军人\n- 古代宫廷里，一个替身公主发现了皇帝的秘密\n- 赛博朋克 + 修仙，用代码修炼的程序员\n- 甚至只是几个关键词：深海、孤岛、失忆、怪物"}
-            className="w-full text-sm bg-bg-input border border-border-default rounded-lg px-4 py-3 text-text-primary placeholder:text-text-muted resize-none"
+            className="w-full text-sm bg-bg-base border border-border-default rounded-lg px-4 py-3 text-text-primary placeholder:text-text-muted resize-none"
             minRows={5}
           />
         </section>
@@ -194,7 +395,7 @@ export default function InspirationPanel({ project }: Props) {
             value={userHint}
             onChange={e => setUserHint(e.target.value)}
             placeholder="例如：偏黑暗风格、需要感情线、主角要有反转..."
-            className="w-full text-sm bg-bg-input border border-border-default rounded px-3 py-2 text-text-primary placeholder:text-text-muted resize-none"
+            className="w-full text-sm bg-bg-base border border-border-default rounded px-3 py-2 text-text-primary placeholder:text-text-muted resize-none"
             minRows={2}
           />
         </section>
@@ -229,16 +430,80 @@ export default function InspirationPanel({ project }: Props) {
             tokenUsage={ai.tokenUsage}
             onStop={ai.stop}
             onAccept={() => {
-              const parsed = parseReverseOutput(ai.output)
-              if (parsed) {
-                setResult(parsed)
-                setSelectedChars(new Set(parsed.characters.map((_, i) => i)))
+              if (isMW) {
+                const parsed = parseReverseMultiWorldOutput(ai.output)
+                if (parsed) setMwResult(parsed)
+              } else {
+                const parsed = parseReverseOutput(ai.output)
+                if (parsed) {
+                  setResult(parsed)
+                  setSelectedChars(new Set(parsed.characters.map((_, i) => i)))
+                }
               }
             }}
             onRetry={handleGenerate}
             placeholder="等待 AI 反推故事框架..."
-            moduleKey="inspiration.reverse"
+            moduleKey={isMW ? 'inspiration.reverse.multiworld' : 'inspiration.reverse'}
           />
+        )}
+
+        {/* ── 多世界反推结果预览 ─────────────────────── */}
+        {isMW && mwResult && !ai.isStreaming && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-text-primary">多世界反推结果（{mwResult.worlds.length} 个世界）</h3>
+              <button
+                onClick={handleAdoptMultiWorld}
+                disabled={adopting || mwAdopted}
+                className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 disabled:opacity-40 transition-colors"
+              >
+                {adopting ? <Loader2 className="w-3 h-3 animate-spin" /> : mwAdopted ? <Check className="w-3 h-3" /> : <ArrowDownToLine className="w-3 h-3" />}
+                {mwAdopted ? '已采纳' : '一键创建多世界'}
+              </button>
+            </div>
+
+            {/* 故事核心 */}
+            <div className="bg-bg-surface border border-border rounded-lg p-3 space-y-1 text-sm">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-text-secondary mb-1"><BookOpen className="w-3.5 h-3.5" /> 故事主线</div>
+              {mwResult.storyCore.logline && <FieldRow label="一句话" value={mwResult.storyCore.logline} />}
+              {mwResult.storyCore.mainPlot && <FieldRow label="主线" value={mwResult.storyCore.mainPlot} />}
+              {mwResult.storyCore.centralConflict && <FieldRow label="核心冲突" value={mwResult.storyCore.centralConflict} />}
+            </div>
+
+            {/* 各世界 */}
+            {mwResult.worlds.map((w, i) => (
+              <div key={i} className="bg-bg-surface border border-border rounded-lg p-3 space-y-1 text-sm">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-text-secondary mb-1">
+                  <Globe className="w-3.5 h-3.5" /> {w.name}
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bg-elevated text-text-muted">{w.type}</span>
+                </div>
+                {w.worldOrigin && <FieldRow label="世界来源" value={w.worldOrigin} />}
+                {w.powerHierarchy && <FieldRow label="力量层次" value={w.powerHierarchy} />}
+                {w.factionLayout && <FieldRow label="势力分布" value={w.factionLayout} />}
+                {w.entryCondition && <FieldRow label="进入条件" value={w.entryCondition} />}
+                {w.powerRestriction && <FieldRow label="能力限制" value={w.powerRestriction} />}
+              </div>
+            ))}
+
+            {/* 角色 */}
+            {mwResult.characters.length > 0 && (
+              <div className="bg-bg-surface border border-border rounded-lg p-3 space-y-1.5 text-sm">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-text-secondary mb-1"><UserCircle className="w-3.5 h-3.5" /> 初始角色（{mwResult.characters.length}）</div>
+                {mwResult.characters.map((c, i) => (
+                  <div key={i} className="text-xs">
+                    <span className="text-text-primary font-medium">{c.name}</span>
+                    <span className="text-text-muted"> · {ROLE_LABELS[c.role] || c.role}</span>
+                    {c.isCrossWorld ? <span className="ml-1 text-accent">🌐 跨世界</span> : c.homeWorld && <span className="ml-1 text-text-muted">@{c.homeWorld}</span>}
+                    {c.shortDescription && <span className="text-text-muted"> — {c.shortDescription}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {mwAdopted && (
+              <p className="text-xs text-green-400">✓ 已创建 {mwResult.worlds.length} 个世界。前往「世界总览」查看，或在世界观面板切换世界编辑。</p>
+            )}
+          </section>
         )}
 
         {/* ── 结构化结果预览 ─────────────────────── */}
@@ -270,17 +535,26 @@ export default function InspirationPanel({ project }: Props) {
               adoptLabel="写入世界观"
             >
               <div className="space-y-2 text-sm">
-                {result.worldview.summary && (
-                  <FieldRow label="摘要" value={result.worldview.summary} />
+                {result.worldview.worldOrigin && (
+                  <FieldRow label="世界来源" value={result.worldview.worldOrigin} />
                 )}
-                {result.worldview.geography && (
-                  <FieldRow label="地理" value={result.worldview.geography} />
+                {result.worldview.powerHierarchy && (
+                  <FieldRow label="力量层次" value={result.worldview.powerHierarchy} />
                 )}
-                {result.worldview.society && (
-                  <FieldRow label="社会" value={result.worldview.society} />
+                {result.worldview.continentLayout && (
+                  <FieldRow label="地貌分布" value={result.worldview.continentLayout} />
                 )}
-                {result.worldview.rules && (
-                  <FieldRow label="规则" value={result.worldview.rules} />
+                {result.worldview.climateByRegion && (
+                  <FieldRow label="气候环境" value={result.worldview.climateByRegion} />
+                )}
+                {result.worldview.historyLine && (
+                  <FieldRow label="世界历史" value={result.worldview.historyLine} />
+                )}
+                {result.worldview.races && (
+                  <FieldRow label="种族民族" value={result.worldview.races} />
+                )}
+                {result.worldview.factionLayout && (
+                  <FieldRow label="势力分布" value={result.worldview.factionLayout} />
                 )}
               </div>
             </ResultCard>

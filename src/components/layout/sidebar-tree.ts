@@ -5,7 +5,7 @@ import {
   Ruler, BookOpen, FilePen, Eye,
   FileCog, History, Upload, Download, Settings,
   Map, ClipboardList, GitBranch, Clock, Gem, MapPin, Scale,
-  Drama,
+  Drama, Package, CalendarClock, ScanSearch,
 } from 'lucide-react'
 
 /**
@@ -19,6 +19,7 @@ export type SidebarModule =
   | 'inspiration'              // Phase 26.4 — 灵感反推
 
   // 设定库
+  | 'world-overview'        // Phase 25.4 — 世界总览（多世界）
   | 'world-rules'           // Phase 32 — 真实与幻想
   | 'worldview-origin'      // 占位 (P5)
   | 'worldview-natural'     // 占位 (P5)
@@ -58,6 +59,15 @@ export type SidebarModule =
 
   // 状态表（A1）
   | 'state-table'
+
+  // 物品栏（Phase 25.5.2-b）
+  | 'inventory'
+
+  // 故事进程年表（Phase 25.5.2-a）
+  | 'story-timeline'
+
+  // 场景考证（Phase 27.2a）
+  | 'scene-verify'
 
   // 全局故事线（Phase B）
   | 'story-arc'
@@ -118,6 +128,7 @@ export const NAV_TREE: TreeSection[] = [
     sectionId: 'lib',
     label: '设定库',
     children: [
+      leaf('world-overview', '世界总览', Globe),
       {
         kind: 'branch',
         branchId: 'lib.worldview',
@@ -161,6 +172,9 @@ export const NAV_TREE: TreeSection[] = [
       leaf('foreshadow',       '伏笔',     Eye),
       leaf('locations',        '重要地点', MapPin),
       leaf('state-table',      '状态表',   ClipboardList),
+      leaf('inventory',        '物品栏',   Package),
+      leaf('story-timeline',   '故事年表', CalendarClock),
+      leaf('scene-verify',     '场景考证', ScanSearch),
     ],
   },
   // 作品学习已整合进「项目参考 → 深度分析」tab（Phase 20）

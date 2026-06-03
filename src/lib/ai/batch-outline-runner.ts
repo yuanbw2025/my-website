@@ -6,7 +6,7 @@
  */
 import { chat } from './client'
 import { buildChapterOutlinePrompt } from './adapters/outline-adapter'
-import { parseChapterOutlineOutput, type ParsedChapter } from './parse-outline-output'
+import { parseChapterOutlineSmart, type ParsedChapter } from './parse-outline-output'
 import { useAIConfigStore } from '../../stores/ai-config'
 import type { OutlineNode } from '../types'
 
@@ -106,7 +106,7 @@ export async function runBatchOutlineGeneration(
         return { chaptersByVolume, cancelled: true, elapsed: Date.now() - startTime }
       }
 
-      const parsed = parseChapterOutlineOutput(rawOutput)
+      const parsed = await parseChapterOutlineSmart(rawOutput, config)
       chaptersByVolume.set(volId, parsed)
 
       // 把本卷章节摘要串联，作为下一卷的前序上下文
