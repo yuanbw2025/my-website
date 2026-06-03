@@ -4,7 +4,7 @@
  * 用户写碎片灵感 → AI 反向生成世界观草稿 + 故事核心 + 初始角色卡 → 选择性采纳
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Lightbulb, Sparkles, Loader2, Check, ChevronDown, ChevronRight,
   Globe, BookOpen, UserCircle, ArrowDownToLine, Download,
@@ -55,8 +55,15 @@ export default function InspirationPanel({ project }: Props) {
   const [inspiration, setInspiration] = useState('')
   const [userHint, setUserHint] = useState('')
   const [result, setResult] = useState<ReverseResult | null>(null)
+  const [mwResult, setMwResult] = useState<ReverseMultiWorldResult | null>(null)
+  const [mwAdopted, setMwAdopted] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['worldview', 'storyCore', 'characters']))
+  const [adoptedSections, setAdoptedSections] = useState<Set<string>>(new Set())
+  const [selectedChars, setSelectedChars] = useState<Set<number>>(new Set())
+  const [adopting, setAdopting] = useState(false)
+  const draftLoaded = useRef(false)
 
-  // 灵感草稿持久化：进入时加载、变化时保存（切走不丢）
+  // 草稿持久化：进入时加载灵感输入 + 已生成的反推结果（切走再回来不丢）
   useEffect(() => {
     try {
       const saved = localStorage.getItem(draftKey)
@@ -64,21 +71,26 @@ export default function InspirationPanel({ project }: Props) {
         const d = JSON.parse(saved)
         setInspiration(d.inspiration || '')
         setUserHint(d.userHint || '')
+        if (d.result) setResult(d.result)
+        if (d.mwResult) {
+          setMwResult(d.mwResult)
+          setMwAdopted(!!d.mwAdopted)
+        }
+        if (d.result?.characters) setSelectedChars(new Set(d.result.characters.map((_: unknown, i: number) => i)))
       }
     } catch { /* ignore */ }
+    draftLoaded.current = true
   }, [draftKey])
+  // 变化时保存（含反推结果），首次加载完成后才开始写，避免覆盖已存草稿
   useEffect(() => {
+    if (!draftLoaded.current) return
     const t = setTimeout(() => {
-      try { localStorage.setItem(draftKey, JSON.stringify({ inspiration, userHint })) } catch { /* ignore */ }
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({ inspiration, userHint, result, mwResult, mwAdopted }))
+      } catch { /* ignore */ }
     }, 500)
     return () => clearTimeout(t)
-  }, [draftKey, inspiration, userHint])
-  const [mwResult, setMwResult] = useState<ReverseMultiWorldResult | null>(null)
-  const [mwAdopted, setMwAdopted] = useState(false)
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['worldview', 'storyCore', 'characters']))
-  const [adoptedSections, setAdoptedSections] = useState<Set<string>>(new Set())
-  const [selectedChars, setSelectedChars] = useState<Set<number>>(new Set())
-  const [adopting, setAdopting] = useState(false)
+  }, [draftKey, inspiration, userHint, result, mwResult, mwAdopted])
 
   // 解析 AI 输出（多世界 / 单世界两条路径）
   useEffect(() => {
