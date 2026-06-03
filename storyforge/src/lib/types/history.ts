@@ -16,6 +16,8 @@ export interface History {
   overview: string         // 历史总述
   eraSystem: string        // 纪年体系描述
   events: string           // HistoricalEvent[] JSON string
+  /** 所属世界组 ID（Phase 25.4） */
+  worldGroupId?: number | null
   createdAt: number
   updatedAt: number
 }
@@ -73,6 +75,8 @@ export interface HistoricalTimelineEvent {
   relatedChapterIds?: number[] // 关联的章节 ID 列表
   customTimeRange?: string // 具体时间范围/区间（可选，如“公元712年-756年”）
   location?: string    // 地理位置/范围（可选，如“江南地区”、“君士坦丁堡”）
+  /** 所属世界组 ID（Phase 25.4，null = 默认主世界） */
+  worldGroupId?: number | null
   createdAt: number
   updatedAt: number
 }
@@ -105,6 +109,8 @@ export interface HistoricalKeyword {
   relatedChapterIds?: number[] // 关联的章节 ID 列表
   customTimeRange?: string // 具体时间范围/区间（可选，如“公元712年-756年”）
   location?: string    // 地理位置/范围（可选，如“江南地区”、“君士坦丁堡”）
+  /** 所属世界组 ID（Phase 25.4，null = 默认主世界） */
+  worldGroupId?: number | null
   createdAt: number
   updatedAt: number
 }

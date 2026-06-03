@@ -45,6 +45,12 @@ export interface Character {
   /** 退场/死亡章节 ID */
   exitChapterId?: number | null
 
+  // ── Phase 25.4 多世界 ──
+  /** 角色原属世界组 ID（null = 主角/跨世界角色） */
+  homeWorldGroupId?: number | null
+  /** 是否跨世界角色（主角、系统精灵等，在所有世界中可见） */
+  isCrossWorld?: boolean
+
   createdAt: number
   updatedAt: number
 }

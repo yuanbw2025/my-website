@@ -1310,10 +1310,13 @@ D) 以上的混合
 \`\`\`json
 {
   "worldview": {
-    "summary": "世界观精华摘要（100-200字）",
-    "geography": "地理环境概述",
-    "society": "社会结构概述",
-    "rules": "世界规则/特殊法则"
+    "worldOrigin": "世界来源/创世背景（100-200字，描述这个世界从何而来、创世神话或文明起源）",
+    "powerHierarchy": "力量层次体系（如修真等级、社会阶层、科技层级等，如何分层、怎么晋升）",
+    "continentLayout": "大陆/地貌分布概述（主要大陆、地形特征、核心区域的地理关系）",
+    "climateByRegion": "气候与环境特征（不同区域的气候类型、季节特征）",
+    "historyLine": "世界历史线概述（从远古到当下的关键历史节点）",
+    "races": "种族/民族设定（如有多个种族，描述各自特征和关系）",
+    "factionLayout": "势力分布（主要势力/门派/国家的格局和敌友关系）"
   },
   "storyCore": {
     "logline": "一句话故事（20-40字）",
@@ -1352,6 +1355,276 @@ D) 以上的混合
     variables: [
       'projectName', 'genres', 'inspiration', 'userHint',
     ],
+    isActive: true,
+  },
+
+  // ── Phase 25.5.3：多世界版灵感反推 ───────────────────────────────────
+  {
+    scope: 'system',
+    moduleKey: 'inspiration.reverse.multiworld',
+    promptType: 'generate',
+    name: '内置-多世界灵感反推',
+    description: '多世界题材：用户给出带有多个世界意图的灵感，AI 顺着思路反推故事主线 + 多个世界 + 角色。',
+    systemPrompt: `你是一位擅长诸天流/无限流/快穿/修仙多界等多世界题材的小说策划师。
+用户提供了带有"多个世界"意图的灵感，请**顺着用户的思路**反向推演出：一条贯穿的故事主线 + 多个世界的设定 + 初始角色。
+
+═══ 设计原则 ═══
+- 忠实于用户灵感中提到的世界和意图，不要凭空替换用户想要的世界
+- 各世界差异化（力量体系/文明形态/核心冲突各不相同），避免雷同
+- 跨世界角色（如主角、系统）标记 isCrossWorld=true
+- 各世界专属角色标记其所属世界名（homeWorld）
+
+═══ 输出格式（严格 JSON，不要 markdown 包裹）═══
+{
+  "storyCore": {
+    "logline": "一句话故事",
+    "theme": "核心主题",
+    "centralConflict": "贯穿全书的核心冲突",
+    "plotPattern": "情节模式",
+    "mainPlot": "跨世界主线概述（50-100字）"
+  },
+  "worlds": [
+    {
+      "name": "世界名称",
+      "type": "primary/traversal/instance/parallel/ascension/custom",
+      "worldOrigin": "世界来源/创世背景",
+      "powerHierarchy": "力量层次体系",
+      "continentLayout": "地貌分布",
+      "climateByRegion": "气候环境",
+      "historyLine": "世界历史线",
+      "races": "种族/民族",
+      "factionLayout": "势力分布",
+      "entryCondition": "进入此世界的条件（主世界留空）",
+      "powerRestriction": "主角在此世界的能力限制（主世界留空）"
+    }
+  ],
+  "characters": [
+    {
+      "name": "角色名",
+      "role": "protagonist/antagonist/supporting",
+      "shortDescription": "一句话简介",
+      "personality": "性格",
+      "background": "背景",
+      "motivation": "动机",
+      "arc": "角色弧光",
+      "homeWorld": "所属世界名称（跨世界角色留空）",
+      "isCrossWorld": false
+    }
+  ]
+}
+
+注意：
+- 第一个世界通常是 type=primary 的主世界
+- 字段名必须与上面完全一致，每个字段都要有实质内容
+- worlds 数量遵循用户灵感（用户提到几个就给几个，未明确则 2-4 个）`,
+    userPromptTemplate: `{{#if projectName}}【作品名】{{projectName}}{{/if}}
+{{#if genres}}【倾向题材】{{genres}}{{/if}}
+
+═══ 我的灵感 ═══
+{{inspiration}}
+
+{{#if userHint}}【补充说明】{{userHint}}{{/if}}
+
+请顺着我的思路，反向推演出：故事主线 + 多个世界 + 角色。输出纯 JSON。`,
+    variables: ['projectName', 'genres', 'inspiration', 'userHint'],
+    isActive: true,
+  },
+
+  // ── Phase 25.4：多世界 — AI 建议世界 ─────────────────────────────────
+  {
+    scope: 'system',
+    moduleKey: 'world-group.suggest',
+    promptType: 'generate',
+    name: '内置-AI建议世界',
+    description: '诸天流/无限流等多世界题材，根据故事概念和已有世界建议新的世界组。',
+    systemPrompt: `你是一位网文世界观架构师，擅长设计诸天流、无限流、快穿、修仙多界等多世界题材的世界格局。
+
+═══ 任务 ═══
+用户正在规划一部多世界小说，请根据故事概念和已有世界，建议 2-4 个新的世界，使整体世界格局更丰富、有递进感和差异性。
+
+═══ 设计原则 ═══
+- 每个世界要有鲜明的差异化特征（力量体系、文明形态、核心冲突各不相同）
+- 与已有世界形成递进或呼应，避免雷同
+- 符合题材惯例（诸天流世界独立、无限流副本有规则、修仙多界层层递进）
+- 给出合理的穿越/进入条件和能力限制
+
+═══ 输出格式 ═══
+输出纯 JSON 数组（不要 markdown 包裹）：
+[
+  {
+    "name": "世界名称",
+    "type": "traversal/instance/parallel/ascension/custom",
+    "description": "世界核心特征（50-100字）",
+    "entryCondition": "进入此世界的条件",
+    "powerRestriction": "主角在此世界的能力限制",
+    "plannedChapterCount": 预计章节数（整数）
+  }
+]
+
+type 含义：traversal=穿越目标，instance=副本，parallel=平行世界，ascension=上界/高维，custom=自定义。`,
+    userPromptTemplate: `{{#if projectName}}【作品名】{{projectName}}{{/if}}
+{{#if genres}}【题材】{{genres}}{{/if}}
+
+═══ 故事概念 ═══
+{{concept}}
+
+{{#if existingWorlds}}{{existingWorlds}}{{/if}}
+
+{{#if userHint}}【补充要求】{{userHint}}{{/if}}
+
+请建议 2-4 个新世界，输出纯 JSON 数组。`,
+    variables: ['projectName', 'genres', 'concept', 'existingWorlds', 'userHint'],
+    isActive: true,
+  },
+
+  // ── Phase 25.4：多世界 — AI 扩写世界 ─────────────────────────────────
+  {
+    scope: 'system',
+    moduleKey: 'world-group.expand',
+    promptType: 'generate',
+    name: '内置-AI扩写世界',
+    description: '根据世界的草稿描述，扩展出完整的世界观设定。',
+    systemPrompt: `你是一位资深的世界观设计师。用户给了一个世界的草稿描述，请把它扩展成完整、自洽的世界观设定。
+
+═══ 设计原则 ═══
+- 忠实于草稿的核心意象，在此基础上丰富细节
+- 参考"其他世界"的设定，确保本世界有差异化，不与它们雷同
+- 各维度逻辑自洽（力量体系要能支撑社会结构，地理要能解释文明分布）
+
+═══ 输出格式 ═══
+输出纯 JSON（不要 markdown 包裹）：
+{
+  "worldOrigin": "世界来源/创世背景（100-200字）",
+  "powerHierarchy": "力量层次体系（等级划分、晋升方式）",
+  "continentLayout": "地貌分布（大陆、地形、核心区域）",
+  "climateByRegion": "气候与环境特征",
+  "historyLine": "世界历史线（关键历史节点）",
+  "races": "种族/民族设定",
+  "factionLayout": "势力分布（主要势力的格局和关系）"
+}
+每个字段都要有实质内容，不要留空。`,
+    userPromptTemplate: `【世界名称】{{worldName}}
+{{#if worldType}}【世界类型】{{worldType}}{{/if}}
+
+═══ 草稿描述 ═══
+{{draft}}
+
+{{#if otherWorlds}}{{otherWorlds}}{{/if}}
+
+{{#if storyCore}}【整体故事主线】{{storyCore}}{{/if}}
+
+{{#if userHint}}【补充要求】{{userHint}}{{/if}}
+
+请扩展为完整世界观，输出纯 JSON。`,
+    variables: ['worldName', 'worldType', 'draft', 'otherWorlds', 'storyCore', 'userHint'],
+    isActive: true,
+  },
+
+  // ── Phase 25.5.2-b：物品栏提取 ───────────────────────────────────────
+  {
+    scope: 'system',
+    moduleKey: 'inventory.extract',
+    promptType: 'generate',
+    name: '内置-物品栏提取',
+    description: '从章节正文提取主角的物品获得/消耗事件，构建游戏包裹式物品栏。',
+    systemPrompt: `你是一个小说物品流水追踪器。阅读章节正文，提取主角（或核心视角人物）**获得**或**消耗/失去**物品的事件。
+
+规则：
+1. 只提取本章明确发生的物品**获得**或**消耗**，不要提取仅被提及但未变动的物品
+2. action 只能是：gain（获得/捡到/购买/奖励）或 consume（消耗/用掉/损坏/失去/赠予他人）
+3. quantity 为正整数（数量不明时填 1）
+4. itemName 用简洁规范的名称（如"疗伤丹"而非"一颗疗伤的丹药"），同一物品多章保持名称一致
+5. note 简述来源或用途（如"击败黑风寨主获得"、"为救同伴服下"）
+6. 本章无物品变动则返回空数组 []
+
+输出：严格 JSON 数组，不要 markdown 代码块，不要解释文字。
+示例：
+[{"itemName":"疗伤丹","action":"gain","quantity":3,"note":"洞府石室中拾得"},{"itemName":"疗伤丹","action":"consume","quantity":1,"note":"疗伤所用"}]`,
+    userPromptTemplate: `【章节标题】{{chapterTitle}}
+
+【章节内容】
+{{chapterText}}
+
+请提取本章主角的物品获得/消耗事件：`,
+    variables: ['chapterTitle', 'chapterText'],
+    isActive: true,
+  },
+
+  // ── Phase 25.5.2-a：故事进程年表提取 ─────────────────────────────────
+  {
+    scope: 'system',
+    moduleKey: 'story-timeline.extract',
+    promptType: 'generate',
+    name: '内置-故事年表提取',
+    description: '从章节正文提取剧情大事，构建故事进程年表（区别于世界背景历史）。',
+    systemPrompt: `你是一个小说剧情梳理器。阅读章节正文，提取本章发生的**剧情大事**（推动故事的关键事件、转折、冲突、相遇、突破等）。
+
+规则：
+1. 只提取本章**实际发生**的剧情事件，不要提取背景设定或回忆
+2. title 用简洁短语概括事件（如"主角突破筑基期"、"与林婉initial相遇"）
+3. storyTime 填故事内时间（如"开元三年春"、"穿越后第7天"、"大比当日"），无法判断则留空字符串
+4. importance：1=次要、2=重要、3=关键转折
+5. description 一句话补充事件经过/影响
+6. 本章无重要剧情则返回空数组 []
+
+输出：严格 JSON 数组，不要 markdown 代码块，不要解释文字。
+示例：
+[{"title":"主角突破筑基期","storyTime":"入门第三年","importance":3,"description":"服下筑基丹后闭关七日成功突破"}]`,
+    userPromptTemplate: `【章节标题】{{chapterTitle}}
+
+【章节内容】
+{{chapterText}}
+
+请提取本章的剧情大事：`,
+    variables: ['chapterTitle', 'chapterText'],
+    isActive: true,
+  },
+
+  // ── Phase 27.2a：场景考证 ───────────────────────────────────────────
+  {
+    scope: 'system',
+    moduleKey: 'scene.verify',
+    promptType: 'generate',
+    name: '内置-场景考证',
+    description: '用户描述当前场景，AI 结合世界观/历史年表/世界规则给出符合背景的细节、时代错乱警示与情节灵感。',
+    systemPrompt: `你是一位严谨的小说场景考证顾问，同时精通历史质感与世界观自洽。
+作者正在构思一个具体场景，需要你结合本作品的设定，提供符合背景的细节建议、纠错与情节灵感。
+
+═══ 核心原则 ═══
+1. **以本作品设定为准**：严格遵守下方给出的世界观、历史年表、真实与幻想规则。
+   - 凡是标注「取自真实」的维度，按真实历史考证，杜绝时代错乱（Anachronism）。
+   - 凡是标注「架空改造」的维度，尊重作者的架空设定，不要用真实历史去否定它。
+   - 标注「史实锚点」的历史事件不可违反。
+2. 不要泛泛而谈，只针对作者描述的这个**具体场景**给建议。
+
+═══ 输出结构（Markdown） ═══
+### 一、时代质感与细节
+该场景在本设定下应有的服饰、器物、建筑、饮食、礼仪等具体细节（结合设定，可直接写进小说）。
+
+### 二、称谓与名词
+该场景中人物的称谓、行话、官职、专有名词等（符合本作品设定的用语）。
+
+### 三、设定校验（如有问题）
+作者场景描述中是否存在时代错乱、地理错乱或与既有设定冲突之处；若有，明确指出并给出符合设定的替代方案；若无问题，简要确认即可。
+
+### 四、情节灵感
+2-3 个可直接用于该场景的情节点子或冲突灵感，需符合本作品的设定背景。
+
+语言专业、具体、有画面感，直接输出考证结果，不要客套。`,
+    userPromptTemplate: `{{#if worldContext}}{{worldContext}}
+
+{{/if}}{{#if historyContext}}{{historyContext}}
+
+{{/if}}{{#if worldRulesContext}}{{worldRulesContext}}
+
+{{/if}}═══ 作者描述的场景 ═══
+{{scene}}
+{{#if sceneEra}}
+【时代/时间背景】{{sceneEra}}{{/if}}{{#if sceneLocation}}
+【地点】{{sceneLocation}}{{/if}}
+
+请针对以上场景进行考证，按四个小节输出。`,
+    variables: ['worldContext', 'historyContext', 'worldRulesContext', 'scene', 'sceneEra', 'sceneLocation'],
     isActive: true,
   },
 

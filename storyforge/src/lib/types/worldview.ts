@@ -53,6 +53,10 @@ export interface Worldview {
   internalConflicts?: string              // 矛盾冲突设计
   itemDesign?: string                     // 道具设计（替代独立 itemSystems 表）
 
+  // ── Phase 25.4 多世界 ──
+  /** 所属世界组 ID（null/undefined = 默认主世界） */
+  worldGroupId?: number | null
+
   createdAt: number
   updatedAt: number
 }
@@ -83,6 +87,8 @@ export interface PowerSystem {
   description: string     // 体系描述
   levels: string          // 等级列表（JSON string）
   rules: string           // 体系规则
+  /** 所属世界组 ID（Phase 25.4） */
+  worldGroupId?: number | null
   createdAt: number
   updatedAt: number
 }

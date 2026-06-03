@@ -2,15 +2,18 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Plus, Trash2, Sparkles, ChevronRight, ChevronDown, Check, X, LayoutList, Layers, Loader2 } from 'lucide-react'
 import { useOutlineStore } from '../../stores/outline'
 import { useWorldviewStore } from '../../stores/worldview'
+import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildVolumeOutlinePrompt, buildChapterOutlinePrompt } from '../../lib/ai/adapters/outline-adapter'
 import { buildWorldContext, buildCharacterContext } from '../../lib/ai/context-builder'
+import { buildCurrentWorldContext } from '../../lib/ai/world-group-context'
 import { buildWorldRulesContext } from '../../lib/ai/world-rules-manifest'
 import { useCharacterStore } from '../../stores/character'
 import {
-  parseVolumeOutlineOutput, parseChapterOutlineOutput,
+  parseVolumeOutlineSmart, parseChapterOutlineSmart,
   type ParsedVolume, type ParsedChapter,
 } from '../../lib/ai/parse-outline-output'
+import { useAIConfigStore } from '../../stores/ai-config'
 import { runBatchOutlineGeneration, type BatchOutlineProgress } from '../../lib/ai/batch-outline-runner'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
@@ -28,7 +31,9 @@ interface Props {
 export default function OutlinePanel({ project, onOpenChapter }: Props) {
   const { nodes, loadAll, addNode, updateNode, deleteNode } = useOutlineStore()
   const { worldview, storyCore, powerSystem } = useWorldviewStore()
+  const worldGroups = useWorldGroupStore(s => s.groups)
   const { characters } = useCharacterStore()
+  const aiConfig = useAIConfigStore(s => s.config)
   const [selectedVolId, setSelectedVolId] = useState<number | null>(null)
   const [hint, setHint] = useState('')
   const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
@@ -139,10 +144,19 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     setActiveModuleKey('outline.chapter')
     setPreviewVolumes(null)
     setPreviewChapters(null)
-    const worldCtx = buildWorldContext(worldview, storyCore, powerSystem)
+    // 多世界：若本卷指定了所属世界，用该世界的完整上下文（卷可能不属于当前活跃世界）
+    let worldCtx: string
+    let chars = characters
+    if (project.enableMultiWorld && selectedVol.worldGroupId != null) {
+      worldCtx = await buildCurrentWorldContext(project.id!, selectedVol.worldGroupId)
+      // 角色限定为本世界角色 + 跨世界角色
+      chars = characters.filter(c => c.isCrossWorld || c.homeWorldGroupId === selectedVol.worldGroupId)
+    } else {
+      worldCtx = buildWorldContext(worldview, storyCore, powerSystem)
+    }
     const volIdx = volumes.indexOf(selectedVol)
     const prevSummary = volIdx > 0 ? volumes[volIdx - 1].summary : ''
-    const charCtx = buildCharacterContext(characters)
+    const charCtx = buildCharacterContext(chars)
     // Phase 32: 世界规则清单注入
     const rulesCtx = await buildWorldRulesContext(project.id!)
     const messages = buildChapterOutlinePrompt(selectedVol.title, selectedVol.summary, worldCtx, prevSummary, hint, buildOpts(), charCtx, rulesCtx)
@@ -210,21 +224,27 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
 
   // ── 采纳预览 + 确认 ──
 
-  const handlePreviewAccept = (text: string) => {
-    if (activeModuleKey === 'outline.volume') {
-      const parsed = parseVolumeOutlineOutput(text)
-      if (parsed.length === 0) {
-        alert('未能从 AI 输出中解析出卷级大纲，请检查输出内容或重试。')
-        return
+  const [restructuring, setRestructuring] = useState(false)
+  const handlePreviewAccept = async (text: string) => {
+    setRestructuring(true)
+    try {
+      if (activeModuleKey === 'outline.volume') {
+        const parsed = await parseVolumeOutlineSmart(text, aiConfig)
+        if (parsed.length === 0) {
+          alert('未能从 AI 输出中解析出卷级大纲，请检查输出内容或重试。')
+          return
+        }
+        setPreviewVolumes(parsed)
+      } else {
+        const parsed = await parseChapterOutlineSmart(text, aiConfig)
+        if (parsed.length === 0) {
+          alert('未能从 AI 输出中解析出章节大纲，请检查输出内容或重试。')
+          return
+        }
+        setPreviewChapters(parsed)
       }
-      setPreviewVolumes(parsed)
-    } else {
-      const parsed = parseChapterOutlineOutput(text)
-      if (parsed.length === 0) {
-        alert('未能从 AI 输出中解析出章节大纲，请检查输出内容或重试。')
-        return
-      }
-      setPreviewChapters(parsed)
+    } finally {
+      setRestructuring(false)
     }
   }
 
@@ -347,6 +367,9 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
             >
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-medium truncate ${active ? 'text-accent' : 'text-text-primary'}`}>
+                  {project.enableMultiWorld && vol.worldGroupId != null && (
+                    <span className="mr-1">{worldGroups.find(g => g.id === vol.worldGroupId)?.icon || '🌐'}</span>
+                  )}
                   {vol.title}
                 </p>
                 <p className="text-[10px] text-text-muted">
@@ -400,6 +423,12 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
             moduleKey={activeModuleKey} />
         )}
 
+        {restructuring && (
+          <div className="flex items-center gap-2 text-xs text-accent">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> 正在用 AI 整理大纲结构…
+          </div>
+        )}
+
         {/* 采纳预览：卷 */}
         {previewVolumes && (
           <PreviewPanel
@@ -448,6 +477,23 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
                 </button>
               </div>
             </div>
+
+            {/* 多世界：本卷所属世界 */}
+            {project.enableMultiWorld && worldGroups.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-text-muted">本卷所属世界</label>
+                <select
+                  value={selectedVol.worldGroupId ?? ''}
+                  onChange={e => updateNode(selectedVol.id!, { worldGroupId: e.target.value ? Number(e.target.value) : null })}
+                  className="px-2 py-1 bg-bg-surface border border-border rounded text-xs text-text-primary focus:outline-none focus:border-accent cursor-pointer"
+                >
+                  <option value="">未指定</option>
+                  {worldGroups.map(g => (
+                    <option key={g.id} value={g.id}>{g.icon || '🌐'} {g.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* 卷摘要 */}
             <div>

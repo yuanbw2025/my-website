@@ -8,8 +8,9 @@ import { useCharacterStore } from '../../stores/character'
 import { useOutlineStore } from '../../stores/outline'
 import { useAIConfigStore } from '../../stores/ai-config'
 import { useAIStream } from '../../hooks/useAIStream'
-import { buildForeshadowSuggestPrompt } from '../../lib/ai/adapters/foreshadow-adapter'
+import { buildForeshadowSuggestPrompt, buildForeshadowStructurePrompt, parseForeshadowStructured } from '../../lib/ai/adapters/foreshadow-adapter'
 import { buildWorldContext, buildCharacterContext } from '../../lib/ai/context-builder'
+import { chat } from '../../lib/ai/client'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
 import ForeshadowKanban from './ForeshadowKanban'
@@ -47,8 +48,44 @@ export default function ForeshadowPanel({ project }: Props) {
   const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
   const [systemOverride, setSystemOverride] = useState<string | null>(null)
   const [userOverride, setUserOverride] = useState<string | null>(null)
+  const [adopting, setAdopting] = useState(false)
+  const [adoptMsg, setAdoptMsg] = useState<string | null>(null)
 
   useEffect(() => { loadAll(project.id!) }, [project.id, loadAll])
+
+  // 采纳 AI 伏笔建议：用 AI 把自由文本结构化 → 批量写入伏笔表
+  const handleAdoptForeshadows = async (text: string) => {
+    if (!text.trim()) return
+    setAdopting(true)
+    setAdoptMsg(null)
+    try {
+      const raw = await chat(buildForeshadowStructurePrompt(text), config)
+      const items = parseForeshadowStructured(raw)
+      if (items.length === 0) {
+        setAdoptMsg('未能解析出伏笔条目，请重试或手动添加')
+        return
+      }
+      for (const it of items) {
+        await addForeshadow({
+          projectId: project.id!,
+          name: it.name,
+          type: it.type,
+          status: 'planned',
+          description: it.description,
+          plantChapterId: null,
+          echoChapterIds: '[]',
+          resolveChapterId: null,
+          notes: '',
+        })
+      }
+      setAdoptMsg(`已写入 ${items.length} 条伏笔`)
+      setShowAI(false)
+    } catch (err) {
+      setAdoptMsg(`采纳失败：${err instanceof Error ? err.message : '未知错误'}`)
+    } finally {
+      setAdopting(false)
+    }
+  }
 
   const filtered = filterStatus === 'all' ? foreshadows : foreshadows.filter(f => f.status === filterStatus)
   const selectedF = foreshadows.find(f => f.id === selected)
@@ -205,13 +242,19 @@ export default function ForeshadowPanel({ project }: Props) {
               userOverride={userOverride}
               onUserOverrideChange={setUserOverride}
             />
+            {adopting && (
+              <div className="flex items-center gap-2 text-xs text-accent">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> AI 正在把建议整理为伏笔条目并写入…
+              </div>
+            )}
+            {adoptMsg && <div className="text-xs text-text-muted">{adoptMsg}</div>}
             <AIStreamOutput
               output={ai.output}
               isStreaming={ai.isStreaming}
               error={ai.error} tokenUsage={ai.tokenUsage}
               onStop={ai.stop}
               onRetry={handleAISuggest}
-              onAccept={(_text: string) => { setShowAI(false) }}
+              onAccept={(text: string) => { handleAdoptForeshadows(text) }}
               moduleKey="foreshadow.generate"
             />
           </div>

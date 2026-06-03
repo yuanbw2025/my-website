@@ -4,7 +4,255 @@
 
 ---
 
+## 2026-06-03
+
+### Phase 27.2a — 场景考证
+
+**来源**：社区用户 zzjj 需求
+
+新增「场景考证」功能：作者在构思或撰写场景时，描述当前场景，AI 结合本作品的世界观、历史年表与「真实与幻想」规则，给出符合背景的细节建议、设定校验与情节灵感。
+
+- 创作区新增「场景考证」面板：场景描述 + 可选时代/地点，一键考证
+- AI 输出四个部分：时代质感与细节、称谓与名词、设定校验（时代错乱/设定冲突提示）、情节灵感
+- 严格遵守作品设定：标注「取自真实」的维度按真实历史考证，标注「架空改造」的维度尊重作者设定，「史实锚点」不可违反
+- 多世界模式下按当前世界读取上下文；场景草稿自动保存
+- 为 zzjj「边考证边想点子」需求中不依赖 Agent 架构即可实现的部分
+
+**改动文件**：
+| 文件 | 改动 |
+|------|------|
+| `src/lib/ai/prompt-seeds.ts` | 新增 `scene.verify` prompt seed |
+| `src/lib/ai/adapters/scene-verify-adapter.ts` | 新增：考证 prompt 构建 |
+| `src/components/scene/SceneVerifyPanel.tsx` | 新增：场景考证面板 |
+| `src/components/layout/sidebar-tree.ts` + `src/pages/WorkspacePage.tsx` | 注册入口 |
+
+---
+
+### 社区反馈批量处理 + 解析增强（全局改用 AI 解析）
+
+**来源**：社区反馈 + 全局原则确立
+
+- **修复伏笔 AI 建议无法写入伏笔表**（买辣椒反馈）：原 onAccept 仅关闭面板、未持久化数据；改为 AI 二次结构化解析后批量写入伏笔表
+- **新增 API 配置预设**（长耳朵兔子反馈）：支持保存多套 API 配置并一键切换（保存 / 应用 / 覆盖 / 重命名 / 删除）；下拉型提供商支持手动输入任意模型名
+- **灵感反推草稿持久化与结果导出**（鲤鱼跃龙门反馈）：灵感输入按项目自动保存至本地，切换面板不丢失；反推结果可导出为 Markdown
+- **AI 结构化输出展示优化**（zzjj 反馈）：JSON 结构化输出不再直接以原始文本呈现，改为友好提示 + 可折叠原始数据
+- **世界观重叠字段导航提示**：世界历史线 / 道具与器物 / 地貌分布等字段增加提示，指引前往对应独立面板管理具体条目
+- **解析增强（确立全局原则）**：确立「一切文本分析与内容提取均调用 AI 实现，不使用正则」原则。章节大纲、细纲场景解析改为「JSON 优先 → AI 重构」，移除正则降级；新增 `restructure.ts` 通用 AI 重构工具
+
+**改动文件**：
+| 文件 | 改动 |
+|------|------|
+| `src/lib/ai/restructure.ts` | 新增：通用 AI 重构（非规整输出 → 干净 JSON） |
+| `src/lib/ai/parse-outline-output.ts` | parseChapterOutlineSmart / parseVolumeOutlineSmart |
+| `src/lib/ai/adapters/detail-scene-adapter.ts` | parseEnhancedDetailSmart |
+| `src/lib/ai/adapters/foreshadow-adapter.ts` | 伏笔结构化解析 |
+| `src/stores/ai-config.ts` + `AIConfigPanel.tsx` | API 预设 + 自定义模型名 |
+| `src/components/project/InspirationPanel.tsx` | 草稿持久化 + 导出 |
+| `src/components/shared/AIStreamOutput.tsx` | 结构化输出友好展示 |
+| `src/components/worldview/{Humanity,Natural}Panel.tsx` | 重叠字段导航提示 |
+| `src/components/foreshadow/ForeshadowPanel.tsx` + 大纲/细纲面板与批量 runner | 接入 AI 解析 |
+
+---
+
+## 2026-06-02
+
+### 📦 本期合并更新（用户版总览）
+
+> 涵盖：正文粘贴修复 + 多世界系统（25.4）+ 多世界地图打通 + 多世界补完（25.5）。各项详细技术改动见下方分条。
+
+**✍️ 正文粘贴不再丢失**
+修复了正文编辑器粘贴内容后马上切换页面会导致内容丢失/格式错乱的问题。现在无论多快切走都会自动保存。
+
+**🌐 新增「多世界模式」（诸天流 / 无限流 / 快穿 / 修仙多界）**
+项目概况页新增开关，默认关闭，关闭状态下功能与此前一致。开启后：
+- 多个独立世界：每个世界拥有独立的世界观、力量体系、地理与角色，互不干扰
+- 世界切换：世界观 / 地理 / 力量体系 / 世界地图面板顶部提供切换器，切换后编辑对应世界
+- 地图按世界隔离：每个世界拥有独立的世界树与地图，切换世界时整套地图随之切换
+- AI 上下文隔离：生成某世界的设定 / 章节 / 地图时，AI 仅读取该世界的内容，互不混淆
+- AI 建议世界：输入故事概念，AI 生成 2-4 个差异化世界供勾选采纳
+- AI 扩写世界观：基于一句话草稿，AI 参考其他世界扩展为完整世界观（避免雷同）
+- 角色归属：角色可归属于特定世界或标记为「跨世界」（如主角），角色册按世界筛选
+- 大纲世界标记：每卷可标记所属世界，写作时 AI 上下文随之切换
+- 世界关系流向图：4 种自适应布局（流程 / 辐射 / 阶梯 / 树状）可视化世界间传送门、飞升通道等关系
+- 导入导出完整保留全部多世界数据
+
+**📜 多世界历史年表**
+历史年表支持多世界，用标签切换——每个世界一个标签 + 「一览」并排对比多个世界的历史脉络。
+
+**📅 故事进程年表（新）**
+AI 从已写正文中提取剧情大事，按故事进程排成时间轴，带故事内时间和重要度分级。与「历史年表（世界背景）」「故事线（结构）」是三个不同的东西。
+
+**🎒 游戏包裹式物品栏（新）**
+道具追踪升级成游戏包裹——主角在正文里获得/消耗物品，AI 自动提取，显示当前持有数量和每件物品的获得/消耗历程。
+
+**💡 多世界版灵感反推**
+写一段带多个世界想法的灵感（如「主角带系统依次穿越斗破、遮天、完美」），AI 顺着思路反推出故事主线 + 多个世界 + 角色，一键创建。
+
+---
+
+### Hotfix — 正文粘贴内容切换页面后格式丢失
+
+**来源**：社区用户（买辣椒）
+
+**问题**：编辑器粘贴内容后 1.5 秒内切换页面，内容丢失/格式错乱。
+**根因**：`useAutoSave` 的 1.5s debounce 在组件卸载时只 `clearTimeout` 不 flush，pending 的保存被取消。
+**修复**：`useAutoSave` 新增 `dirtyRef` 标记，组件卸载 cleanup 时若有未保存变更立即执行一次 `saveFn`，确保数据落盘。
+
+| 文件 | 改动 |
+|------|------|
+| `src/hooks/useAutoSave.ts` | 卸载 flush 未保存数据 |
+
+---
+
+### Phase 25.5 — 多世界补完 + 下游提取产物
+
+**来源**：多世界系统讨论延伸
+
+- **多世界历史年表**：历史年表支持多世界，用标签切换（每个世界一个标签 + 「一览」并排对比），不是下拉藏内容
+- **故事进程年表（新）**：AI 从已写正文提取剧情大事，按故事进程排成时间轴。与「历史年表（世界背景）」「故事线（结构）」区分。带故事内时间、重要度分级
+- **游戏包裹式物品栏（新）**：道具追踪升级为游戏包裹——主角在正文里获得/消耗物品，AI 自动提取，统计当前持有数量 + 获得/消耗历程
+- **多世界版灵感反推**：写带多世界意图的灵感，AI 顺思路反推故事主线 + 多个世界 + 角色，一键创建。字段严格对齐，确保正确落框
+- **世界关系流向图**：4 种自适应布局（横向流程/中心辐射/纵向阶梯/树状分支），智能默认 + 手动切换，纯 SVG 可视化世界间传送门/飞升通道
+- **地图打通**：每个世界有独立的世界树和地图，切换世界整套地图跟随；地图 AI 生成读当前世界的地理设定
+
+**新增文件**：
+| 文件 | 说明 |
+|------|------|
+| `src/lib/types/{item-ledger,story-timeline}.ts` | 物品流水 / 故事年表类型 |
+| `src/stores/{item-ledger,story-timeline}.ts` | 对应 store |
+| `src/lib/ai/adapters/{inventory-extract,story-timeline}-adapter.ts` | AI 提取适配器 |
+| `src/components/items/InventoryPanel.tsx` | 物品栏面板 |
+| `src/components/timeline/StoryTimelinePanel.tsx` | 故事年表面板 |
+| `src/components/world-group/WorldRelationGraph.tsx` | 世界关系流向图 |
+
+**主要修改**：DB v23（itemLedger）+ v24（storyTimelineEvents）；历史类型加 worldGroupId；HistoryPanel 世界标签；InspirationPanel 多世界分支；WorldMapPanel/world-node store 按世界隔离；prompt-seeds 新增 4 个 seed；导入导出 + 级联删除全部补齐。
+
+---
+
+### Phase 25.4 — 多世界系统
+
+**来源**：产品规划（诸天流/无限流/快穿/修仙多界等多世界题材支持）
+
+一个项目可以管理多个独立世界，每个世界拥有自己的世界观、力量体系、地理和角色。默认关闭，开启后才出现多世界相关 UI，单世界用户完全无感。
+
+**核心能力**：
+
+- **多世界开关**：项目概况页一个开关，默认关闭。开启时自动把现有世界观/力量/地理数据归属到「主世界」
+- **世界总览面板**：管理多个世界（增删改排序）、世界列表、穿越总览表格、世界关系
+- **世界详情**：编辑世界基础信息（名称/类型/图标/预计章节）+ 穿越规则（进入条件/能力限制/可带走物品）
+- **世界切换器**：世界观三面板、地理、力量体系、世界地图面板顶部，一键切换查看/编辑不同世界的设定
+- **角色世界归属**：角色可标记属于某个世界或「跨世界」（主角等），角色面板按世界过滤
+- **大纲世界标签**：每卷可指定所属世界，列表显示世界图标
+- **世界地图按世界隔离**：每个世界有自己的世界树和地图，切换世界组整套地图跟随切换；地图 AI 生成读取当前世界的地理设定（修复了地图 AI 上下文未绑定所属世界的隐患）
+- **AI 按世界生成**：生成某世界的世界观 / 章节 / 地图时，自动仅读取该世界的上下文，互不混淆
+- **AI 建议世界**：写下整体故事概念，AI 建议 2-4 个差异化的世界，勾选采纳
+- **AI 扩写世界观**：给世界一句话草稿，AI 参考其他世界扩展出完整世界观（避免雷同）
+- **世界关系**：定义世界间的传送门/飞升通道/召唤/分支等连接
+- **导入导出**：JSON 导出/导入完整保留多世界数据及其关联
+
+**实现分期**：A 数据地基 → B 管理 UI → C 数据隔离 → D AI 全链路 → E 世界关系 → 地图打通
+
+**改动文件**：
+| 操作 | 文件 |
+|------|------|
+| 新增 | `src/lib/types/world-group.ts` — WorldGroup/WorldGroupLink 类型 |
+| 新增 | `src/stores/world-group.ts` — 世界组 Store（CRUD/级联删除/迁移） |
+| 新增 | `src/lib/ai/world-group-context.ts` — 当前世界/全世界上下文构建 |
+| 新增 | `src/lib/ai/world-group-ai.ts` — AI 建议/扩写适配器 |
+| 新增 | `src/components/world-group/WorldGroupOverview.tsx` — 世界总览 |
+| 新增 | `src/components/world-group/WorldGroupDetail.tsx` — 世界详情 |
+| 新增 | `src/components/world-group/WorldGroupSwitcher.tsx` — 世界切换器 |
+| 修改 | `src/lib/db/schema.ts` — DB v22（worldGroups/worldGroupLinks 表） |
+| 修改 | `src/lib/types/{project,worldview,character,outline,geography,history}.ts` — 增加 worldGroupId 等字段 |
+| 修改 | `src/lib/export/json-export.ts` — v3 导出导入世界组 |
+| 修改 | `src/stores/{worldview,_factories,project}.ts` — 按世界加载/保存 |
+| 修改 | `src/components/worldview/{WorldviewOrigin,Natural,Humanity,PowerSystem}Panel.tsx` — 接入切换器 |
+| 修改 | `src/components/geography/GeographyPanel.tsx` — 接入切换器 |
+| 修改 | `src/components/character/CharacterPanel.tsx` — 世界过滤器 + 归属 |
+| 修改 | `src/components/outline/OutlinePanel.tsx` — 卷世界标签 + 按世界生成 |
+| 修改 | `src/components/editor/ChapterEditor.tsx` — 按卷所属世界注入上下文 |
+| 修改 | `src/components/project/ProjectInfoPanel.tsx` — 多世界开关 |
+| 修改 | `src/lib/ai/prompt-seeds.ts` — world-group.suggest/expand seed |
+| 修改 | `src/components/layout/{Sidebar,sidebar-tree}.ts(x)` — 世界总览入口 |
+| 修改 | `src/stores/world-node.ts` — 世界树按世界组隔离（loadNodes/ensureRootWorld 加 worldGroupId） |
+| 修改 | `src/components/geography/WorldMapPanel.tsx` — 世界地图按世界组隔离 + 地图AI读当前世界设定 |
+
+---
+
+## 2026-06-01
+
+### Bugfix — 三个社区反馈 bug 修复
+
+**来源**：社区用户 zzjj、AWUAWU 反馈
+
+**1) 灵感反推采纳世界观后内容不显示**
+- 原因：AI 输出的 JSON 字段（`summary/geography/society/rules`）是旧废字段，世界观三面板使用的是 v3 字段（`worldOrigin/continentLayout` 等），采纳后数据写入了无人显示的字段
+- 修复：重新设计 AI 输出结构，直接输出 7 个 v3 字段（世界来源/力量层次/地貌分布/气候环境/世界历史/种族/势力），采纳后正确写入世界观
+- 同步更新 UI 展示为 7 个对应标签
+
+**2) 世界地图 AI 生成完成后页面不更新/卡住**
+- 原因：AI 返回的地图参数 JSON 解析失败时，异常被 `catch` 吞掉只打了 `console.error`，用户看到"推理完成但地图不出来"
+- 修复：解析失败时在 UI 显示红色错误提示，告知用户重试
+
+**3) AI 生成信仰体系后无法正确拆分到三个子字段**
+- 原因：`handleAccept` 用正则表达式拆分 AI 输出文本，AI 输出格式不固定时正则失配，整段内容全部塞进「信仰层级」一个字段
+- 修复：改用**第二次 AI 调用**做结构化拆分（输出 JSON：divineRank / divineNames / divineRules），拆分期间显示 loading 提示
+
+**改动文件**：
+| 文件 | 改动 |
+|------|------|
+| `src/lib/ai/prompt-seeds.ts` | 灵感反推 prompt 输出结构改为 7 个 v3 世界观字段 |
+| `src/lib/ai/inspiration-reverse.ts` | `ReverseWorldview` 接口和解析逻辑对齐 v3 字段 |
+| `src/components/project/InspirationPanel.tsx` | 采纳逻辑写入正确字段 + 更新展示标签 |
+| `src/components/geography/WorldMapPanel.tsx` | 地图参数解析失败时显示错误提示 |
+| `src/components/worldview/WorldviewOriginPanel.tsx` | 信仰体系拆分改用 AI 调用代替正则 |
+
+---
+
 ## 2026-05-29
+
+### Hotfix — 全局AI上下文互注（世界观 ↔ 各独立面板）
+
+**来源**：社区用户（买辣椒）反馈世界观各模块 AI 生成的内容互不关联、缺乏逻辑一致性
+
+**问题**：世界观三面板互不读取；地理面板AI概念地图不读世界观自然环境；历史年表AI考证/头脑风暴不读世界观设定。各模块AI生成内容互相矛盾。
+
+**修复**：
+
+**1) 世界观三面板上下文闭环**
+- 世界起源 `buildCtx` 注入自然环境（世界结构/地貌/气候）+ 人文环境（历史线/种族/势力）
+- 自然环境 `buildCtx` 注入世界起源（世界来源/力量层次）+ 人文环境（历史线/种族/势力）
+- 人文环境原已读取跨面板数据，无需改动
+
+**2) 地理面板AI概念地图注入世界观**
+- `buildConceptMapPrompt` 自动提取世界来源、世界结构、地貌分布、山川水系、气候环境、重镇分布，附加到概述中传给AI
+
+**3) 历史年表AI注入世界观**
+- 事件考证和关键词头脑风暴的 `userPrompt` 自动附加世界观关键字段：世界来源、力量层次、世界历史线、世界大事记、种族与民族、势力分布、历史总述、纪年体系
+
+**改动文件**：
+| 文件 | 改动 |
+|------|------|
+| `src/components/worldview/WorldviewOriginPanel.tsx` | `buildCtx` 增加 Natural + Humanity 关键字段注入 |
+| `src/components/worldview/WorldviewNaturalPanel.tsx` | `buildCtx` 增加 Origin + Humanity 关键字段注入 |
+| `src/lib/ai/adapters/geography-adapter.ts` | `buildConceptMapPrompt` 注入 worldview 自然环境上下文 |
+| `src/components/history/HistoryPanel.tsx` | 两个 AI 调用注入 worldview 上下文 |
+
+---
+
+### Hotfix — 深色主题输入框白底修复
+
+**问题**：`bg-bg-input` CSS 类在 tailwind 配置中不存在，导致灵感反推和角色驱动剧情面板的 textarea/select 在非默认主题下显示白色背景。
+
+**修复**：统一替换为 `bg-bg-base`（6处）。
+
+**改动文件**：
+| 文件 | 改动 |
+|------|------|
+| `src/components/project/InspirationPanel.tsx` | 2 处 `bg-bg-input` → `bg-bg-base` |
+| `src/components/outline/CharacterDrivenPlotPanel.tsx` | 4 处 `bg-bg-input` → `bg-bg-base` |
+
+---
 
 ### Phase 26.4 — 灵感反推入口
 

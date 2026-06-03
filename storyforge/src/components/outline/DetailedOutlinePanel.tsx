@@ -6,7 +6,8 @@ import { useWorldviewStore } from '../../stores/worldview'
 import { useCharacterStore } from '../../stores/character'
 import { useForeshadowStore } from '../../stores/foreshadow'
 import { useAIStream } from '../../hooks/useAIStream'
-import { buildDetailSceneGeneratePrompt, buildEnhancedDetailPrompt, parseEnhancedDetailResult } from '../../lib/ai/adapters/detail-scene-adapter'
+import { buildDetailSceneGeneratePrompt, buildEnhancedDetailPrompt, parseEnhancedDetailSmart } from '../../lib/ai/adapters/detail-scene-adapter'
+import { useAIConfigStore } from '../../stores/ai-config'
 import { buildWorldContext, buildCharacterContext } from '../../lib/ai/context-builder'
 import { batchGenerateDetails, type BatchProgress } from '../../lib/ai/batch-detail-runner'
 import AIStreamOutput from '../shared/AIStreamOutput'
@@ -45,6 +46,7 @@ export default function DetailedOutlinePanel({ project }: Props) {
   const { detailedOutlines, loadAll: loadDetailed, getOrCreate, save } = useDetailedOutlineStore()
   const { worldview, storyCore } = useWorldviewStore()
   const { characters } = useCharacterStore()
+  const aiConfig = useAIConfigStore(s => s.config)
   const { foreshadows, loadAll: loadForeshadows } = useForeshadowStore()
   const ai = useAIStream()
   const enhanceAI = useAIStream()
@@ -143,7 +145,7 @@ export default function DetailedOutlinePanel({ project }: Props) {
   }
 
   const handleAcceptEnhanced = async (text: string) => {
-    const parsed = parseEnhancedDetailResult(text)
+    const parsed = await parseEnhancedDetailSmart(text, aiConfig)
     if (!parsed) {
       alert('解析增强细纲失败，请重试')
       return

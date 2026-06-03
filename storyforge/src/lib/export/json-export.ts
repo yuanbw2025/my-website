@@ -10,6 +10,7 @@ import type {
   HistoricalTimelineEvent, HistoricalKeyword,
   MasterWork, MasterChunkAnalysis, MasterChapterBeat,
   MasterStyleMetrics, MasterInsight,
+  WorldGroup, WorldGroupLink, ItemLedgerEntry, StoryTimelineEvent,
 } from '../types'
 
 /**
@@ -23,6 +24,9 @@ import type {
  *       historicalTimelineEvents, historicalKeywords,
  *       masterWorks, masterChunkAnalysis, masterChapterBeats,
  *       masterStyleMetrics, masterInsights
+ *   3 — 多世界系统（2026-06-02，Phase 25.4）：
+ *       新增 worldGroups, worldGroupLinks；
+ *       现有表记录携带 worldGroupId / homeWorldGroupId / isCrossWorld 可选字段
  */
 export interface ProjectExportData {
   version: number
@@ -63,6 +67,18 @@ export interface ProjectExportData {
   masterChapterBeats?: (Omit<MasterChapterBeat, 'id' | 'workId'> & { _workExportId: number })[]
   masterStyleMetrics?: (Omit<MasterStyleMetrics, 'id' | 'workId'> & { _workExportId: number })[]
   masterInsights?: Omit<MasterInsight, 'id'>[]
+
+  // ── v3: 多世界系统（Phase 25.4）──
+  worldGroups?: (Omit<WorldGroup, 'id' | 'projectId'> & { _exportId: number })[]
+  worldGroupLinks?: (Omit<WorldGroupLink, 'id' | 'projectId' | 'fromGroupId' | 'toGroupId'> & {
+    _fromGroupExportId: number
+    _toGroupExportId: number
+  })[]
+
+  // ── v3: 物品流水（Phase 25.5.2-b，chapterId 可空）──
+  itemLedger?: (Omit<ItemLedgerEntry, 'id' | 'projectId' | 'chapterId'> & { _chapterExportId: number | null })[]
+  // ── v3: 故事进程年表（Phase 25.5.2-a，chapterId 可空）──
+  storyTimelineEvents?: (Omit<StoryTimelineEvent, 'id' | 'projectId' | 'chapterId'> & { _chapterExportId: number | null })[]
 }
 
 /** 导出项目为 JSON */
@@ -81,6 +97,8 @@ export async function exportProjectJSON(projectId: number): Promise<ProjectExpor
     storyArcs, worldNodes, notes,
     refs, historicalTimelineEvents, historicalKeywords,
     masterWorks, masterInsights,
+    // v3
+    worldGroups, worldGroupLinks, itemLedger, storyTimelineEvents,
   ] = await Promise.all([
     db.worldviews.where('projectId').equals(projectId).toArray(),
     db.storyCores.where('projectId').equals(projectId).toArray(),
@@ -109,9 +127,20 @@ export async function exportProjectJSON(projectId: number): Promise<ProjectExpor
     db.masterWorks.where('projectId').equals(projectId).toArray(),
     // masterInsights 没有 projectId，但按 genre 存储，全部导出
     db.masterInsights.toArray(),
+    // v3: 多世界系统
+    db.worldGroups.where('projectId').equals(projectId).sortBy('order'),
+    db.worldGroupLinks.where('projectId').equals(projectId).toArray(),
+    // v3: 物品流水
+    db.itemLedger.where('projectId').equals(projectId).toArray(),
+    // v3: 故事进程年表
+    db.storyTimelineEvents.where('projectId').equals(projectId).toArray(),
   ])
 
   // ── 构建 ID 映射 ──
+
+  // 世界组 ID → 导出序号
+  const worldGroupIdMap = new Map<number, number>()
+  worldGroups.forEach((g, i) => { if (g.id) worldGroupIdMap.set(g.id, i) })
 
   // 大纲节点 ID → 导出序号
   const outlineIdMap = new Map<number, number>()
@@ -161,7 +190,7 @@ export async function exportProjectJSON(projectId: number): Promise<ProjectExpor
   const { id: _pid, ...projectData } = project
 
   return {
-    version: 2,
+    version: 3,
     exportedAt: Date.now(),
     project: projectData,
 
@@ -247,6 +276,25 @@ export async function exportProjectJSON(projectId: number): Promise<ProjectExpor
       return { ...rest, _workExportId: masterWorkIdMap.get(workId) ?? 0 }
     }),
     masterInsights: masterInsights.map(({ id: _, ...rest }) => rest),
+
+    // v3: 多世界系统
+    worldGroups: worldGroups.map(({ id, projectId: _, ...rest }) => ({
+      ...rest,
+      _exportId: worldGroupIdMap.get(id!) ?? 0,
+    })),
+    worldGroupLinks: worldGroupLinks.map(({ id: _, projectId: _p, fromGroupId, toGroupId, ...rest }) => ({
+      ...rest,
+      _fromGroupExportId: worldGroupIdMap.get(fromGroupId) ?? 0,
+      _toGroupExportId: worldGroupIdMap.get(toGroupId) ?? 0,
+    })),
+    itemLedger: itemLedger.map(({ id: _, projectId: _p, chapterId, ...rest }) => ({
+      ...rest,
+      _chapterExportId: chapterId != null ? (chapterIdMap.get(chapterId) ?? null) : null,
+    })),
+    storyTimelineEvents: storyTimelineEvents.map(({ id: _, projectId: _p, chapterId, ...rest }) => ({
+      ...rest,
+      _chapterExportId: chapterId != null ? (chapterIdMap.get(chapterId) ?? null) : null,
+    })),
   }
 }
 
@@ -504,6 +552,128 @@ export async function importProjectJSON(data: ProjectExportData): Promise<number
       if (existing) continue
     }
     await db.masterInsights.add(i as MasterInsight)
+  }
+
+  // 25. 世界组（v3，Phase 25.4）
+  const newWorldGroupIds = new Map<number, number>()
+  for (const g of data.worldGroups || []) {
+    const { _exportId, ...rest } = g
+    const newId = await db.worldGroups.add({
+      ...rest,
+      projectId: newProjectId,
+    } as WorldGroup) as number
+    newWorldGroupIds.set(_exportId, newId)
+  }
+
+  // 26. 世界组关系
+  for (const l of data.worldGroupLinks || []) {
+    const { _fromGroupExportId, _toGroupExportId, ...rest } = l
+    const fromId = newWorldGroupIds.get(_fromGroupExportId)
+    const toId = newWorldGroupIds.get(_toGroupExportId)
+    if (fromId && toId) {
+      await db.worldGroupLinks.add({
+        ...rest,
+        projectId: newProjectId,
+        fromGroupId: fromId,
+        toGroupId: toId,
+      } as WorldGroupLink)
+    }
+  }
+
+  // 26.5 物品流水（v3，chapterId 重映射）
+  for (const e of data.itemLedger || []) {
+    const { _chapterExportId, ...rest } = e
+    const newChapterId = _chapterExportId != null ? (newChapterIds.get(_chapterExportId) ?? null) : null
+    await db.itemLedger.add({
+      ...rest,
+      projectId: newProjectId,
+      chapterId: newChapterId,
+    } as ItemLedgerEntry)
+  }
+
+  // 26.6 故事进程年表（v3，chapterId 重映射）
+  for (const e of data.storyTimelineEvents || []) {
+    const { _chapterExportId, ...rest } = e
+    const newChapterId = _chapterExportId != null ? (newChapterIds.get(_chapterExportId) ?? null) : null
+    await db.storyTimelineEvents.add({
+      ...rest,
+      projectId: newProjectId,
+      chapterId: newChapterId,
+    } as StoryTimelineEvent)
+  }
+
+  // 27. 重映射所有 worldGroupId 引用
+  // 导入的记录里 worldGroupId 还指向旧 ID，需要：
+  //   - 旧 ID 在映射表中 → 替换为新 ID
+  //   - 旧 ID 不在映射表（孤立引用，或没导入世界组）→ 清为 null
+  //     （否则旧 ID 可能撞上本项目自增产生的新世界组 ID，导致数据错乱）
+  const remap = (oldId: number | null | undefined): number | null => {
+    if (oldId === null || oldId === undefined) return null
+    return newWorldGroupIds.get(oldId) ?? null
+  }
+
+  // worldviews
+  const allWv = await db.worldviews.where('projectId').equals(newProjectId).toArray()
+  for (const wv of allWv) {
+    if (wv.worldGroupId !== undefined && wv.worldGroupId !== null) {
+      await db.worldviews.update(wv.id!, { worldGroupId: remap(wv.worldGroupId) })
+    }
+  }
+  // powerSystems
+  const allPs = await db.powerSystems.where('projectId').equals(newProjectId).toArray()
+  for (const ps of allPs) {
+    if (ps.worldGroupId !== undefined && ps.worldGroupId !== null) {
+      await db.powerSystems.update(ps.id!, { worldGroupId: remap(ps.worldGroupId) })
+    }
+  }
+  // characters homeWorldGroupId
+  const allChars = await db.characters.where('projectId').equals(newProjectId).toArray()
+  for (const c of allChars) {
+    if (c.homeWorldGroupId !== undefined && c.homeWorldGroupId !== null) {
+      await db.characters.update(c.id!, { homeWorldGroupId: remap(c.homeWorldGroupId) })
+    }
+  }
+  // outlineNodes worldGroupId
+  const allNodes = await db.outlineNodes.where('projectId').equals(newProjectId).toArray()
+  for (const n of allNodes) {
+    if (n.worldGroupId !== undefined && n.worldGroupId !== null) {
+      await db.outlineNodes.update(n.id!, { worldGroupId: remap(n.worldGroupId) })
+    }
+  }
+  // geographies
+  const allGeo = await db.geographies.where('projectId').equals(newProjectId).toArray()
+  for (const g of allGeo) {
+    if (g.worldGroupId !== undefined && g.worldGroupId !== null) {
+      await db.geographies.update(g.id!, { worldGroupId: remap(g.worldGroupId) })
+    }
+  }
+  // histories
+  const allHist = await db.histories.where('projectId').equals(newProjectId).toArray()
+  for (const h of allHist) {
+    if (h.worldGroupId !== undefined && h.worldGroupId !== null) {
+      await db.histories.update(h.id!, { worldGroupId: remap(h.worldGroupId) })
+    }
+  }
+  // worldNodes
+  const allWn = await db.worldNodes.where('projectId').equals(newProjectId).toArray()
+  for (const wn of allWn) {
+    if (wn.worldGroupId !== undefined && wn.worldGroupId !== null) {
+      await db.worldNodes.update(wn.id!, { worldGroupId: remap(wn.worldGroupId) })
+    }
+  }
+  // historicalTimelineEvents
+  const allHte = await db.historicalTimelineEvents.where('projectId').equals(newProjectId).toArray()
+  for (const e of allHte) {
+    if (e.worldGroupId !== undefined && e.worldGroupId !== null) {
+      await db.historicalTimelineEvents.update(e.id!, { worldGroupId: remap(e.worldGroupId) })
+    }
+  }
+  // historicalKeywords
+  const allHk = await db.historicalKeywords.where('projectId').equals(newProjectId).toArray()
+  for (const k of allHk) {
+    if (k.worldGroupId !== undefined && k.worldGroupId !== null) {
+      await db.historicalKeywords.update(k.id!, { worldGroupId: remap(k.worldGroupId) })
+    }
   }
 
   return newProjectId

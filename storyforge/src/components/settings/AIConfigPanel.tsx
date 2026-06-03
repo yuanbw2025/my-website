@@ -30,11 +30,21 @@ const THEME_OPTIONS = [
 ]
 
 export default function AIConfigPanel() {
-  const { config, setConfig, switchProvider, testConnection } = useAIConfigStore()
+  const { config, setConfig, switchProvider, testConnection,
+    presets, activePresetId, saveAsPreset, applyPreset, updatePresetFromCurrent, renamePreset, deletePreset } = useAIConfigStore()
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<TestResult | null>(null)
   const [showLogs, setShowLogs] = useState(false)
+  const [savingPreset, setSavingPreset] = useState(false)
+  const [presetName, setPresetName] = useState('')
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) return
+    saveAsPreset(presetName.trim())
+    setPresetName('')
+    setSavingPreset(false)
+  }
 
   // 订阅日志变化
   const logs = useSyncExternalStore(subscribeLogs, getLogs)
@@ -68,6 +78,72 @@ export default function AIConfigPanel() {
       {/* AI 配置 */}
       <div className="bg-bg-surface border border-border rounded-xl p-5 mb-6">
         <h3 className="text-base font-semibold text-text-primary mb-4">AI 模型配置</h3>
+
+        {/* ── API 配置预设（多套一键切换） ── */}
+        <div className="mb-4 pb-4 border-b border-border/50">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm text-text-secondary">配置预设</label>
+            {savingPreset ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  value={presetName}
+                  onChange={e => setPresetName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSavePreset(); if (e.key === 'Escape') setSavingPreset(false) }}
+                  placeholder="预设名称，如「DeepSeek 主力」"
+                  className="px-2 py-1 bg-bg-base border border-border rounded text-xs text-text-primary focus:outline-none focus:border-accent w-44"
+                />
+                <button onClick={handleSavePreset} className="px-2 py-1 text-xs bg-accent text-white rounded hover:bg-accent-hover">保存</button>
+                <button onClick={() => setSavingPreset(false)} className="px-2 py-1 text-xs text-text-muted hover:text-text-primary">取消</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setSavingPreset(true)}
+                className="text-xs px-2.5 py-1 rounded-lg bg-bg-elevated text-text-secondary border border-border hover:text-accent hover:border-accent/50 transition-colors"
+              >
+                ＋ 保存当前为预设
+              </button>
+            )}
+          </div>
+
+          {presets.length === 0 ? (
+            <p className="text-xs text-text-muted">还没有预设。配好一套 API 后点「保存当前为预设」，之后可一键切换。</p>
+          ) : (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {presets.map(p => (
+                <div
+                  key={p.id}
+                  className={`group flex items-center gap-1 pl-2.5 pr-1 py-1 text-xs rounded-full border transition-colors ${
+                    activePresetId === p.id
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-bg-base text-text-secondary border-border hover:border-accent/50'
+                  }`}
+                >
+                  <button onClick={() => applyPreset(p.id)} title={`${p.config.provider} · ${p.config.model}`}>
+                    {p.name}
+                  </button>
+                  {activePresetId === p.id && (
+                    <button
+                      onClick={() => updatePresetFromCurrent(p.id)}
+                      title="用当前配置覆盖此预设"
+                      className="opacity-70 hover:opacity-100"
+                    >💾</button>
+                  )}
+                  <button
+                    onClick={() => { const n = prompt('重命名预设', p.name); if (n) renamePreset(p.id, n) }}
+                    title="重命名"
+                    className="opacity-0 group-hover:opacity-70 hover:opacity-100"
+                  >✎</button>
+                  <button
+                    onClick={() => { if (confirm(`删除预设「${p.name}」？`)) deletePreset(p.id) }}
+                    title="删除"
+                    className="opacity-0 group-hover:opacity-70 hover:opacity-100 hover:text-red-400"
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="space-y-4">
           <div>
@@ -173,6 +249,14 @@ export default function AIConfigPanel() {
                       <p className="mt-1 text-xs text-text-muted">{selected.desc}</p>
                     ) : null
                   })()}
+                  {/* 自定义模型名：列表里没有的模型可手动输入 */}
+                  <input
+                    type="text"
+                    value={config.model}
+                    onChange={(e) => setConfig({ model: e.target.value })}
+                    placeholder="或手动输入模型名（列表中没有的型号）"
+                    className="mt-1.5 w-full px-3 py-1.5 bg-bg-base border border-border rounded-lg text-text-primary text-xs focus:outline-none focus:border-accent transition-colors"
+                  />
                 </>
               ) : (
                 <input

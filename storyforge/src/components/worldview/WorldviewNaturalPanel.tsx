@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sparkles } from 'lucide-react'
 import { useWorldviewStore } from '../../stores/worldview'
+import { useWorldGroupStore } from '../../stores/world-group'
+import WorldGroupSwitcher from '../world-group/WorldGroupSwitcher'
 import { InlineTextarea } from '../shared/InlineEdit'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildWorldviewPrompt } from '../../lib/ai/adapters/worldview-adapter'
@@ -29,6 +31,7 @@ type FieldKey = typeof ALL_KEYS[number]
 
 export default function WorldviewNaturalPanel({ project }: Props) {
   const { worldview, saveWorldview, loadAll } = useWorldviewStore()
+  const activeGroupId = useWorldGroupStore(s => s.activeGroupId)
 
   const [values, setValues] = useState<Record<string, string>>({})
   const [naturalResources, setNaturalResources] = useState<NaturalResources>({
@@ -37,7 +40,9 @@ export default function WorldviewNaturalPanel({ project }: Props) {
   const [activeKey, setActiveKey] = useState<FieldKey>('worldStructure')
   const [streamingKeys, setStreamingKeys] = useState<Set<string>>(new Set())
 
-  useEffect(() => { loadAll(project.id!) }, [project.id, loadAll])
+  useEffect(() => {
+    loadAll(project.id!, project.enableMultiWorld ? activeGroupId : null)
+  }, [project.id, project.enableMultiWorld, activeGroupId, loadAll])
 
   useEffect(() => {
     if (!worldview) return
@@ -59,13 +64,21 @@ export default function WorldviewNaturalPanel({ project }: Props) {
 
   const buildCtx = useCallback((skipCtxKey: string): string => {
     const parts: string[] = []
+    // ── 世界起源面板关键字段 ──
+    if (worldview?.worldOrigin)    parts.push(`【世界来源】${worldview.worldOrigin.slice(0, 200)}`)
+    if (worldview?.powerHierarchy) parts.push(`【力量层次】${worldview.powerHierarchy.slice(0, 150)}`)
+    // ── 本面板内互参 ──
     for (const f of FIELDS) {
       if (f.ctxKey !== skipCtxKey && values[f.key]) {
         parts.push(`【${f.ctxLabel}】${values[f.key].slice(0, 150)}`)
       }
     }
+    // ── 人文环境面板关键字段 ──
+    if (worldview?.historyLine)   parts.push(`【世界历史线】${worldview.historyLine.slice(0, 150)}`)
+    if (worldview?.races)         parts.push(`【种族与民族】${worldview.races.slice(0, 100)}`)
+    if (worldview?.factionLayout) parts.push(`【势力分布】${worldview.factionLayout.slice(0, 100)}`)
     return parts.join('\n')
-  }, [values])
+  }, [worldview, values])
 
   const handleStreamingChange = useCallback((key: string, streaming: boolean) => {
     setStreamingKeys(prev => {
@@ -81,9 +94,12 @@ export default function WorldviewNaturalPanel({ project }: Props) {
     <div className="flex flex-col w-full h-full space-y-4">
       {/* 顶部 */}
       <div className="pb-4 border-b border-border/40 px-6 pt-4 shrink-0">
-        <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
-          🏔️ 自然环境与地理
-        </h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+            🏔️ 自然环境与地理
+          </h2>
+          {project.enableMultiWorld && <WorldGroupSwitcher />}
+        </div>
         <p className="text-xs text-text-muted mt-0.5">
           定义世界的地理、气候与自然资源。如需声明真实与幻想的规则，请前往「⚖️ 真实与幻想」面板。
         </p>
@@ -189,6 +205,11 @@ function SimpleFieldEditor({ field, value, onChange, project, contextSummary, on
       <div>
         <h3 className="text-lg font-semibold text-text-primary">{field.emoji} {field.label}</h3>
         <p className="mt-1 text-sm text-text-muted">{field.desc}</p>
+        {(field.key === 'continentLayout' || field.key === 'regionDimensions') && (
+          <p className="mt-1.5 text-xs text-accent/80 bg-accent/5 border border-accent/15 rounded px-2 py-1">
+            💡 这里写地貌/重镇概述；可视化地图与具体地点请到「🗺️ 世界地图」生成和管理。
+          </p>
+        )}
       </div>
 
       <div className="bg-bg-surface border border-border rounded-lg p-4">

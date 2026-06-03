@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, ChevronDown, ChevronRight, MapPin, GitBranch, List, Sparkles, Image, Copy, Check, Loader2 } from 'lucide-react'
 import { useGeographyStore } from '../../stores/project-singletons'
+import { useWorldGroupStore } from '../../stores/world-group'
+import WorldGroupSwitcher from '../world-group/WorldGroupSwitcher'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildConceptMapPrompt, buildImageMapPrompt } from '../../lib/ai/adapters/geography-adapter'
 import type { Project, Location, LocationType } from '../../lib/types'
@@ -26,6 +28,7 @@ interface Props {
 
 export default function GeographyPanel({ project }: Props) {
   const { geography, loadAll, save } = useGeographyStore()
+  const activeGroupId = useWorldGroupStore(s => s.activeGroupId)
   const [overview, setOverview] = useState('')
   const [locations, setLocations] = useState<Location[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -36,8 +39,8 @@ export default function GeographyPanel({ project }: Props) {
   const ai = useAIStream()
 
   useEffect(() => {
-    loadAll(project.id!)
-  }, [project.id, loadAll])
+    loadAll(project.id!, project.enableMultiWorld ? activeGroupId : null)
+  }, [project.id, project.enableMultiWorld, activeGroupId, loadAll])
 
   useEffect(() => {
     if (geography) {
@@ -115,7 +118,10 @@ export default function GeographyPanel({ project }: Props) {
 
   return (
     <div className="max-w-4xl">
-      <h2 className="text-xl font-bold text-text-primary mb-4">🗺️ 地理环境</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-text-primary">🗺️ 地理环境</h2>
+        {project.enableMultiWorld && <WorldGroupSwitcher />}
+      </div>
 
       {/* 总述 */}
       <div className="mb-6">
