@@ -76,6 +76,14 @@ export default function WorkspacePage() {
     return projects.find(p => p.id === currentProjectId) || null
   }, [projects, currentProjectId])
 
+  // 侧栏隐藏模块（多世界关闭时隐藏世界总览）。必须在所有提前 return 之前调用，
+  // 否则 hook 数量在不同渲染间不一致，会报 "Rendered more hooks than..."
+  const hiddenModules = useMemo(() => {
+    const hidden = new Set<SidebarModule>()
+    if (!project?.enableMultiWorld) hidden.add('world-overview')
+    return hidden
+  }, [project?.enableMultiWorld])
+
   // 自动定时备份（每 5 分钟）
   useAutoBackup(project?.id ?? null)
 
@@ -251,11 +259,7 @@ export default function WorkspacePage() {
         projectName={project.name}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(v => !v)}
-        hiddenModules={useMemo(() => {
-          const hidden = new Set<SidebarModule>()
-          if (!project.enableMultiWorld) hidden.add('world-overview')
-          return hidden
-        }, [project.enableMultiWorld])}
+        hiddenModules={hiddenModules}
       />
 
       {/* 主面板 */}
