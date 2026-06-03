@@ -237,7 +237,7 @@ export default function InspirationPanel({ project }: Props) {
       mwResult.worlds.forEach((w, i) => {
         lines.push(`## 世界 ${i + 1}：${w.name}（${w.type}）`)
         if (w.worldOrigin) lines.push(`- 世界来源：${w.worldOrigin}`)
-        if (w.powerHierarchy) lines.push(`- 力量层次：${w.powerHierarchy}`)
+        if (w.powerHierarchy) lines.push(`- 力量体系：${w.powerHierarchy}`)
         if (w.continentLayout) lines.push(`- 地貌分布：${w.continentLayout}`)
         if (w.historyLine) lines.push(`- 世界历史：${w.historyLine}`)
         if (w.factionLayout) lines.push(`- 势力分布：${w.factionLayout}`)
@@ -256,7 +256,7 @@ export default function InspirationPanel({ project }: Props) {
       const wv = result.worldview, sc = result.storyCore
       lines.push(`## 世界观`)
       if (wv.worldOrigin) lines.push(`- 世界来源：${wv.worldOrigin}`)
-      if (wv.powerHierarchy) lines.push(`- 力量层次：${wv.powerHierarchy}`)
+      if (wv.powerHierarchy) lines.push(`- 力量体系：${wv.powerHierarchy}`)
       if (wv.continentLayout) lines.push(`- 地貌分布：${wv.continentLayout}`)
       if (wv.historyLine) lines.push(`- 世界历史：${wv.historyLine}`)
       if (wv.factionLayout) lines.push(`- 势力分布：${wv.factionLayout}`)
@@ -490,7 +490,7 @@ export default function InspirationPanel({ project }: Props) {
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bg-elevated text-text-muted">{w.type}</span>
                 </div>
                 {w.worldOrigin && <FieldRow label="世界来源" value={w.worldOrigin} />}
-                {w.powerHierarchy && <FieldRow label="力量层次" value={w.powerHierarchy} />}
+                {w.powerHierarchy && <FieldRow label="力量体系" value={w.powerHierarchy} />}
                 {w.factionLayout && <FieldRow label="势力分布" value={w.factionLayout} />}
                 {w.entryCondition && <FieldRow label="进入条件" value={w.entryCondition} />}
                 {w.powerRestriction && <FieldRow label="能力限制" value={w.powerRestriction} />}
@@ -551,7 +551,7 @@ export default function InspirationPanel({ project }: Props) {
                   <FieldRow label="世界来源" value={result.worldview.worldOrigin} />
                 )}
                 {result.worldview.powerHierarchy && (
-                  <FieldRow label="力量层次" value={result.worldview.powerHierarchy} />
+                  <FieldRow label="力量体系" value={result.worldview.powerHierarchy} />
                 )}
                 {result.worldview.continentLayout && (
                   <FieldRow label="地貌分布" value={result.worldview.continentLayout} />

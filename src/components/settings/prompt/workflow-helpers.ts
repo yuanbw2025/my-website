@@ -24,7 +24,7 @@ export const ALL_MODULE_KEYS_FOR_WORKFLOW = [
 export const SAVE_TARGET_PRESETS = [
   { label: '不自动保存（仅复制）', value: '' },
   { label: '世界观.世界起源', value: 'worldview-field:worldOrigin' },
-  { label: '世界观.力量层次', value: 'worldview-field:powerHierarchy' },
+  { label: '世界观.力量体系', value: 'worldview-field:powerHierarchy' },
   { label: '世界观.世界历史线', value: 'worldview-field:historyLine' },
   { label: '世界观.世界观摘要', value: 'worldview-field:summary' },
   { label: '故事.一句话故事', value: 'storyCore-field:logline' },
@@ -72,7 +72,7 @@ export function valueToSaveTarget(v: string): SaveTarget | undefined {
 
 /** 字段 key → 中文标签的映射，供 targetLabel 使用 */
 const SAVE_TARGET_FIELD_LABELS: Record<string, string> = {
-  worldOrigin: '世界起源', powerHierarchy: '力量层次',
+  worldOrigin: '世界起源', powerHierarchy: '力量体系',
   historyLine: '世界历史线', summary: '世界观摘要',
   logline: '一句话故事', concept: '故事概念', theme: '主题',
   centralConflict: '核心冲突', mainPlot: '故事主线',

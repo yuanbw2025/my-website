@@ -31,7 +31,7 @@ const TYPE_CONFIG: Record<ReferenceType, { label: string; icon: React.ComponentT
 /** 世界观字段 → 中文标签映射 */
 const WV_LABELS: Record<string, string> = {
   worldOrigin: '世界来源',
-  powerHierarchy: '力量层次',
+  powerHierarchy: '力量体系',
   worldStructure: '世界结构',
   worldDimensions: '世界尺寸',
   continentLayout: '大陆分布',

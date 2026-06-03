@@ -42,7 +42,7 @@ export async function buildCurrentWorldContext(
   if (wv) {
     const wvParts = [
       wv.worldOrigin && `世界来源：${wv.worldOrigin.slice(0, 300)}`,
-      wv.powerHierarchy && `力量层次：${wv.powerHierarchy.slice(0, 200)}`,
+      wv.powerHierarchy && `力量体系：${wv.powerHierarchy.slice(0, 200)}`,
       wv.worldStructure && `世界结构：${wv.worldStructure.slice(0, 150)}`,
       wv.continentLayout && `地貌分布：${wv.continentLayout.slice(0, 200)}`,
       wv.climateByRegion && `气候环境：${wv.climateByRegion.slice(0, 100)}`,

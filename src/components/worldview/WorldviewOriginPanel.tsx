@@ -19,7 +19,7 @@ type FieldKey = 'origin' | 'power' | 'divine'
 
 const FIELDS: { key: FieldKey; label: string; icon: string; desc: string }[] = [
   { key: 'origin', label: '世界来源', icon: '🌌', desc: '创世神话 / 历史时期 / 文明起源……世界从何而来？' },
-  { key: 'power',  label: '力量层次', icon: '⚡', desc: '修真等级 / 社会等级 / 科技层级……力量如何分层、怎么晋升？' },
+  { key: 'power',  label: '力量体系', icon: '⚡', desc: '修真等级 / 社会等级 / 科技层级……力量如何分层、怎么晋升？' },
   { key: 'divine', label: '神明与信仰', icon: '🌟', desc: '是否存在神明或宗教？神明 / 信仰的层级、名号、规则与限制。' },
 ]
 
@@ -69,7 +69,7 @@ export default function WorldviewOriginPanel({ project }: Props) {
     const parts: string[] = []
     // ── 本面板内互参 ──
     if (excludeKey !== 'origin' && worldOrigin) parts.push(`【世界来源】${worldOrigin.slice(0, 200)}`)
-    if (excludeKey !== 'power'  && powerHierarchy) parts.push(`【力量层次】${powerHierarchy.slice(0, 200)}`)
+    if (excludeKey !== 'power'  && powerHierarchy) parts.push(`【力量体系】${powerHierarchy.slice(0, 200)}`)
     if (excludeKey !== 'divine' && divineDesign.hasDivinity) {
       parts.push(`【神明与信仰】${divineDesign.divineNames || ''}：${divineDesign.divineRules?.slice(0, 100) || ''}`)
     }
@@ -105,7 +105,7 @@ export default function WorldviewOriginPanel({ project }: Props) {
           {project.enableMultiWorld && <WorldGroupSwitcher />}
         </div>
         <p className="text-xs text-text-muted mt-0.5">
-          定义世界的起源、力量层次与信仰体系。如需声明真实与幻想的规则，请前往「⚖️ 真实与幻想」面板。
+          定义世界的起源、力量体系与信仰体系。如需声明真实与幻想的规则，请前往「⚖️ 真实与幻想」面板。
         </p>
       </div>
 
@@ -151,7 +151,7 @@ export default function WorldviewOriginPanel({ project }: Props) {
             />
           </div>
 
-          {/* 力量层次 */}
+          {/* 力量体系 */}
           <div className={active === 'power' ? '' : 'hidden'}>
             <TextFieldEditor
               field={FIELDS[1]}
@@ -180,7 +180,7 @@ export default function WorldviewOriginPanel({ project }: Props) {
   )
 }
 
-// ── 文本字段编辑器（世界来源 / 力量层次） ────────────────────────
+// ── 文本字段编辑器（世界来源 / 力量体系） ────────────────────────
 
 function TextFieldEditor({
   field, value, onChange, project, contextSummary, onStreamingChange,

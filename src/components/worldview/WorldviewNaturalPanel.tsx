@@ -66,7 +66,7 @@ export default function WorldviewNaturalPanel({ project }: Props) {
     const parts: string[] = []
     // ── 世界起源面板关键字段 ──
     if (worldview?.worldOrigin)    parts.push(`【世界来源】${worldview.worldOrigin.slice(0, 200)}`)
-    if (worldview?.powerHierarchy) parts.push(`【力量层次】${worldview.powerHierarchy.slice(0, 150)}`)
+    if (worldview?.powerHierarchy) parts.push(`【力量体系】${worldview.powerHierarchy.slice(0, 150)}`)
     // ── 本面板内互参 ──
     for (const f of FIELDS) {
       if (f.ctxKey !== skipCtxKey && values[f.key]) {
