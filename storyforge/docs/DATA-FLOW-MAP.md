@@ -1,0 +1,180 @@
+# StoryForge 数据流总表（字段 · AI 读 · 生成 · 写回）
+
+> 目的：把每张「大功能表」（侧栏标签）的**字段、AI 读什么（上游）、AI 生成什么、产物写回哪里（下游）**梳理成唯一事实源。
+> 用途：① 看清现状是否「逻辑贯通」；② 作为「统一上下文装配层 + 统一采纳写回层」重构的蓝图；③ 今后加功能先在此登记，从源头杜绝屎山。
+> 创建：2026-06-04 ｜ 基于通读 `src/lib/types/*`、`src/lib/ai/adapters/*`、`src/stores/*`、各 `*Panel.tsx`。
+
+---
+
+## 〇、怎么读这张表（核心模型）
+
+作者确认的模型：**每个 AI 动作本质都是「读某些表的某些字段 → AI 生成 → 写到某张表的对应字段」**。方向不同（自上而下生成 / 灵感反推 / 下游提取），机制相同。
+
+```
+[上游表的字段]  ──读──▶  [AI + 提示词]  ──生成──▶  [下游表的字段]
+```
+
+- **上游（设定）**：作者填、AI 写作时读。
+- **创作（正文）**：实际写作。
+- **下游（产物）**：AI 从已写正文提取。
+- **工具（反推/考证）**：用户给料 → AI 反向生成 → 写回上游表（方向相反，形状相同）。
+
+---
+
+## 一、大功能表总览（侧栏标签 = 大功能表）
+
+| 区 | 标签 | 性质 | 主要存储表 | 主 store |
+|----|------|------|-----------|---------|
+| 著作信息 | 项目概况 | 元数据 | `projects` | project |
+| 著作信息 | 灵感反推 | 🛠️工具(反向) | （写回 worldview/storyCore/characters） | inspiration→worldview/character |
+| 著作信息 | 项目参考 | 🛠️工具(分析) | `references` / `referenceChunkAnalysis` | reference |
+| 设定库 | 世界总览 | 📥聚合展示 | （读多表） | worldview/worldGroup |
+| 设定库 | 真实与幻想 | 📥设定 | `worldRulesProfiles` | world-rules |
+| 设定库 | 世界起源 | 📥设定 | `worldviews`(worldOrigin/powerHierarchy/divineDesign) | worldview |
+| 设定库 | 自然环境 | 📥设定 | `worldviews`(worldStructure/continentLayout/naturalResources…) | worldview |
+| 设定库 | 人文环境 | 📥设定 | `worldviews`(races/factionLayout/politicsEconomyCulture/itemDesign…) | worldview |
+| 设定库 | 历史年表 | 📥设定 | `histories`/`historicalTimelineEvents`/`historicalKeywords` | historical |
+| 设定库 | 世界地图 | 📥设定 | `worldNodes`/`world-map` | world-node |
+| 设定库 | 故事设计 | 📥设定 | `storyCores` | worldview(storyCore) |
+| 设定库 | **设定词条** | 📥设定 | `codexCategories`/`codexEntries` | codex |
+| 设定库 | 道具系统 | 📥设定 | `itemSystems` | project-singletons |
+| 设定库 | 角色（主/次/NPC/路人） | 📥设定 | `characters` | character |
+| 设定库 | 关系网 | 📥设定/下游 | `characterRelations` | character-relation |
+| 创作区 | 创作规则 | 📥设定 | `creativeRules` | （单例） |
+| 创作区 | 大纲 | 📥设定/创作 | `outlineNodes` | outline |
+| 创作区 | 角色驱动 | 🛠️工具 | （生成剧情建议） | — |
+| 创作区 | 故事线 | 📥设定 | `storyArcs` | story-arc |
+| 创作区 | 章节 | ✍️正文 | `chapters` / `detailedOutlines` | chapter / detailed-outline |
+| 创作区 | 伏笔 | 📥设定/下游 | `foreshadows` | foreshadow |
+| 创作区 | 重要地点 | 📥设定 | `importantLocations` | location |
+| 创作区 | 状态表 | 📤下游 | `stateCards` | state-card |
+| 创作区 | 物品栏 | 📤下游 | `itemLedger` | item-ledger |
+| 创作区 | 故事年表 | 📤下游 | `storyTimelineEvents` | story-timeline |
+| 创作区 | 场景考证 | 🛠️工具(校验) | （无写回，建议） | — |
+
+---
+
+## 二、主数据流表（每张表：字段 → AI 读 → 生成 → 写回）
+
+> 「AI 读」列 = 该功能生成时实际拼进 prompt 的上下文（来自 adapter 签名）。**★ 已接词条** 表示 `buildCodexContext` 已注入。
+
+### 📥 上游设定（作者填 + AI 可生成，AI 写作时读）
+
+| 大功能表 | 关键字段（输出/存储） | AI 生成时读（上游） | 生成 → 写回 |
+|---------|----------------------|--------------------|------------|
+| **世界起源** worldview | `worldOrigin` 世界来源、`powerHierarchy` 力量体系、`divineDesign` 神明 | 现有世界观各字段（existingContext，按维度） | 单维度文本 → 该 worldview 字段 |
+| **自然环境** worldview | `worldStructure`、`worldDimensions`、`continentLayout`、`regionDimensions`、`mountainsRivers`、`climateByRegion`、`naturalResources`(rareCreatures/herbs/minerals/others) | 同上（worldview 上下文） | 单维度文本 → 该字段 |
+| **人文环境** worldview | `races` 种族、`factionLayout` 势力、`politicsEconomyCulture`、`internalConflicts`、`itemDesign` 道具设计 | 同上 | 单维度文本 → 该字段 |
+| **真实与幻想** worldRulesProfiles | `entries`(各节点 历史锚点/架空改造/冲突优先)、`customNodes`、`globalNote` | （作者填为主） | → worldRulesProfile |
+| **故事设计** storyCores | `theme`、`centralConflict`、`plotPattern`、`mainPlot`、`subPlots`、`logline`、`concept` | `worldContext`（★ 经 buildWorldContext） | 单维度 → storyCore 字段 |
+| **创作规则** creativeRules | `writingStyle`、`narrativePOV`、`atmosphere`、`prohibitions`、`consistencyRules`、`specialRequirements`、`referenceWorks`、`citedReferenceIds/InsightIds` | `worldContext` + `storyCore` | 单维度 → creativeRules 字段 |
+| **设定词条** codex | 分类(domain/builtInKey/fieldSchema) + 词条(name/summary/description/fields/refs，7 内置类) | （作者填 / 词条内 ref 关联） | → codexEntries |
+| **道具系统** itemSystems | overview + items(JSON) | （作者填） | → itemSystem ⚠️ 将被词条 artifact 取代(35-b) |
+| **角色** characters | `name/role/alignment/shortDescription/appearance/personality/background/motivation/abilities/relationships/arc`、章节出场范围、世界归属 | `worldContext`(★ 已接词条) + 已有角色名单 | 角色 JSON → characters 表 |
+| **重要地点** importantLocations | `name/tags/description/significance/parentId`(树状) | （作者填） | → importantLocations |
+| **历史年表** histories/historical* | 概述 + 时间线事件 + 关键词（按世界标签） | （作者填，与世界规则「事件」联动） | → historical* |
+| **世界地图** worldNodes | 节点/区域/连线 | `factionLayout`（人文势力自由文本）⚠️ 未接词条 | → worldNodes |
+| **故事线** storyArcs | `name/type(main/sub)/stages`(起承转合) | `worldContext`(★ 已接词条) + `storyCore` + 大纲摘要 | → storyArc |
+| **大纲** outlineNodes | `parentId/type(volume/chapter)/title/summary/order/worldGroupId` | `worldContext`(★) + `storyCore` + `characterContext` + `worldRulesContext` | 卷/章 JSON → outlineNodes |
+| **伏笔** foreshadows | `name/type/status/description/plantChapterId/echoChapterIds/resolveChapterId/importance/urgency` | `worldContext`(★) + `characterContext` + 已有伏笔 | 伏笔 JSON → foreshadows |
+
+### ✍️ 正文创作
+
+| 大功能表 | 字段 | AI 读（上游） | 生成 → 写回 |
+|---------|------|--------------|------------|
+| **章节·细纲** detailedOutlines | `scenes[]`(title/summary/characterIds/location/conflict/pace)、`openingHook`、`endingCliffhanger`、`foreshadowIds`、`emotionArc` | `worldContext`(★) + 角色 + 前后章摘要 + 伏笔 | 细纲 JSON → detailedOutlines |
+| **章节·正文** chapters | `title/content/wordCount/status/summary/outlineNodeId` | `worldContext`(★ 含多世界) + `characterContext` + 状态卡(按需召回) + 伏笔 + 记忆 + 前章结尾 + 大纲 | 正文 → chapters.content |
+
+### 📤 下游产物（AI 从已写正文提取）
+
+| 大功能表 | 字段 | AI 读（上游=正文） | 生成 → 写回 |
+|---------|------|-------------------|------------|
+| **状态表** stateCards | `category(角色/地点/物品/势力/事件)/entityName/fields(JSON)` | 章节正文 + 当前状态表(diff) | 状态变更 → stateCards（用户审核） |
+| **物品栏** itemLedger | `itemName/action(获得/消耗)/quantity/chapterId` | 章节正文 | 物品流水 → itemLedger |
+| **故事年表** storyTimelineEvents | `title/storyTime/importance/description/chapterId/order` | 章节正文 | 事件 → storyTimelineEvents |
+| **关系网** characterRelations | `fromCharacterId/toCharacterId/relationType/label/description` | 角色 + 正文（提取） | 关系 → characterRelations |
+
+### 🛠️ 工具 / 反向流（用户给料 → AI 反推 → 写回上游表）
+
+| 工具 | AI 读 | 生成 → 写回 |
+|------|-------|------------|
+| **灵感反推** inspiration | 用户碎片灵感 + 全世界概览(多世界) | `worldview`(worldOrigin/powerHierarchy/continentLayout/climateByRegion/historyLine/races/factionLayout) + `storyCore`(theme/centralConflict/plotPattern/mainPlot/logline) + `characters[]` → 写回对应表 |
+| **AI 建议世界** world-group-ai | 全世界概览 | 世界组 + 各世界 worldview |
+| **角色驱动剧情** character-driven-plot | `worldContext`(★) + 角色弧线 | 剧情建议（暂不直接落库） |
+| **场景考证** scene-verify | `worldContext`(★) + 历史年表 + 世界规则 | 考证建议（无写回，纯建议） |
+| **项目参考·深度分析** reference | 上传作品分块 | 分块分析 + 角色聚合(AI) → references/analysisSummary/mergedCharacters |
+| **章节审校** review | 章节正文 + `worldContext`(★含词条) + 角色 + 伏笔 + 状态表 | 五维问题清单（建议，无写回） |
+
+---
+
+## 三、当前「逻辑不贯通 / 屎山隐患」清单（重点标识）
+
+> 这是盘表过程中暴露的真实问题，重构要逐条消除。
+
+### 🔴 A. 上下文装配（读侧）是散的 —— 加一个源要改 N 处、必漏
+
+- 现有 **9 个独立 `build*Context` 函数**（worldview/character/rules/codex/historical/ref/masterInsight/worldRules/genre），每个生成面板**各自手挑、手拼**子集，顺序/截断不一。
+- **单世界 / 多世界两条平行路径**（同步 `buildWorldContext` vs 异步 `buildCurrentWorldContext`），在每个面板里 `if(多世界)…else…` 各抄一遍。
+- 实证：加词条注入时要改 ~10 处，曾**漏 5 处 + 多世界过滤 bug**（已修）。
+- **影响面**：所有「📥设定/✍️正文」的生成入口。
+
+### 🔴 B. 采纳/写回（写侧）是散的 —— 字段映射易错、静默丢失
+
+- 字段映射散落在 **9+ 组件**（InspirationPanel、各 Worldview 面板、StoryCore、CreativeRules、ReferencePanel…）。
+- 历史 bug：灵感反推 AI 吐 `summary/geography`，实际字段是 `worldOrigin/continentLayout` → 静默丢失，采纳后为空。
+- 刚修 bug：`saveWorldview/saveStoryCore/savePowerSystem` 仅看内存记录，为 null 时新增重复记录 → 面板读 `wvList[0]` 旧空记录显示空（已改为以 DB 为准）。
+- **缺校验**：AI 输出未知字段不会报警，直接丢。
+
+### 🟠 C. 同一概念多处重复存储 —— 词条化重构正在解决
+
+- **势力**：`worldview.factionLayout`(自由文本) + `factions` 表 + 词条 `faction` 三处并存。
+- **道具**：`worldview.itemDesign` + `itemSystems` 表 + 词条 `artifact` 三处。
+- **自然物产**：`worldview.naturalResources` + 词条 `mineral/herb/beast` 两处。
+- **力量**：`worldview.powerHierarchy`(字段) + `powerSystems`(表) + 未来「修炼体系」。
+- 现状：世界地图仍读旧 `factionLayout`，词条尚未供它读 → **不贯通点**。（Phase 35-b 合并后消除）
+
+### 🟠 D. 旧/新字段双轨（v2/v3）
+
+- worldview 有 v2 旧字段(`geography/society/rules/summary`) 与 v3 新字段(`worldOrigin/…`) 并存；`buildWorldContext`(单世界) 读的是 v2，`buildCurrentWorldContext`(多世界) 读 v3 → **同一项目两种模式喂给 AI 的世界观字段不一致**。
+
+### 🟡 E. 部分下游未回流上游
+
+- 状态表/物品栏/故事年表是纯产物，默认不回流写作上下文（设计如此）；但「主角当前境界/位置」若能回流可防境界倒退（Phase 34 规划）。属可选增强，非 bug。
+
+---
+
+## 四、统一架构方案（蓝图）
+
+把上面 A/B 两条散缝各收成一根，C/D 由词条化重构收口。
+
+### ① 统一上下文装配层（读侧）
+
+- 单一入口：`assembleContext(projectId, { worldGroupId?, need: [...], referenceText? })`。
+- 内部**只判一次**单/多世界；遍历**数据源注册表**（每源声明 `{id, fetch, format, budget}`）。
+- 所有生成面板改为：声明「我要哪些源」→ 调一次 `assembleContext`。
+- **加新源（如修炼体系）= 注册表加一行，全部入口自动获得**，不再漏、不再有世界模式 bug。
+
+数据源注册表（初始项）：`worldview` / `powerSystem` / `worldRules` / `codex` / `characters` / `history` / `genre` / `state(按需召回)` / `foreshadow`。
+
+### ② 统一采纳/写回层（写侧）
+
+- 单一入口：`adopt(target, aiOutput)`，对着**规范字段 schema** 校验后落库。
+- 规范 schema = 各表的字段定义（worldview/storyCore/character/codex…），唯一事实源。
+- **未知字段报警**而非静默丢；写回前以 DB 为准定位记录（已在 saveWorldview 落地此原则，推广到全部）。
+- 灵感反推 / AI 建议世界 / 参考提取 / 下游提取 全部走这里 → 字段错位**结构性不可能**。
+
+### ③ 字段登记（贯通保证）
+
+- 每张大功能表登记自己的字段（词条 fieldSchema 推广到所有表）。
+- 因为「读」走 ①、「写」走 ②、字段定义走 ③ 同一份，**自上而下生成 与 灵感反推/下游反推 天生咬合**。
+
+---
+
+## 五、迁移顺序（增量、每步可验证）
+
+1. **R-1 读侧**：建 `assembleContext` + 数据源注册表 → 旧 `build*Context` 暂留作薄适配 → 生成面板逐个切 → 删重复的单/多世界 if/else。
+2. **R-2 写侧**：建规范 schema + `adopt` → 反推/灵感/参考/下游的写回逐个切 + 加未知字段告警。
+3. **配合 Phase 35-b**：势力/道具/自然物产由词条收口，消除 C/D 的多处重复与 v2/v3 双轨。
+4. 每步 `npx tsc --noEmit` + `npm run build` + 本地走查。
+
+> 维护规约：**今后任何新功能，先在本表登记「字段 / 读什么 / 写哪里」，再写代码。** 这张表是唯一事实源，屎山从源头堵死。
