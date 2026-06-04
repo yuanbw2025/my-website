@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-06-04
+
+### Phase 28.5 — 参考资料角色聚合改用 AI（修复角色重复）+ 文本处理正则全面审查
+
+**来源**：社区反馈「项目参考解析之后角色会重复」+ 全局原则贯彻（一切文本分析与内容提取均调用 AI，不使用正则）
+
+**问题定位**：参考资料深度分析的角色卡片由 `merge-analysis.ts` 中的 `extractCharacterNames` 用三组正则从分析文本里抠人名，再按句子切分聚合。该方式准确率低，且同一角色在不同分块、或使用不同称呼时会被识别为多个，导致角色重复。此问题与导入流程的角色去重（chunk-writer 同名校验，工作正常）无关。
+
+**修复**：
+- 移除 `extractCharacterNames` 正则抠名逻辑，角色聚合改为调用 AI：阅读全部分块的「人物塑造」分析，将同一角色（含不同称呼、跨分块出现）归并为一张去重后的角色卡。
+- 参考资料新增 `mergedCharacters` 持久化字段，聚合结果落库，刷新后保留。
+- 报告查看器「角色分析」区新增「AI 整理角色卡」按钮，输出统一角色名、角色定位、一句话定位与综合塑造手法分析；解析层额外做归一化去重，防止模型偶发重复。
+
+**全项目文本处理审查结论**：
+- 共核查 47 个调用 AI 的文件、22 个适配器，约 60 处正则使用。其中约 95% 为合法用途：JSON 围栏剥离、文本清洗、按显式标记的结构切分、第三方库（mammoth/pdfjs）文件解析、量化词频统计等。
+- 认定并修复三处与原则相关的问题：
+  1. **参考资料角色聚合**（本次核心修复，正则抠名 → AI 聚合）。
+  2. **角色解析 role 字段**（`parse-character-output.ts`）：原逻辑用中文关键词匹配，会把 AI 已正确返回的英文枚举（如 `protagonist`）误判并回退为 `supporting`；改为优先信任 AI 枚举，中文关键词仅作兜底。
+  3. **卷/章结构检测**（`volume-detector.ts`）：经评估属确定性结构切分（按作者显式书写的卷章标记切分并返回精确字符偏移，整本数十万字无法喂入模型、模型亦无法稳定返回偏移），保留正则并补充注释说明其与语义抽取的本质区别；同时扩展识别楔子、序章、引子、尾声、终章、番外、外传、后记等非数字式特殊标题，提升召回率。
+
+**改动文件**：
+| 文件 | 改动 |
+|------|------|
+| `src/lib/reference-analysis/merge-analysis.ts` | 移除 `extractCharacterNames` 正则；新增 `AIMergedCharacter` 类型、`collectCharacterCraftTexts`、`buildCharacterMergePrompt`、`parseCharacterMergeOutput` |
+| `src/lib/types/reference.ts` | Reference 新增 `mergedCharacters?: string` 字段 |
+| `src/components/project/AnalysisReportViewer.tsx` | 新增「AI 整理角色卡」按钮、聚合结果持久化与渲染；`CharacterCard` → `AICharacterCard` |
+| `src/lib/ai/parse-character-output.ts` | `parseRole` → `normalizeRole`，优先信任 AI 英文枚举 |
+| `src/lib/import/volume-detector.ts` | 补充注释说明用途；章标题正则扩展识别特殊标题 |
+
+---
+
 ## 2026-06-03
 
 ### Phase 27.2a — 场景考证

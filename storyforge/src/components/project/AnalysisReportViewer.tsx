@@ -17,7 +17,8 @@ import type { Reference, ReferenceChunkAnalysis, AnalysisDimension } from '../..
 import { DIMENSION_LABELS } from '../../lib/types/reference'
 import {
   mergeAnalysisResults, buildSummaryPrompt,
-  type MergedAnalysisResult, type MergedDimension,
+  collectCharacterCraftTexts, buildCharacterMergePrompt, parseCharacterMergeOutput,
+  type MergedAnalysisResult, type MergedDimension, type AIMergedCharacter,
 } from '../../lib/reference-analysis/merge-analysis'
 import { chat } from '../../lib/ai/client'
 import { useAIConfigStore } from '../../stores/ai-config'
@@ -50,13 +51,29 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
   const [view, setView] = useState<'merged' | 'chunks'>('merged')
   const [activeDim, setActiveDim] = useState<string | null>(null)
   const [generatingSummary, setGeneratingSummary] = useState(false)
+  const [aggregatingChars, setAggregatingChars] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   const { updateReference } = useReferenceStore()
 
-  // 合并分析结果
+  // 合并分析结果（维度部分本地去重；角色部分由 AI 聚合，见下）
   const merged = useMemo(
     () => mergeAnalysisResults(chunks, isHistorical),
     [chunks, isHistorical],
+  )
+
+  // 解析已有的 AI 角色聚合结果
+  const aiCharacters = useMemo<AIMergedCharacter[]>(() => {
+    if (!reference.mergedCharacters) return []
+    try {
+      const arr = JSON.parse(reference.mergedCharacters)
+      return Array.isArray(arr) ? arr : []
+    } catch { return [] }
+  }, [reference.mergedCharacters])
+
+  // 是否存在可供 AI 聚合的人物塑造分析
+  const hasCharacterCraft = useMemo(
+    () => collectCharacterCraftTexts(chunks).length > 0,
+    [chunks],
   )
 
   // 解析已有的 AI 总结
@@ -98,6 +115,32 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
     }
   }
 
+  // AI 角色卡聚合（替代正则抠名，彻底去重）
+  const handleAggregateCharacters = async () => {
+    if (!reference.id) return
+    setAggregatingChars(true)
+    try {
+      const craftTexts = collectCharacterCraftTexts(chunks)
+      if (craftTexts.length === 0) throw new Error('暂无人物塑造分析可供整理')
+      const config = useAIConfigStore.getState().config
+      if (!config.apiKey) throw new Error('未配置 AI API Key')
+      const { system, user } = buildCharacterMergePrompt(
+        reference.title, reference.author || '', craftTexts,
+      )
+      const output = await chat(
+        [{ role: 'system', content: system }, { role: 'user', content: user }],
+        { ...config, maxTokens: 4096 },
+      )
+      const characters = parseCharacterMergeOutput(output)
+      if (characters.length === 0) throw new Error('AI 未能解析出角色，请重试')
+      await updateReference(reference.id, { mergedCharacters: JSON.stringify(characters) })
+    } catch (err) {
+      alert(`整理角色卡失败：${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setAggregatingChars(false)
+    }
+  }
+
   // 非空维度
   const nonEmptyDims = merged.dimensions.filter(d => d.items.length > 0)
 
@@ -122,7 +165,7 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
         )}
 
         {/* 角色区 */}
-        {merged.characters.length > 0 && (
+        {(aiCharacters.length > 0 || hasCharacterCraft) && (
           <button
             onClick={() => {
               setView('merged')
@@ -131,7 +174,7 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
             }}
             className="w-full text-left px-2 py-1 text-xs rounded hover:bg-bg-hover text-purple-400 transition-colors"
           >
-            👤 角色卡片 ({merged.characters.length})
+            👤 角色卡片{aiCharacters.length > 0 ? ` (${aiCharacters.length})` : ''}
           </button>
         )}
 
@@ -208,6 +251,10 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
           <MergedView
             merged={merged}
             summaryMap={summaryMap}
+            aiCharacters={aiCharacters}
+            hasCharacterCraft={hasCharacterCraft}
+            onAggregate={handleAggregateCharacters}
+            aggregating={aggregatingChars}
           />
         ) : (
           <ChunkListView chunks={chunks} isHistorical={isHistorical} />
@@ -220,10 +267,14 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
 // ── 合并视图 ─────────────────────────────────────────────────
 
 function MergedView({
-  merged, summaryMap,
+  merged, summaryMap, aiCharacters, hasCharacterCraft, onAggregate, aggregating,
 }: {
   merged: MergedAnalysisResult
   summaryMap: Record<string, string>
+  aiCharacters: AIMergedCharacter[]
+  hasCharacterCraft: boolean
+  onAggregate: () => void
+  aggregating: boolean
 }) {
   const hasSummary = Object.keys(summaryMap).length > 0
 
@@ -253,18 +304,37 @@ function MergedView({
         </div>
       )}
 
-      {/* 角色合并卡片 */}
-      {merged.characters.length > 0 && (
+      {/* 角色合并卡片（AI 聚合去重） */}
+      {(aiCharacters.length > 0 || hasCharacterCraft) && (
         <div id="section-characters" className="space-y-2">
-          <h3 className="text-sm font-semibold text-purple-400 flex items-center gap-1.5">
-            <Users2 className="w-4 h-4" />
-            角色分析（按角色合并）
-          </h3>
-          <div className="grid gap-2">
-            {merged.characters.map(card => (
-              <CharacterCard key={card.name} card={card} />
-            ))}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-semibold text-purple-400 flex items-center gap-1.5">
+              <Users2 className="w-4 h-4" />
+              角色分析（AI 聚合去重）
+            </h3>
+            {hasCharacterCraft && (
+              <button
+                onClick={onAggregate}
+                disabled={aggregating}
+                className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-purple-400/30 text-purple-400 hover:bg-purple-500/10 transition disabled:opacity-50"
+              >
+                {aggregating
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> 整理中…</>
+                  : <><Sparkles className="w-3.5 h-3.5" /> {aiCharacters.length > 0 ? '重新整理角色卡' : 'AI 整理角色卡'}</>}
+              </button>
+            )}
           </div>
+          {aiCharacters.length > 0 ? (
+            <div className="grid gap-2">
+              {aiCharacters.map(card => (
+                <AICharacterCard key={card.name} card={card} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-text-muted leading-relaxed rounded-lg border border-dashed border-purple-400/20 bg-bg-surface px-3 py-2.5">
+              点击「AI 整理角色卡」，让 AI 阅读所有分块的人物塑造分析，自动归并同一角色（含不同称呼）并去重，生成干净的角色清单。
+            </p>
+          )}
         </div>
       )}
 
@@ -329,7 +399,7 @@ function DimensionSection({ dim }: { dim: MergedDimension }) {
   )
 }
 
-function CharacterCard({ card }: { card: { name: string; analyses: Array<{ text: string; sourceLabel: string }> } }) {
+function AICharacterCard({ card }: { card: AIMergedCharacter }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -338,21 +408,23 @@ function CharacterCard({ card }: { card: { name: string; analyses: Array<{ text:
         onClick={() => setExpanded(v => !v)}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-bg-hover transition text-left"
       >
-        {expanded ? <ChevronDown className="w-3.5 h-3.5 text-text-muted" /> : <ChevronRight className="w-3.5 h-3.5 text-text-muted" />}
+        {expanded ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />}
         <span className="w-7 h-7 rounded-full bg-purple-500/15 text-purple-400 flex items-center justify-center text-xs font-bold shrink-0">
           {card.name.charAt(0)}
         </span>
-        <span className="text-sm font-medium text-text-primary">{card.name}</span>
-        <span className="text-[10px] text-text-muted ml-auto">出现 {card.analyses.length} 处</span>
+        <span className="text-sm font-medium text-text-primary shrink-0">{card.name}</span>
+        {card.role && (
+          <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded shrink-0">{card.role}</span>
+        )}
+        {card.summary && (
+          <span className="text-[11px] text-text-muted truncate">{card.summary}</span>
+        )}
       </button>
-      {expanded && (
-        <div className="px-3 pb-3 space-y-1.5">
-          {card.analyses.map((a, i) => (
-            <div key={i} className="rounded bg-bg-base border border-border/30 px-2.5 py-1.5">
-              <span className="text-[10px] text-text-muted bg-bg-elevated px-1 py-0.5 rounded">{a.sourceLabel}</span>
-              <p className="text-xs text-text-primary leading-relaxed mt-1 whitespace-pre-wrap">{a.text}</p>
-            </div>
-          ))}
+      {expanded && card.analysis && (
+        <div className="px-3 pb-3">
+          <div className="rounded bg-bg-base border border-border/30 px-2.5 py-2">
+            <p className="text-xs text-text-primary leading-relaxed whitespace-pre-wrap">{card.analysis}</p>
+          </div>
         </div>
       )}
     </div>
