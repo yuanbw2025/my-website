@@ -45,6 +45,7 @@ import ForeshadowPanel from '../components/foreshadow/ForeshadowPanel'
 import GeographyPanel from '../components/geography/GeographyPanel'
 import HistoryPanel from '../components/history/HistoryPanel'
 import ItemSystemPanel from '../components/items/ItemSystemPanel'
+import CodexPanel from '../components/codex/CodexPanel'
 import CreativeRulesPanel from '../components/rules/CreativeRulesPanel'
 import CharacterRelationPanel from '../components/relations/CharacterRelationPanel'
 import WorldMapPanel from '../components/geography/WorldMapPanel'
@@ -175,6 +176,8 @@ export default function WorkspacePage() {
         return <HistoryPanel project={project} />
       case 'items':
         return <ItemSystemPanel project={project} />
+      case 'codex':
+        return <CodexPanel project={project} />
       case 'power-system':
         return <PowerSystemPanel project={project} />
 
