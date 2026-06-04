@@ -60,7 +60,7 @@ export default function InventoryPanel({ project }: Props) {
         const text = htmlToPlainText(ch.content)
         try {
           const messages = buildInventoryExtractPrompt(ch.title, text)
-          const raw = await chat(messages, aiConfig)
+          const raw = await chat(messages, aiConfig, { category: 'inventory.extract', projectId: project.id! })
           const events = parseInventoryEvents(raw)
           // 重新提取该章前先清理旧记录，避免重复累加
           if (ch.id != null) await deleteByChapter(project.id!, ch.id)
