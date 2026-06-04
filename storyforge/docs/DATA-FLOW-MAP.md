@@ -187,7 +187,17 @@
 
 > 连同此前几轮已修：世界观单世界 v2/v3 错位、故事核心多世界遗漏、创作规则不注入正文、灵感反推采纳为空（DB 去重）、多世界词条过滤 bug。
 
-### 🟠 仍待处理（已记录，归 R-1 / 35-b）
+### ✅ 第二批已修复（逐项细查，2026-06-04）
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 7 | **B**：世界观 naturalResources（自然物产）/itemDesign（道具设计）自由文本不注入 | 现注入（codex 暂空无双轨）；35-b 迁词条后撤掉 |
+| 8 | **多世界覆盖**：场景生成 / 细纲生成 / 角色生成 在多世界下写死单世界上下文（读主世界，会串世界） | 新增 `buildNodeWritingContext`（按章节节点父链解析所属世界）；ScenePanel/DetailedOutlinePanel 改用之；CharacterPanel 改用选中/活跃世界的 `buildCurrentWorldContext` |
+| — | **C 澄清**：`buildHistoricalContext` 实读历史年表表（v3，正常）；真正读 v2 的是 `buildExistingWorldview`，仅被**不可达的死面板 `WorldviewPanel`** 使用 | 记为死代码，待清理（非线上 bug） |
+| — | **A 结论**：创作规则已注入「章节正文」（写作风格/视角/禁忌最相关处）；大纲/细纲为结构规划，写作风格不适用，不强注入（避免无谓 token） | 视为已落到位 |
+| — | **D 订正**：「AI 建议世界」实际输出 7 个世界观字段（非 5），缺 worldStructure/politics/worldEvents 等 | 低优先（便捷生成器，可手动补），待补 schema |
+
+### 🟠 仍待处理（已记录）
 
 | # | 问题 | 处置 |
 |---|------|------|

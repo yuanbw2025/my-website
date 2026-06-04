@@ -44,10 +44,22 @@ export function buildCreativeRulesContext(rules: CreativeRules | null): string {
 
 // ── 单一事实源：世界观/故事核心/力量体系的字段格式化（单世界与多世界共用，杜绝漂移） ──
 
+/** 格式化自然物产（珍禽异兽/灵药/矿石/其他）。Phase 35-b 迁到词条后将从此移除，改由 codex 注入。 */
+function formatNaturalResources(nr: Worldview['naturalResources']): string {
+  if (!nr) return ''
+  const parts = [
+    nr.rareCreatures && `珍禽异兽：${nr.rareCreatures.slice(0, 80)}`,
+    nr.herbs && `灵药草药：${nr.herbs.slice(0, 80)}`,
+    nr.minerals && `矿石矿料：${nr.minerals.slice(0, 80)}`,
+    nr.others && `其他物产：${nr.others.slice(0, 60)}`,
+  ].filter(Boolean)
+  return parts.length ? `自然物产（${parts.join('；')}）` : ''
+}
+
 /**
  * 格式化世界观全部字段为【世界观】块。
  * 覆盖所有面板可填的 v3 字段；v3 全空时回退 v2 旧字段（极老项目）。
- * 注：naturalResources / itemDesign 归词条系统（Phase 35-b）承载，不在此重复注入。
+ * 注：naturalResources / itemDesign 现以自由文本注入；Phase 35-b 迁到词条后由 codex 承载，届时从此移除避免双轨。
  */
 export function formatWorldviewBlock(wv: Worldview | null): string {
   if (!wv) return ''
@@ -68,10 +80,12 @@ export function formatWorldviewBlock(wv: Worldview | null): string {
     wv.climateByRegion && `气候环境：${wv.climateByRegion.slice(0, 120)}`,
     wv.historyLine && `世界历史：${wv.historyLine.slice(0, 200)}`,
     wv.worldEvents && `世界大事记：${wv.worldEvents.slice(0, 200)}`,
+    formatNaturalResources(wv.naturalResources),
     wv.races && `种族民族：${wv.races.slice(0, 150)}`,
     wv.factionLayout && `势力分布：${wv.factionLayout.slice(0, 200)}`,
     wv.politicsEconomyCulture && `政经文化：${wv.politicsEconomyCulture.slice(0, 150)}`,
     wv.internalConflicts && `矛盾冲突：${wv.internalConflicts.slice(0, 150)}`,
+    wv.itemDesign && `道具设计：${wv.itemDesign.slice(0, 150)}`,
   ].filter(Boolean)
   if (v3.length) return `【世界观】\n${v3.join('\n')}`
   const v2 = [

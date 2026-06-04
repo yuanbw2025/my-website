@@ -61,6 +61,51 @@ export async function buildCurrentWorldContext(
   return parts.join('\n').slice(0, 3000)
 }
 
+/** 沿大纲节点父链解析其所属世界组（多世界）。无则返回 null。 */
+export async function resolveNodeWorldGroupId(projectId: number, outlineNodeId: number): Promise<number | null> {
+  const nodes = await db.outlineNodes.where('projectId').equals(projectId).toArray()
+  let cur = nodes.find(n => n.id === outlineNodeId)
+  const guard = new Set<number>()
+  while (cur && !guard.has(cur.id!)) {
+    if (cur.worldGroupId != null) return cur.worldGroupId
+    guard.add(cur.id!)
+    cur = cur.parentId != null ? nodes.find(n => n.id === cur!.parentId) : undefined
+  }
+  return null
+}
+
+/**
+ * 为「某个章节/大纲节点」构建正确的世界上下文。
+ * 多世界：解析该节点所属世界 → buildCurrentWorldContext（含该世界词条/故事核心）。
+ * 单世界 或 节点未归属世界：读项目级世界观 + 词条，与 buildWorldContext 同字段（共享格式化）。
+ * 解决「场景/细纲等面板在多世界下读错世界」的问题。
+ */
+export async function buildNodeWritingContext(
+  projectId: number,
+  outlineNodeId: number | null,
+): Promise<string> {
+  const project = await db.projects.get(projectId)
+  if (project?.enableMultiWorld && outlineNodeId != null) {
+    const wg = await resolveNodeWorldGroupId(projectId, outlineNodeId)
+    if (wg != null) return await buildCurrentWorldContext(projectId, wg)
+  }
+  // 单世界 / 未归属：项目级（worldGroupId=null）
+  const [wvList, sc, psList] = await Promise.all([
+    db.worldviews.where('projectId').equals(projectId).toArray(),
+    db.storyCores.where('projectId').equals(projectId).first(),
+    db.powerSystems.where('projectId').equals(projectId).toArray(),
+  ])
+  const wv = wvList.find(w => (w.worldGroupId ?? null) === null) ?? wvList[0] ?? null
+  const ps = psList.find(p => (p.worldGroupId ?? null) === null) ?? psList[0] ?? null
+  const codex = await buildCodexContext(projectId, null)
+  return [
+    formatWorldviewBlock(wv),
+    formatStoryCoreBlock(sc ?? null),
+    formatPowerSystemBlock(ps),
+    codex,
+  ].filter(Boolean).join('\n\n')
+}
+
 /**
  * 构建所有世界的精简摘要表（每世界限 ~100 字）
  * 用于世界建议、跨世界规划、灵感反推等需要全局视野的场景。

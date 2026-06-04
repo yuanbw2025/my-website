@@ -10,6 +10,7 @@ import { buildDetailSceneGeneratePrompt, buildEnhancedDetailPrompt, parseEnhance
 import { useAIConfigStore } from '../../stores/ai-config'
 import { buildWorldContext, buildCharacterContext } from '../../lib/ai/context-builder'
 import { buildCodexContext } from '../../lib/ai/codex-context'
+import { buildNodeWritingContext } from '../../lib/ai/world-group-context'
 import { batchGenerateDetails, type BatchProgress } from '../../lib/ai/batch-detail-runner'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import { nanoid } from '../../lib/utils/id'
@@ -108,15 +109,16 @@ export default function DetailedOutlinePanel({ project }: Props) {
 
   const handleAIGenerate = async () => {
     if (!currentChapter) return
-    const codexCtx = await buildCodexContext(project.id!, null)
+    // 多世界下按本章所属世界读取上下文
+    const worldCtx = await buildNodeWritingContext(project.id!, currentChapter.id!)
     const messages = buildDetailSceneGeneratePrompt(
       currentChapter.title,
       currentChapter.summary || '',
-      [buildWorldContext(worldview, storyCore, null), codexCtx].filter(Boolean).join('\n\n'),
+      worldCtx,
       buildCharacterContext(characters.filter(c => c.role === 'protagonist' || c.role === 'supporting')),
       '',
     )
-    ai.start(messages)
+    ai.start(messages, undefined, { category: 'detail.scene', projectId: project.id! })
   }
 
   // D2: 完善细纲
@@ -125,8 +127,8 @@ export default function DetailedOutlinePanel({ project }: Props) {
     const idx = chapterNodes.indexOf(currentChapter)
     const prevSummary = idx > 0 ? (chapterNodes[idx - 1].summary || '') : ''
     const nextSummary = idx < chapterNodes.length - 1 ? (chapterNodes[idx + 1].summary || '') : ''
-    const codexCtx = await buildCodexContext(project.id!, null)
-    const worldCtx = [buildWorldContext(worldview, storyCore, null), codexCtx].filter(Boolean).join('\n\n')
+    // 多世界下按本章所属世界读取上下文
+    const worldCtx = await buildNodeWritingContext(project.id!, currentChapter.id!)
 
     const charCtx = characters
       .filter(c => c.role === 'protagonist' || c.role === 'supporting')
