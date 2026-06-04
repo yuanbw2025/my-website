@@ -194,7 +194,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
       const { messages } = renderPrompt(tpl, ctx, {
         parameterValues: step.parameterValues,
       })
-      const output = await ai.start(messages)
+      const output = await ai.start(messages, undefined, { category: step.promptModuleKey, projectId: project.id })
       updateResult(step.stepId, { status: 'done', output, tokenUsage: ai.tokenUsage })
       setCurrentIndex(idx + 1)
 
