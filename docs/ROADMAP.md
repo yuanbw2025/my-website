@@ -187,6 +187,27 @@
 
 ## 🔴 优先级：高
 
+### BUG-EXPORT-WG — 多世界导出/导入 worldGroupId 重映射键值错位（数据完整性）
+
+> 来源：全量审计（2026-06-04）修数据丢失时顺带发现 | 影响：仅多世界项目的「导出备份 → 导入恢复」；单世界无影响 | 文件：`src/lib/export/json-export.ts`
+
+**问题（已确认机制）**：
+- 导出时 `worldGroupIdMap` 把世界组「真实 id → 导出序号 index」，`worldGroups` 以 `_exportId = index` 导出。
+- 但 `worldviews / powerSystems / characters(homeWorldGroupId) / outlineNodes / geographies / histories / worldNodes / historicalTimelineEvents / historicalKeywords`（以及本次新增的 `codexCategories / codexEntries`）导出时，其 `worldGroupId` 字段**保留的是原始真实 id**（未转成 index）。
+- 导入端 section 27 的 `remap(oldId) = newWorldGroupIds.get(oldId)`，而 `newWorldGroupIds` 键是「导出序号 index → 新 id」。
+- 于是 `remap(原始真实id)` 用 index 表查 raw id → 键不匹配 → 落到 `?? null`。
+- **后果**：多世界项目导出再导入后，绝大多数记录的 `worldGroupId` 被清为 null，**世界归属丢失**（世界观/角色/大纲/词条等不再隶属正确世界）。
+
+**解决方案（二选一，推荐 A）**：
+- **方案 A（推荐，统一用导出序号）**：导出时把所有 `worldGroupId` / `homeWorldGroupId` 引用一律经 `worldGroupIdMap` 转成 `_exportId`（index）再写出；导入端 `remap` 用 `newWorldGroupIds`（index→新 id）即可对上。改动集中在导出的各 `.map(...)` 与导入 section 27，语义统一、最干净。
+- **方案 B（保留原始 id）**：导出 `worldGroups` 时同时保留原始真实 `id`（如 `_originalId`）；导入时建立「原始 id → 新 id」映射，`remap` 改用此映射。改动小但多一个字段。
+
+**约束**：单世界（worldGroupId 为 null/undefined）必须零影响；修复后用「多世界项目（≥2 世界组，记录挂到非首个世界）导出→导入」验证 worldGroupId 正确保留。
+
+**验证**：`npx tsc --noEmit` + `npm run build` + 手动多世界往返；完成后更新 `docs/DATA-FLOW-MAP.md` 对应「⚠️ 顺带发现」项为已修复。
+
+---
+
 ### Phase 38 — AI 生成内容一致性检测（幻觉/前文矛盾预警）
 
 > 📐 完整设计文档：`docs/CONSISTENCY-CHECK-DESIGN.md`
