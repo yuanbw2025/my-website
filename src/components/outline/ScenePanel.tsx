@@ -6,12 +6,11 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, Sparkles, ChevronDown, ChevronRight } from 'lucide-react'
 import { useDetailedOutlineStore } from '../../stores/detailed-outline'
-import { useWorldviewStore } from '../../stores/worldview'
 import { useCharacterStore } from '../../stores/character'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildDetailSceneGeneratePrompt } from '../../lib/ai/adapters/detail-scene-adapter'
-import { buildWorldContext, buildCharacterContext } from '../../lib/ai/context-builder'
-import { buildCodexContext } from '../../lib/ai/codex-context'
+import { buildCharacterContext } from '../../lib/ai/context-builder'
+import { buildNodeWritingContext } from '../../lib/ai/world-group-context'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import { nanoid } from '../../lib/utils/id'
 import type { DetailedScene, ScenePace } from '../../lib/types'
@@ -39,7 +38,6 @@ interface Props {
 
 export default function ScenePanel({ projectId, outlineNodeId, chapterTitle, chapterSummary }: Props) {
   const { detailedOutlines, loadAll, getOrCreate, save } = useDetailedOutlineStore()
-  const { worldview, storyCore } = useWorldviewStore()
   const { characters } = useCharacterStore()
   const ai = useAIStream()
   const [expanded, setExpanded] = useState(false)
@@ -87,15 +85,16 @@ export default function ScenePanel({ projectId, outlineNodeId, chapterTitle, cha
   }
 
   const handleAIGenerate = async () => {
-    const codexCtx = await buildCodexContext(projectId, null)
+    // 多世界下按本章所属世界读取上下文（此前写死单世界，会串世界）
+    const worldCtx = await buildNodeWritingContext(projectId, outlineNodeId)
     const messages = buildDetailSceneGeneratePrompt(
       chapterTitle,
       chapterSummary || '',
-      [buildWorldContext(worldview, storyCore, null), codexCtx].filter(Boolean).join('\n\n'),
+      worldCtx,
       buildCharacterContext(characters.filter(c => c.role === 'protagonist' || c.role === 'supporting')),
       '',
     )
-    ai.start(messages)
+    ai.start(messages, undefined, { category: 'detail.scene', projectId })
     setExpanded(true)
   }
 

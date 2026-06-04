@@ -11,6 +11,7 @@ import { useAIStream } from '../../hooks/useAIStream'
 import { buildCharacterPrompt } from '../../lib/ai/adapters/character-adapter'
 import { buildWorldContext } from '../../lib/ai/context-builder'
 import { buildCodexContext } from '../../lib/ai/codex-context'
+import { buildCurrentWorldContext } from '../../lib/ai/world-group-context'
 import { parseCharacterOutput } from '../../lib/ai/parse-character-output'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
@@ -111,8 +112,17 @@ export default function CharacterPanel({ project }: Props) {
     const rosterGap = `当前阵容：主角 ${roleCounts.protagonist}、反派 ${roleCounts.antagonist}、配角 ${roleCounts.supporting}、次要 ${roleCounts.minor}、NPC ${roleCounts.npc}、路人 ${roleCounts.extra}`
     const existing = characters.map(c => `${c.name}（${ROLE_LABELS[c.role]}）`).join('、')
     const enrichedHint = [hint, rosterGap].filter(Boolean).join('\n')
-    const codexCtx = await buildCodexContext(project.id!, null)
-    const worldCtx = [buildWorldContext(worldview, storyCore, powerSystem), codexCtx].filter(Boolean).join('\n\n')
+    // 多世界：按当前选中/活跃世界读取上下文（此前写死单世界）
+    const targetWorld = project.enableMultiWorld
+      ? (typeof worldFilter === 'number' ? worldFilter : activeGroupId)
+      : null
+    let worldCtx: string
+    if (targetWorld != null) {
+      worldCtx = await buildCurrentWorldContext(project.id!, targetWorld)
+    } else {
+      const codexCtx = await buildCodexContext(project.id!, null)
+      worldCtx = [buildWorldContext(worldview, storyCore, powerSystem), codexCtx].filter(Boolean).join('\n\n')
+    }
     const opts = {
       parameterValues: Object.keys(parameterValues).length > 0 ? parameterValues : undefined,
       overrides: (systemOverride != null || userOverride != null) ? {
