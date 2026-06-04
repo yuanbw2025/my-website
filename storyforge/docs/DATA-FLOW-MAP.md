@@ -197,20 +197,35 @@
 | — | **A 结论**：创作规则已注入「章节正文」（写作风格/视角/禁忌最相关处）；大纲/细纲为结构规划，写作风格不适用，不强注入（避免无谓 token） | 视为已落到位 |
 | — | **D 订正**：「AI 建议世界」实际输出 7 个世界观字段（非 5），缺 worldStructure/politics/worldEvents 等 | 低优先（便捷生成器，可手动补），待补 schema |
 
-### 🟠 仍待处理（已记录）
+### ✅ 第三批已修复 + 已核对无误（逐项细查续，2026-06-04）
+
+| 项 | 结果 |
+|---|------|
+| **大纲生成读遗留字段**：`OutlinePanel` 的故事核心上下文读 `storyLines`（v3 已改名 mainPlot，用户填的是 mainPlot → 读到空） | ✅ 修复：改读 `mainPlot \|\| storyLines`，并补复线 |
+| 创作规则 `toneAndMood`（旧名）vs `atmosphere`（v3） | ✅ 核对：面板读写一致用 toneAndMood，`buildCreativeRulesContext` 取 `atmosphere \|\| toneAndMood`，无错位 |
+| 导入写回（chunk-writer）worldview 字段 | ✅ 核对：import prompt 输出 v3 keys，写回 v3，对齐 |
+| 项目参考（ReferencePanel）是否漏采纳 | ✅ 核对：参考分析为只读分析工具，不写回项目（设计如此），无字段错位 |
+| 历史年表 / 世界地图 / 情感节拍 生成读字段 | ✅ 核对：HistoryPanel/world-map-adapter 读 v3；EmotionBeat 经 prop 拿到正确上下文 |
+| 状态表 / 物品栏 / 故事年表 无 worldGroupId | ✅ 核对：**设计如此**——物品栏明确「项目级，诸天流主角跨世界携带」；非 bug |
+
+### 🟠 仍待处理（已记录，低优先 / 需权衡）
+
+> 以下为剩余已知项，均为低严重度或需 DB 改动，列出供决策；高价值 LIVE 漏洞已基本清完。
 
 | # | 问题 | 处置 |
 |---|------|------|
 | A | **创作规则仅注入「章节正文」**，大纲/细纲/批量生成未注入 | R-1 统一执行层一并接入 |
-| B | 世界观 **naturalResources（自然物产）/itemDesign（道具设计）** 自由文本不注入 | 归词条系统（Phase 35-b 迁移后由 codex 注入，避免双轨重复） |
-| C | `buildHistoricalContext` 读 **v2 旧字段**（geography/history/society…），v3 项目下基本为空；仅「场景考证」用 | R-1 对齐到 v3 / 历史年表表 |
-| D | 「AI 建议世界」(`world-group-ai`) 输出仅 5 个世界观字段（缺 climate/historyLine/politics/worldStructure…） | 补全输出字段 schema |
-| E | 重要地点 `importantLocations` **无 worldGroupId**，多世界下按项目全量注入（非按世界隔离） | 多世界化时加世界字段 |
-| F | storyCore.concept 不读；批量章节正文无独立入口（仅 ChapterEditor 有全上下文） | 极小 / 设计如此 |
+| D | 「AI 建议世界」输出 7 个世界观字段（缺 worldStructure/politics/worldEvents 等） | 便捷生成器，可手动补；低优先，待补 schema |
+| E | 重要地点 `importantLocations` **无 worldGroupId**，多世界下全量注入（非按世界隔离） | 需 DB 迁移，niche，权衡后再做 |
+| G | ForeshadowPanel / StoryArcPanel 在多世界下用单世界/全局上下文（伏笔、故事线本为项目级，模糊） | 低，项目级概念，可用活跃世界或 all-worlds |
+| H | 批量细纲 / 批量大纲 在多世界下用单一上下文（非逐章按世界） | 中低，批量场景 |
+| I | HistoryPanel / WorldMapPanel 生成时用 store 内 worldview（多世界未必是目标世界） | 低 |
+| J | 死代码：`WorldviewPanel`（侧栏不可达）+ `buildExistingWorldview`（读 v2，仅它用） | 清理项，待删 |
+| K | 创作规则未注入大纲/细纲生成 | 判定：写作风格不适用于结构规划，不强注入（避免无谓 token） |
 
 ### 根因与根治
 
-以上 #1–#6 与 A、C 全部源于**同一个病根**：上下文读取没有单一入口，字段散落在多个 builder 里手写，加字段不收口 → 必然漏、必然漂移。本轮用「三个共享格式化函数」先收口了世界观/故事核心/力量体系（消除 #1–#5 与单/多世界漂移），但**彻底根治仍需 R-1 统一上下文装配层**（所有源经注册表声明一次、所有生成入口走同一装配）。
+绝大多数已修项源于**同一个病根**：上下文读取没有单一入口，字段散落在多个 builder/面板里手写，加字段不收口 → 必然漏、必然漂移。本轮已：① 用「三个共享格式化函数」收口世界观/故事核心/力量体系（消除字段漏读与单/多世界漂移）；② 用 `buildNodeWritingContext` 收口「按章节解析所属世界」（消除场景/细纲/角色多世界串台）。剩余 D/E/G/H/I 多为低severity 或需权衡，**彻底根治仍需 R-1 统一上下文装配层**。
 
 ---
 

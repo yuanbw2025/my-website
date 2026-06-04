@@ -133,7 +133,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     setPreviewChapters(null)
     const codexCtx = await buildCodexContext(project.id!, null)
     const worldCtx = [buildWorldContext(worldview, storyCore, powerSystem), codexCtx].filter(Boolean).join('\n\n')
-    const scCtx = storyCore ? `主题：${storyCore.theme}\n冲突：${storyCore.centralConflict}\n故事线：${storyCore.storyLines}` : ''
+    const scCtx = storyCore ? `主题：${storyCore.theme}\n冲突：${storyCore.centralConflict}\n主线：${storyCore.mainPlot || storyCore.storyLines || ''}${storyCore.subPlots ? `\n复线：${storyCore.subPlots}` : ''}` : ''
     const charCtx = buildCharacterContext(characters)
     // Phase 32: 世界规则清单注入
     const rulesCtx = await buildWorldRulesContext(project.id!)
