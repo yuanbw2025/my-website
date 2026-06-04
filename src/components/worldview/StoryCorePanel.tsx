@@ -65,7 +65,15 @@ export default function StoryCorePanel({ project }: Props) {
     if (!worldview) return ''
     const parts: string[] = []
     if (worldview.summary) parts.push(`【世界观摘要】${worldview.summary.slice(0, 300)}`)
-    else if (worldview.worldOrigin) parts.push(`【世界起源】${worldview.worldOrigin.slice(0, 200)}`)
+    // 不只取一个字段——故事核心需要世界关键设定（此前仅 worldOrigin，过薄）
+    const fields: [string, string | undefined][] = [
+      ['世界起源', worldview.worldOrigin], ['力量体系', worldview.powerHierarchy],
+      ['种族民族', worldview.races], ['势力分布', worldview.factionLayout],
+      ['世界历史线', worldview.historyLine],
+    ]
+    for (const [label, val] of fields) {
+      if (val) parts.push(`【${label}】${val.slice(0, 180)}`)
+    }
     return parts.join('\n')
   }
 
