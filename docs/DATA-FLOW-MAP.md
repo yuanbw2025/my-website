@@ -170,6 +170,40 @@
 
 ---
 
+## 三-ter、全量贯通审计（2026-06-04，逐字段交叉比对）
+
+> 对每个实体逐字段核对「面板写 vs AI 读 vs 采纳写回」，把「填了但 AI 读不到 / 版本错位 / 漂移 / 未生效」全部列出。
+
+### ✅ 本轮已修复
+
+| # | 问题 | 性质 | 修复 |
+|---|------|------|------|
+| 1 | 世界观 6 个字段 **divineDesign（神明）/worldDimensions（疆域尺寸）/regionDimensions（重镇分布）/mountainsRivers（多世界）/worldEvents（世界大事记）/internalConflicts（矛盾冲突）** 无任何上下文 builder 注入 | 填了读不到 | `formatWorldviewBlock` 全字段覆盖 |
+| 2 | 单世界 / 多世界两个 builder **各读各的世界观字段**（漂移源头） | 漂移 | 抽 `formatWorldviewBlock/formatStoryCoreBlock/formatPowerSystemBlock` 三个**共享格式化函数**，单/多世界共用 → 单一事实源 |
+| 3 | 力量体系**等级阶梯 `levels` + `rules` 漏读**（只读 name+description） | 填了读不到 | `formatPowerSystemBlock` 解析 levels 阶梯 + rules |
+| 4 | 故事核心 **logline（一句话故事）/subPlots（复线）漏读** | 填了读不到 | `formatStoryCoreBlock` 全字段 |
+| 5 | 角色 **appearance（外貌）漏读**（核心角色完整信息里没外貌） | 填了读不到 | buildCharacterContext 补 appearance |
+| 6 | **重要地点整张表从不进写作上下文**（仅用于地图生成） | 整表未生效 | 新增 `buildLocationContext` 并注入章节正文 |
+
+> 连同此前几轮已修：世界观单世界 v2/v3 错位、故事核心多世界遗漏、创作规则不注入正文、灵感反推采纳为空（DB 去重）、多世界词条过滤 bug。
+
+### 🟠 仍待处理（已记录，归 R-1 / 35-b）
+
+| # | 问题 | 处置 |
+|---|------|------|
+| A | **创作规则仅注入「章节正文」**，大纲/细纲/批量生成未注入 | R-1 统一执行层一并接入 |
+| B | 世界观 **naturalResources（自然物产）/itemDesign（道具设计）** 自由文本不注入 | 归词条系统（Phase 35-b 迁移后由 codex 注入，避免双轨重复） |
+| C | `buildHistoricalContext` 读 **v2 旧字段**（geography/history/society…），v3 项目下基本为空；仅「场景考证」用 | R-1 对齐到 v3 / 历史年表表 |
+| D | 「AI 建议世界」(`world-group-ai`) 输出仅 5 个世界观字段（缺 climate/historyLine/politics/worldStructure…） | 补全输出字段 schema |
+| E | 重要地点 `importantLocations` **无 worldGroupId**，多世界下按项目全量注入（非按世界隔离） | 多世界化时加世界字段 |
+| F | storyCore.concept 不读；批量章节正文无独立入口（仅 ChapterEditor 有全上下文） | 极小 / 设计如此 |
+
+### 根因与根治
+
+以上 #1–#6 与 A、C 全部源于**同一个病根**：上下文读取没有单一入口，字段散落在多个 builder 里手写，加字段不收口 → 必然漏、必然漂移。本轮用「三个共享格式化函数」先收口了世界观/故事核心/力量体系（消除 #1–#5 与单/多世界漂移），但**彻底根治仍需 R-1 统一上下文装配层**（所有源经注册表声明一次、所有生成入口走同一装配）。
+
+---
+
 ## 四、统一架构方案（蓝图）
 
 把上面 A/B 两条散缝各收成一根，C/D 由词条化重构收口。

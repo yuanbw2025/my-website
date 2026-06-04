@@ -6,6 +6,23 @@
 
 ## 2026-06-04
 
+### 全量贯通审计：补齐 6 处「填了 AI 读不到」+ 收口单/多世界字段漂移
+
+**来源**：用户要求全量重扫，确保字段精确、逻辑贯通
+
+逐字段交叉比对「面板写入 / AI 读取 / 采纳写回」，发现并修复 6 处上下文漏注入：
+
+1. 世界观 6 个字段从不被任何上下文 builder 注入：**神明设定 / 疆域尺寸 / 重镇分布 / 山川水系（多世界）/ 世界大事记 / 矛盾冲突**。
+2. **单世界 / 多世界两条上下文路径各读各的世界观字段**（漂移源头）：抽出 `formatWorldviewBlock` / `formatStoryCoreBlock` / `formatPowerSystemBlock` 三个共享格式化函数，两条路径共用，单一事实源，杜绝再次漂移。
+3. 力量体系**等级阶梯（levels）+ 规则**漏读（原只读名称+描述）。
+4. 故事核心**一句话故事（logline）+ 复线（subPlots）**漏读。
+5. 角色**外貌（appearance）**漏读。
+6. **重要地点整张表从不进入写作上下文**（原仅用于地图生成）：新增 `buildLocationContext` 并注入章节正文生成。
+
+改动：`src/lib/ai/context-builder.ts`、`src/lib/ai/world-group-context.ts`、`src/components/editor/ChapterEditor.tsx`。完整审计清单（含仍待 R-1/35-b 处理项）见 `docs/DATA-FLOW-MAP.md` 第三-ter 节。
+
+---
+
 ### 新增：AI 消耗统计页 + 修复多处「半截改版」上下文漏注入
 
 **消耗统计（设置区新页）**：在 AI 调用唯一出口记录每次用量并持久化（DB v26 `aiUsageLog`）。设置区新增「消耗统计」页，逐条展示：时间（年月日时分秒）、消耗类型（按 AI 行为分类的彩色标签：正文生成/世界观生成/主角状态提取/大纲生成/角色生成等）、模型、输入 token、输出 token、花费（美元在上、人民币在下，汇率可调）。顶部汇总总输入/输出/总花费；支持仅当前项目筛选、清空。费用按模型估算单价 × token 计算。关键文件：`lib/ai/usage-log.ts`、`stores/ai-usage.ts`、`components/settings/UsageStatsPage.tsx`、`lib/ai/client.ts`（埋点）、`hooks/useAIStream.ts`（透传类型）。

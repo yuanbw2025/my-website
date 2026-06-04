@@ -42,51 +42,88 @@ export function buildCreativeRulesContext(rules: CreativeRules | null): string {
   return `【创作规则】（务必遵守）\n${parts.join('\n')}`
 }
 
-/** 构建世界观上下文摘要 */
+// ── 单一事实源：世界观/故事核心/力量体系的字段格式化（单世界与多世界共用，杜绝漂移） ──
+
+/**
+ * 格式化世界观全部字段为【世界观】块。
+ * 覆盖所有面板可填的 v3 字段；v3 全空时回退 v2 旧字段（极老项目）。
+ * 注：naturalResources / itemDesign 归词条系统（Phase 35-b）承载，不在此重复注入。
+ */
+export function formatWorldviewBlock(wv: Worldview | null): string {
+  if (!wv) return ''
+  const d = wv.divineDesign
+  const divine = d?.hasDivinity
+    ? `神明设定：${[d.divineRank, d.divineNames, d.divineRules].filter(Boolean).join('；').slice(0, 200)}`
+    : ''
+  const v3 = [
+    wv.summary && `摘要：${wv.summary.slice(0, 300)}`,
+    wv.worldOrigin && `世界来源：${wv.worldOrigin.slice(0, 300)}`,
+    wv.powerHierarchy && `力量体系：${wv.powerHierarchy.slice(0, 200)}`,
+    divine,
+    wv.worldStructure && `世界结构：${wv.worldStructure.slice(0, 150)}`,
+    wv.worldDimensions && `世界尺寸：${wv.worldDimensions.slice(0, 100)}`,
+    wv.continentLayout && `地貌分布：${wv.continentLayout.slice(0, 200)}`,
+    wv.regionDimensions && `重镇/区域分布：${wv.regionDimensions.slice(0, 120)}`,
+    wv.mountainsRivers && `山川河流：${wv.mountainsRivers.slice(0, 150)}`,
+    wv.climateByRegion && `气候环境：${wv.climateByRegion.slice(0, 120)}`,
+    wv.historyLine && `世界历史：${wv.historyLine.slice(0, 200)}`,
+    wv.worldEvents && `世界大事记：${wv.worldEvents.slice(0, 200)}`,
+    wv.races && `种族民族：${wv.races.slice(0, 150)}`,
+    wv.factionLayout && `势力分布：${wv.factionLayout.slice(0, 200)}`,
+    wv.politicsEconomyCulture && `政经文化：${wv.politicsEconomyCulture.slice(0, 150)}`,
+    wv.internalConflicts && `矛盾冲突：${wv.internalConflicts.slice(0, 150)}`,
+  ].filter(Boolean)
+  if (v3.length) return `【世界观】\n${v3.join('\n')}`
+  const v2 = [
+    wv.geography && `地理：${wv.geography.slice(0, 200)}`,
+    wv.society && `社会：${wv.society.slice(0, 200)}`,
+    wv.rules && `规则：${wv.rules.slice(0, 200)}`,
+  ].filter(Boolean)
+  return v2.length ? `【世界观】\n${v2.join('\n')}` : ''
+}
+
+/** 格式化故事核心为【故事核心】块（全字段）。 */
+export function formatStoryCoreBlock(sc: StoryCore | null): string {
+  if (!sc) return ''
+  const parts = [
+    sc.logline && `一句话故事：${sc.logline}`,
+    sc.theme && `主题：${sc.theme}`,
+    sc.centralConflict && `核心冲突：${sc.centralConflict}`,
+    sc.plotPattern && `情节模式：${sc.plotPattern}`,
+    (sc.mainPlot || sc.storyLines) && `主线：${(sc.mainPlot || sc.storyLines).slice(0, 250)}`,
+    sc.subPlots && `复线：${sc.subPlots.slice(0, 200)}`,
+  ].filter(Boolean)
+  return parts.length ? `【故事核心】\n${parts.join('\n')}` : ''
+}
+
+/** 格式化力量体系为【力量体系】块（含等级阶梯 + 规则）。 */
+export function formatPowerSystemBlock(ps: PowerSystem | null): string {
+  if (!ps?.name && !ps?.description && !ps?.levels) return ''
+  const parts: string[] = []
+  if (ps.name) parts.push(`${ps.name}：${ps.description?.slice(0, 200) || ''}`)
+  else if (ps.description) parts.push(ps.description.slice(0, 200))
+  try {
+    const levels = JSON.parse(ps.levels || '[]')
+    if (Array.isArray(levels) && levels.length) {
+      const names = levels.map((l: { name?: string } | string) => typeof l === 'string' ? l : (l.name || '')).filter(Boolean)
+      if (names.length) parts.push(`等级阶梯：${names.join(' → ').slice(0, 250)}`)
+    }
+  } catch { /* ignore */ }
+  if (ps.rules) parts.push(`规则：${ps.rules.slice(0, 150)}`)
+  return parts.length ? `【力量体系】\n${parts.join('\n')}` : ''
+}
+
+/** 构建世界观上下文摘要（单世界）。 */
 export function buildWorldContext(wv: Worldview | null, sc: StoryCore | null, ps: PowerSystem | null): string {
   if (!wv && !sc && !ps) return ''
   const parts: string[] = []
 
-  if (wv) {
-    // v3 字段（与多世界 buildCurrentWorldContext 对齐）——面板实际写入的就是这些
-    const v3 = [
-      wv.summary && `摘要：${wv.summary.slice(0, 300)}`,
-      wv.worldOrigin && `世界来源：${wv.worldOrigin.slice(0, 300)}`,
-      wv.powerHierarchy && `力量体系：${wv.powerHierarchy.slice(0, 200)}`,
-      wv.worldStructure && `世界结构：${wv.worldStructure.slice(0, 150)}`,
-      wv.continentLayout && `地貌分布：${wv.continentLayout.slice(0, 200)}`,
-      wv.climateByRegion && `气候环境：${wv.climateByRegion.slice(0, 100)}`,
-      wv.mountainsRivers && `山川河流：${wv.mountainsRivers.slice(0, 120)}`,
-      wv.historyLine && `世界历史：${wv.historyLine.slice(0, 200)}`,
-      wv.races && `种族民族：${wv.races.slice(0, 150)}`,
-      wv.factionLayout && `势力分布：${wv.factionLayout.slice(0, 200)}`,
-      wv.politicsEconomyCulture && `政经文化：${wv.politicsEconomyCulture.slice(0, 150)}`,
-    ].filter(Boolean)
-    if (v3.length) {
-      parts.push(`【世界观】\n${v3.join('\n')}`)
-    } else {
-      // v2 兜底：仅当 v3 字段全空（极老项目）时，用旧字段
-      const v2 = [
-        wv.geography && `地理：${wv.geography.slice(0, 200)}`,
-        wv.society && `社会：${wv.society.slice(0, 200)}`,
-        wv.rules && `规则：${wv.rules.slice(0, 200)}`,
-      ].filter(Boolean)
-      if (v2.length) parts.push(`【世界观】\n${v2.join('\n')}`)
-    }
-  }
-
-  if (sc) {
-    const scParts = [
-      sc.theme && `主题：${sc.theme}`,
-      sc.centralConflict && `核心冲突：${sc.centralConflict}`,
-      sc.plotPattern && `情节模式：${sc.plotPattern}`,
-    ].filter(Boolean)
-    if (scParts.length) parts.push(`【故事核心】\n${scParts.join('\n')}`)
-  }
-
-  if (ps?.name) {
-    parts.push(`【力量体系】${ps.name}：${ps.description?.slice(0, 200) || ''}`)
-  }
+  const wvBlock = formatWorldviewBlock(wv)
+  if (wvBlock) parts.push(wvBlock)
+  const scBlock = formatStoryCoreBlock(sc)
+  if (scBlock) parts.push(scBlock)
+  const psBlock = formatPowerSystemBlock(ps)
+  if (psBlock) parts.push(psBlock)
 
   // Phase 23.2: 货币体系注入
   if (wv?.economy) {
@@ -139,6 +176,7 @@ export function buildCharacterContext(characters: Character[]): string {
       const details = [
         `${c.name}（${getRoleLabel(c.role)}）`,
         c.shortDescription ? `简介：${c.shortDescription}` : '',
+        c.appearance ? `外貌：${c.appearance.slice(0, 150)}` : '',
         c.personality ? `性格：${c.personality.slice(0, 150)}` : '',
         c.background ? `背景：${c.background.slice(0, 200)}` : '',
         c.motivation ? `动机：${c.motivation.slice(0, 150)}` : '',
@@ -326,4 +364,21 @@ export async function buildHistoricalContext(projectId: number): Promise<string>
 
   if (!parts.length) return ''
   return parts.join('\n\n')
+}
+
+/**
+ * 构建「重要地点」上下文。此前重要地点表从不进入写作链路（仅用于地图生成），
+ * 导致作者建的地点在 AI 写正文时读不到。此函数补齐。
+ * @param worldGroupId 多世界：当前世界（importantLocations 暂无世界字段，按项目全量，预算限制）
+ */
+export async function buildLocationContext(projectId: number): Promise<string> {
+  const locs = await db.importantLocations.where('projectId').equals(projectId).toArray()
+  if (!locs.length) return ''
+  const sorted = locs.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).slice(0, 25)
+  const lines = sorted.map(l => {
+    const sig = l.significance ? `（${l.significance.slice(0, 50)}）` : ''
+    const desc = l.description ? `：${l.description.slice(0, 60)}` : ''
+    return `- ${l.name}${sig}${desc}`
+  })
+  return `【重要地点】\n${lines.join('\n')}`.slice(0, 1200)
 }
