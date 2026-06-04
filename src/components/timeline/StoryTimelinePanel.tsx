@@ -67,7 +67,7 @@ export default function StoryTimelinePanel({ project }: Props) {
         const ch = writtenChapters[i]
         try {
           const messages = buildStoryTimelinePrompt(ch.title, htmlToPlainText(ch.content))
-          const raw = await chat(messages, aiConfig)
+          const raw = await chat(messages, aiConfig, { category: 'story.timeline', projectId: project.id! })
           const parsed = parseStoryEvents(raw)
           if (ch.id != null) await deleteByChapter(project.id!, ch.id)
           if (parsed.length > 0) {

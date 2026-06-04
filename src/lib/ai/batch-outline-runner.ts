@@ -105,7 +105,7 @@ export async function runBatchOutlineGeneration(
     )
 
     try {
-      const rawOutput = await chat(messages, config)
+      const rawOutput = await chat(messages, config, { category: 'outline.chapter', projectId: vol.projectId })
 
       if (signal?.aborted) {
         return { chaptersByVolume, cancelled: true, elapsed: Date.now() - startTime }
