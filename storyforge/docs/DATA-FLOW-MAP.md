@@ -215,7 +215,7 @@
 | **导出漏表（丢数据）** | JSON 导出/导入（项目备份）**完全没有** `importantLocations`（重要地点）/ `worldRulesProfiles`（真实与幻想）/ `codexCategories`+`codexEntries`（设定词条）→ **备份再恢复会丢掉这三类用户内容** | 🔴 严重 | 已补全导出 + 导入（含树 parentId / 词条 categoryId / worldGroupId 重映射）。gist 导出复用同一格式，一并修复 |
 | **J 死代码清扫** | `WorldviewPanel`（侧栏不可达）+ `buildExistingWorldview`（读 v2，仅它用）+ `'worldview'` 路由/类型 | 清理 | 已删除 |
 | **H 批量多世界** | 批量大纲/批量细纲在多世界下用单一上下文 | 中 | 批量 runner 加 `worldContextResolver`，逐卷/逐章按所属世界（`buildNodeWritingContext`） |
-| ⚠️ 顺带发现 | 多世界 export/import 的 `worldGroupId` 重映射键值疑似错位（`remap` 用 export-index 表查 raw 旧 id）；单世界无影响，多世界备份恢复可能丢世界归属 | 待查 | 已另列任务排查（结构性，独立于本次数据丢失修复） |
+| ⚠️ 顺带发现 | 多世界 export/import 的 `worldGroupId` 重映射键值错位（`remap` 用 export-index 表查 raw 旧 id）；单世界无影响，多世界备份恢复会丢世界归属 | 待修 | 已列入 ROADMAP「BUG-EXPORT-WG」（含问题机制 + 方案 A/B），独立于本次数据丢失修复 |
 
 ### 🟠 仍待处理（已记录，低优先 / 需权衡）
 
