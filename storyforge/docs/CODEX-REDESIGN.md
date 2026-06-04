@@ -324,11 +324,11 @@ export interface CultivationStage {
 - 角色卡关联主修体系
 - 验证：能建多套体系、排境界
 
-**Phase 35-a 词条地基**
-- `codexCategories` / `codexEntries` 表 + 内置分类 seed（含 7 类 fieldSchema）
-- 通用词条 store + 通用词条面板（fieldSchema 驱动表单）
-- 自定义分类（增删大类/小类 + 自定义 schema）
-- 验证：能在内置/自定义类下建词条
+**Phase 35-a 词条地基（✅ 完成 2026-06-04）**
+- ✅ `codexCategories` / `codexEntries` 表（DB v25）+ 内置 7 类分类 seed（含各自 fieldSchema）
+- ✅ 通用词条 store（幂等播种）+ 通用词条三栏面板（fieldSchema 驱动表单 + ref 关联选择器）
+- ✅ 自定义分类（增删 + 内置可隐藏）；侧栏「设定词条」入口
+- 文件：`types/codex.ts`、`db/schema.ts`(v25)、`stores/codex.ts`、`components/codex/CodexPanel.tsx`
 
 **Phase 35-b 分类落地 + 合并**
 - 自然物产（矿物/草药/异兽）、人工器物、种族、势力（合并 Faction）、城池接入

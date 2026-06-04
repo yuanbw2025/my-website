@@ -42,6 +42,8 @@ import type {
   WorldGroupLink,
   ItemLedgerEntry,
   StoryTimelineEvent,
+  CodexCategory,
+  CodexEntry,
 } from '../types'
 
 class StoryForgeDB extends Dexie {
@@ -115,6 +117,10 @@ class StoryForgeDB extends Dexie {
 
   // Phase 25.5.2-a —— 故事进程年表
   storyTimelineEvents!: Table<StoryTimelineEvent, number>
+
+  // Phase 35-a —— 词条系统（Codex）
+  codexCategories!: Table<CodexCategory, number>
+  codexEntries!: Table<CodexEntry, number>
 
   constructor() {
     super('storyforge')
@@ -255,6 +261,12 @@ class StoryForgeDB extends Dexie {
     // Phase 25.5.2-a: 故事进程年表
     this.version(24).stores({
       storyTimelineEvents: '++id, projectId, chapterId, order',
+    })
+
+    // Phase 35-a: 词条系统（Codex）
+    this.version(25).stores({
+      codexCategories: '++id, projectId, domain, parentId, builtInKey, worldGroupId, order',
+      codexEntries: '++id, projectId, categoryId, worldGroupId, order',
     })
   }
 }

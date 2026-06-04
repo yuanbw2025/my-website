@@ -5,7 +5,7 @@ import {
   Ruler, BookOpen, FilePen, Eye,
   FileCog, History, Upload, Download, Settings,
   Map, ClipboardList, GitBranch, Clock, Gem, MapPin, Scale,
-  Drama, Package, CalendarClock, ScanSearch,
+  Drama, Package, CalendarClock, ScanSearch, Boxes,
 } from 'lucide-react'
 
 /**
@@ -34,6 +34,7 @@ export type SidebarModule =
   | 'locations'             // 重要地点（Phase 25.3）
   | 'history'               // 历史年表
   | 'items'                 // 道具系统
+  | 'codex'                 // 设定词条（Phase 35-a）
 
   // 创作区
   | 'rules'
@@ -144,6 +145,7 @@ export const NAV_TREE: TreeSection[] = [
         ],
       },
       leaf('story-design', '故事设计', BookOpen),
+      leaf('codex',        '设定词条', Boxes),
       leaf('items',        '道具系统', Gem),
       {
         kind: 'branch',
