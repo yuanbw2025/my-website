@@ -39,6 +39,8 @@ export interface Reference {
   analysisError?: string
   /** Phase 28.3: AI 全书总结 JSON（各维度 100-200 字精炼总结） */
   analysisSummary?: string
+  /** Phase 28.5: AI 聚合去重后的角色卡 JSON（AIMergedCharacter[]，替代正则抠名） */
+  mergedCharacters?: string
 
   createdAt: number
   updatedAt: number
