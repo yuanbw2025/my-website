@@ -8,6 +8,7 @@
 import { db } from '../db/schema'
 import { WORLD_GROUP_TYPE_LABELS } from '../types/world-group'
 import { buildCodexContext } from './codex-context'
+import { formatWorldviewBlock, formatPowerSystemBlock, formatStoryCoreBlock } from './context-builder'
 import type { Worldview, PowerSystem } from '../types'
 
 /** 取某世界组下的世界观（按 worldGroupId 匹配） */
@@ -39,38 +40,19 @@ export async function buildCurrentWorldContext(
   if (group.powerRestriction) parts.push(`能力限制：${group.powerRestriction}`)
   if (group.entryCondition) parts.push(`进入条件：${group.entryCondition}`)
 
+  // 单一事实源：与单世界共用同一套字段格式化，杜绝单/多世界漂移
   const wv = await getGroupWorldview(projectId, worldGroupId)
-  if (wv) {
-    const wvParts = [
-      wv.worldOrigin && `世界来源：${wv.worldOrigin.slice(0, 300)}`,
-      wv.powerHierarchy && `力量体系：${wv.powerHierarchy.slice(0, 200)}`,
-      wv.worldStructure && `世界结构：${wv.worldStructure.slice(0, 150)}`,
-      wv.continentLayout && `地貌分布：${wv.continentLayout.slice(0, 200)}`,
-      wv.climateByRegion && `气候环境：${wv.climateByRegion.slice(0, 100)}`,
-      wv.historyLine && `世界历史：${wv.historyLine.slice(0, 200)}`,
-      wv.races && `种族民族：${wv.races.slice(0, 150)}`,
-      wv.factionLayout && `势力分布：${wv.factionLayout.slice(0, 200)}`,
-      wv.politicsEconomyCulture && `政经文化：${wv.politicsEconomyCulture.slice(0, 150)}`,
-    ].filter(Boolean)
-    if (wvParts.length) parts.push(`\n【世界观】\n${wvParts.join('\n')}`)
-  }
+  const wvBlock = formatWorldviewBlock(wv ?? null)
+  if (wvBlock) parts.push(`\n${wvBlock}`)
 
   const ps = await getGroupPowerSystem(projectId, worldGroupId)
-  if (ps?.name) {
-    parts.push(`\n【力量体系】${ps.name}：${ps.description?.slice(0, 200) || ''}`)
-  }
+  const psBlock = formatPowerSystemBlock(ps ?? null)
+  if (psBlock) parts.push(`\n${psBlock}`)
 
-  // 故事核心（项目级，与单世界 buildWorldContext 对齐——此前多世界遗漏）
+  // 故事核心（项目级，与单世界对齐——此前多世界遗漏）
   const sc = await db.storyCores.where('projectId').equals(projectId).first()
-  if (sc) {
-    const scParts = [
-      sc.theme && `主题：${sc.theme}`,
-      sc.centralConflict && `核心冲突：${sc.centralConflict}`,
-      sc.plotPattern && `情节模式：${sc.plotPattern}`,
-      sc.mainPlot && `主线：${sc.mainPlot.slice(0, 200)}`,
-    ].filter(Boolean)
-    if (scParts.length) parts.push(`\n【故事核心】\n${scParts.join('\n')}`)
-  }
+  const scBlock = formatStoryCoreBlock(sc ?? null)
+  if (scBlock) parts.push(`\n${scBlock}`)
 
   // Phase 35-a：注入本世界的设定词条（上游设定）
   const codex = await buildCodexContext(projectId, worldGroupId)

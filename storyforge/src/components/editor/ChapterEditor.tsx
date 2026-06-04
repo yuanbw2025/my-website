@@ -13,7 +13,7 @@ import { useBeforeUnload } from '../../hooks/useBeforeUnload'
 import { buildChapterContentPrompt, buildContinuePrompt, buildPolishPrompt, buildExpandPrompt, buildDeAIPrompt } from '../../lib/ai/adapters/chapter-adapter'
 import { buildStateExtractPrompt, parseStateDiffs } from '../../lib/ai/adapters/state-extract-adapter'
 import { buildSummaryPrompt } from '../../lib/ai/adapters/summary-adapter'
-import { buildWorldContext, buildCharacterContext, filterActiveCharacters, getContextMemo, buildRefAnalysisContext, buildMasterInsightContext, buildCreativeRulesContext } from '../../lib/ai/context-builder'
+import { buildWorldContext, buildCharacterContext, filterActiveCharacters, getContextMemo, buildRefAnalysisContext, buildMasterInsightContext, buildCreativeRulesContext, buildLocationContext } from '../../lib/ai/context-builder'
 import { buildCurrentWorldContext } from '../../lib/ai/world-group-context'
 import { buildCodexContext } from '../../lib/ai/codex-context'
 import { buildGenreConstraintContext } from '../../lib/ai/genre-metadata'
@@ -257,10 +257,13 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
     const styleCtx = project.writingStyleId ? buildStylePromptInjection(project.writingStyleId) : ''
     // 创作规则注入（写作风格/视角/基调/禁忌/一致性——此前从不进入 prompt）
     const rulesCtx = buildCreativeRulesContext(creativeRules)
+    // 重要地点注入（此前重要地点表从不进入写作链路）
+    const locationCtx = await buildLocationContext(project.id!)
 
     // 引用手法追加到末尾（不计入三层记忆预算）
     const parts = [memory.fullContext]
     if (rulesCtx) parts.push(rulesCtx)
+    if (locationCtx) parts.push(locationCtx)
     if (genreCtx) parts.push(genreCtx)
     if (styleCtx) parts.push(styleCtx)
     if (refCtx) parts.push(refCtx)
