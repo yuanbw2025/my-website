@@ -106,7 +106,7 @@ function computeDialogRatio(text: string): number {
   for (let i = 0; i < counted.length; i++) {
     if (counted[i]) dialogChars++
   }
-  return dialogChars / text.length
+  return text.length > 0 ? dialogChars / text.length : 0
 }
 
 function extractTopWords(text: string, topN: number): { word: string; count: number }[] {
