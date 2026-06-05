@@ -187,6 +187,20 @@
 
 ## 🔴 优先级：高
 
+### Phase 40 — 「真实与幻想」多世界联动（每世界一套世界规则）
+
+> 📐 完整设计文档：`docs/WORLD-RULES-MULTIWORLD-DESIGN.md`（含表结构、功能逻辑、9 处调用点传值表、漏洞清单 A–I 逐条对策）
+>
+> 来源：用户指出（2026-06-04）真实与幻想未与多世界联动 | 文件：`world-rules.ts` / `WorldRulesPanel.tsx` / `world-rules-manifest.ts` / `world-group.ts` / `db/schema.ts`
+
+**问题**：`worldRulesProfiles` 现为项目级单例（`&projectId` 唯一），`buildWorldRulesContext(projectId)` 项目级注入 → 多世界下所有世界共用一套真实/幻想规则（诸天流斗破=全架空、大明=取自真实本应各异）。
+
+**方案要点**：profile 加 `worldGroupId`（每 (projectId, worldGroupId) 一条），面板加世界标签（仿 HistoryPanel），`buildWorldRulesContext(projectId, worldGroupId?)` 含「默认世界解析」，9 个调用点逐一定死传值，迁移 stamp/删除级联/导出 remap 全部补 worldRulesProfiles。
+
+**已设计好的 9 处漏洞对策**（见设计文档 §三）：默认世界回退、禁跨世界污染、防重复 profile、防漏注入、迁移不丢、删除不留孤儿、导出归属正确（依赖 BUG-EXPORT-WG）、单世界零影响、切换标签先 persist。
+
+---
+
 ### BUG-EXPORT-WG — 多世界导出/导入 worldGroupId 重映射键值错位（数据完整性）
 
 > 来源：全量审计（2026-06-04）修数据丢失时顺带发现 | 影响：仅多世界项目的「导出备份 → 导入恢复」；单世界无影响 | 文件：`src/lib/export/json-export.ts`
