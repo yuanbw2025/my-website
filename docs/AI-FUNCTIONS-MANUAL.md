@@ -154,13 +154,69 @@
 
 ---
 
+### 1.3-bis 作品学习子系统（Phase 19，整合在「项目参考」内）
+
+> ROADMAP 决议：作品学习已并入「项目参考 → 深度分析」tab；以下三个内部 AI 流水线是 §1.3 ① 「深度分析」按钮之下自动调度的子任务，**不单独有用户按钮**。
+
+**对应表**：`masterWorks` / `masterChunkAnalysis` / `masterChapterBeats` / `masterStyleMetrics` / `masterInsights`
+
+#### 内部子流水线①：Layer 1 五维分块分析（pipeline.ts）
+- **触发**：⚡ 用户点 §1.3 ① "深度分析" 后自动逐块跑
+- **读**：分块后的原文（每块约 5000-10000 字）
+- **提示词**：`master.analyze.layer1`（按 narrative / character / world / theme / language 五维度）
+- **解析**：`parseChunkAnalysis`
+- **写**：`masterChunkAnalysis`（每块一条，含五维度）
+
+#### 内部子流水线②：Layer 2 章节节奏点提取（beat-extractor.ts）
+- **触发**：⚡ 用户点 §1.3 ① 时同步跑（或单独按钮"提取节奏点"）
+- **读**：每章的原文
+- **提示词**：`master.extract-beats`
+- **解析**：JSON 数组 `[{ position, type, excerpt, note }]`
+- **写**：`masterChapterBeats`（每章节奏点列表）
+
+#### 内部子流水线③：题材洞察生成（insight-generator.ts）
+- **触发**：⚡ 全部分析完后自动跑
+- **读**：`masterChunkAnalysis` 全部维度合并 + `masterStyleMetrics`（风格量化，本地计算非 AI）
+- **提示词**：`master.insight`
+- **写**：`masterInsights`（按 genre 全局共享，可被多个项目复用）
+
+---
+
 ## 二、设定库
 
-### 2.1 世界总览（侧栏：world-overview）
+### 2.1 世界总览 / 多世界（侧栏：world-overview，对应组件 WorldGroupOverview）
 
-**对应表**：纯展示页（聚合多表），无自有字段
+**对应表**：`worldGroups` + `worldGroupLinks`（多世界模式下）
 
-**AI 动作**：（本面板**无 AI 动作**，是其它表的可视化总览，包含多世界关系流向图等）
+**字段**：
+| 字段 | 含义 |
+|---|---|
+| `worldGroups.name / icon / type / description / powerRestriction / entryCondition / order` | 世界 |
+| `worldGroupLinks.fromGroupId / toGroupId / linkType / label / description` | 世界间关系（诸天/穿越/飞升/分支） |
+
+**AI 动作**：
+
+#### 动作①：AI 建议多个世界（WorldGroupOverview）
+- **触发**：🔘 手动，多世界模式下"AI 建议"按钮
+- **读**：
+  - `projects.name / genre / description`
+  - `worldviews / storyCores / characters`（已有项目内容）
+  - `worldGroups.全世界概览`（已建世界）
+  - `用户输入提示`
+- **提示词**：`world-group.suggest`
+- **解析**：`parseWorldSuggestOutput → SuggestedWorld[]`
+- **写**：`worldGroups（批量新建，用户审核采纳）`，可选 `worldGroupLinks（关系）`
+
+#### 动作②：AI 扩写单个世界设定（WorldGroupDetail）
+- **触发**：🔘 手动，世界详情页"AI 扩写本世界"
+- **读**：
+  - `worldGroups[当前].name / description / 设定草稿`
+  - `worldGroups.其它世界概览`（避免雷同 + 保证差异化）
+  - `storyCores.theme / centralConflict`
+  - `用户输入提示`
+- **提示词**：`world-group.expand`
+- **解析**：`parseWorldExpandOutput → ExpandedWorldview`
+- **写**：本世界的 `worldviews（覆盖各字段：worldOrigin / powerHierarchy / continentLayout / climateByRegion / historyLine / races / factionLayout）` 🌍按世界
 
 ---
 
@@ -326,9 +382,9 @@
 
 ---
 
-### 2.7 世界地图（侧栏：world-map）
+### 2.7 世界地图（侧栏：world-map，对应组件 WorldMapPanel）
 
-**对应表**：`worldNodes`（节点） + `worldviews.geography`（旧）+ Voronoi 配置存 `worldNodes.mapConfigJSON` 🌍按世界
+**对应表**：`worldNodes`（节点） + Voronoi 配置存 `worldNodes.mapConfigJSON` 🌍按世界
 
 **字段**：
 | 字段 | 含义 |
@@ -346,13 +402,23 @@
 - **提示词**：`world-map.voronoi`
 - **写**：`worldNodes.mapConfigJSON（覆盖）` 🌍按世界
 
-#### 动作②：AI 概念地图（SVG）
-- **触发**：🔘 手动（位于 GeographyPanel）
+---
+
+### 2.7-bis 概念地图（隐藏路由 `geography`，对应组件 GeographyPanel）
+
+> ⚠️ 此面板路由 `geography` **不在侧栏 leaf 中**，是历史/隐藏入口（从重要地点或其它跳转可达）。当前线上代码仍存在并可被路由命中。
+
+**字段**：`geographies` 表（旧）+ 内存里的 `svgContent`（不入库）
+
+**AI 动作**：
+
+#### 动作①：AI 生成概念地图 SVG
+- **触发**：🔘 手动
 - **读**：
-  - 自由文本概述 + 重要地点列表
+  - 自由文本世界观概述 + 重要地点列表
 - **提示词**：`geography.concept-map`
-- **写**：临时 SVG（用户预览，不入库）
-- **⚠️ 安全**：AI 返回的 SVG 经 `sanitizeSvg` 清洗后才渲染（防 XSS）
+- **写**：**无**（仅展示 SVG，不入库）
+- **⚠️ 安全**：AI 返回的 SVG 经 `sanitizeSvg` 清洗后才渲染（防 XSS，本轮已修）
 
 ---
 
@@ -425,7 +491,10 @@
 
 ### 3.1 主要角色 / 次要角色 / NPC / 路人（侧栏：characters / characters-minor / characters-npc / characters-extra）
 
-**对应表**：`characters`（按 role 字段过滤；4 个面板是同一表的不同视图）
+**对应表**：`characters`（按 `role` 字段过滤；4 个面板是同一表的不同视图，UI 详细度不同）
+
+> 🔔 **AI 动作归属**：仅「主要角色」面板（CharacterPanel）含 AI 生成与解析按钮；「次要 / NPC / 路人」三个面板只是简化版手动 CRUD 视图，**无独立 AI 动作**。
+> AI 生成时会按当前世界过滤角色（多世界），新建角色盖章 `homeWorldGroupId`。
 
 **字段**：
 | 字段 | 含义 |
@@ -470,7 +539,9 @@
 #### 动作③：角色解析（粘贴文本结构化）
 - **触发**：🔘 手动，"粘贴文本 → AI 解析为角色"
 - **读**：`用户粘贴的角色描述自由文本`
-- **提示词**：内置 systemPrompt（parse-character-output.ts）
+- **提示词**：内置 systemPrompt（parse-character-output.ts，非 prompt-seeds 模板）
+- **调用方式**：直接走 `chat()` 非流式（不经 useAIStream），等待 JSON 输出
+- **解析**：`parseCharacterOutput`（含 `normalizeRole` 兜底：中文 role 自动归一为英文枚举）
 - **写**：`characters（新建）` 含所有字段
 
 ---
