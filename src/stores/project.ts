@@ -73,6 +73,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       db.referenceChunkAnalysis, db.masterChunkAnalysis,
       db.masterChapterBeats, db.masterStyleMetrics,
       db.worldGroups, db.worldGroupLinks, db.itemLedger, db.storyTimelineEvents,
+      db.importantLocations, db.worldRulesProfiles, db.codexCategories, db.codexEntries, db.aiUsageLog,
     ], async () => {
       // 子表先删（依赖外键）
       if (refIds.length) await db.referenceChunkAnalysis.where('referenceId').anyOf(refIds).delete()
@@ -115,6 +116,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       await db.itemLedger.where('projectId').equals(id).delete()
       // Phase 25.5.2-a: 故事进程年表
       await db.storyTimelineEvents.where('projectId').equals(id).delete()
+      // 此前漏删（删项目后会留孤儿）：重要地点 / 真实与幻想 / 设定词条 / 消耗统计
+      await db.importantLocations.where('projectId').equals(id).delete()
+      await db.worldRulesProfiles.where('projectId').equals(id).delete()
+      await db.codexCategories.where('projectId').equals(id).delete()
+      await db.codexEntries.where('projectId').equals(id).delete()
+      await db.aiUsageLog.where('projectId').equals(id).delete()
     })
     if (get().currentProjectId === id) {
       set({ currentProjectId: null })
