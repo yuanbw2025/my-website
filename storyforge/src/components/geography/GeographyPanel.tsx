@@ -7,6 +7,7 @@ import { useAIStream } from '../../hooks/useAIStream'
 import { buildConceptMapPrompt, buildImageMapPrompt } from '../../lib/ai/adapters/geography-adapter'
 import type { Project, Location, LocationType } from '../../lib/types'
 import { nanoid } from '../../lib/utils/id'
+import { sanitizeSvg } from '../../lib/utils/sanitize-svg'
 import LocationTreeMap from './LocationTreeMap'
 
 const LOCATION_TYPES: { value: LocationType; label: string }[] = [
@@ -101,7 +102,8 @@ export default function GeographyPanel({ project }: Props) {
       .replace(/^```(?:svg|xml)?\n?/i, '')
       .replace(/\n?```$/i, '')
       .trim()
-    setSvgContent(svg)
+    // 安全清洗：AI 输出的 SVG 直接 dangerouslySetInnerHTML 渲染，须剔除脚本/事件防 XSS
+    setSvgContent(sanitizeSvg(svg))
   }
 
   // AI 图像 prompt
