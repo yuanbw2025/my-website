@@ -187,6 +187,26 @@
 
 ## 🔴 优先级：高
 
+### BUG-WORKFLOW-CTX — 工作流步骤生成不出内容（缺项目上下文/维度变量）
+
+> 来源：社区反馈（2026-06-04）「从零到第一章」工作流第一步「一句话故事」无法输出内容 | 文件：`src/components/settings/prompt/WorkflowRunner.tsx`、`src/lib/ai/workflow-seeds.ts`
+
+**现象**：工作流第一步「一句话故事 → story.generate」点了不出内容；实际上后续步骤也缺上下文，只是第一步最直观。
+
+**问题关键（已定位根因）**：
+1. `WorkflowRunner` 用通用 `renderPrompt(tpl, ctx)` 渲染，而 `ctx` **只包含**「上一步输出（inputMapping 映射的 previousOutput）+ userHint」，**完全没有注入项目上下文变量**（`projectName` / `genres` / `worldContext` / `characterContext` 等）。
+2. `story.generate` 模板的**必需变量是 `projectName` / `genres` / `dimension`**（见 `prompt-seeds.ts` 的 `variables`）。第一步是工作流首步、没有 previousOutput，ctx 里只有 userHint → 这三个必需变量**全为空** → 渲染出「小说名称：(空) / 类型：(空) / 需要生成的故事维度：(空)」→ AI 不知道要生成什么 → 出不来内容。
+3. 关键缺失是 **`dimension`**（本应是「一句话故事」）：这是 `story.generate` / `worldview.dimension` 这类「按维度生成」模板的核心变量，而工作流步骤配置（`workflow-seeds.ts`）里**根本没声明 dimension**，runner 也不注入。
+4. **为何只在工作流出问题**：正常面板（StoryCorePanel）走的是 `buildStoryGeneratePrompt(dimension, projectName, genre, worldContext, …)` 适配器，显式把所有变量填好；工作流绕过了适配器、用裸 `renderPrompt`，于是丢了这些变量。
+5. **影响面**：不止第一步——**所有工作流步骤都缺项目上下文**（projectName/genres/worldContext），生成质量普遍受损；第一步因连 previousOutput 都没有而表现为「完全出不来」。
+
+**解决方案**：
+- **A（推荐）**：`WorkflowRunner` 构建 ctx 时补注入项目上下文——`projectName`/`genres`（从 `project` 读）、`worldContext`（`buildWorldContext` 或多世界 `buildCurrentWorldContext`）、`characterContext`（`buildCharacterContext`）；并给工作流步骤增加一个 `contextVars?: Record<string,string>` 字段，由 runner 合并进 ctx，seed 在 dimension 类步骤上声明（如第一步 `contextVars: { dimension: '一句话故事' }`、世界起源 `{ dimension: '世界来源' }`…）。注意 `dimension` 是模板 `{{变量}}` 而非 `parameter`，必须进 ctx 而不是 parameterValues。
+- **B（更根治）**：为工作流建立 `moduleKey → adapter` 映射，让步骤复用 `buildStoryGeneratePrompt` 等适配器（自动获得完整变量填充），而非裸 renderPrompt。改动较大但与「统一 prompt 装配」一致。
+- **验证**：跑「从零到第一章」工作流，第一步能正常产出一句话故事，后续步骤能同时拿到「项目上下文 + 维度 + 前一步输出」。
+
+---
+
 ### Phase 40 — 「真实与幻想」多世界联动（每世界一套世界规则）
 
 > 📐 完整设计文档：`docs/WORLD-RULES-MULTIWORLD-DESIGN.md`（含表结构、功能逻辑、9 处调用点传值表、漏洞清单 A–I 逐条对策）
