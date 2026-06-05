@@ -202,7 +202,7 @@ export async function runMasterAnalysis(args: RunMasterAnalysisArgs): Promise<vo
 
     // 收尾 —— 统计成功 vs 失败
     const finalAnalyses = await db.masterChunkAnalysis.where('workId').equals(workId).toArray()
-    const successRatio = finalAnalyses.length / total
+    const successRatio = total > 0 ? finalAnalyses.length / total : 0
     const finalStatus = successRatio >= 1
       ? 'done'
       : (successRatio > 0 ? 'done' : 'failed') // 有部分结果就算 done，用户可看已有

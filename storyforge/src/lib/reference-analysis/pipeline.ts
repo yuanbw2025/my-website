@@ -200,7 +200,7 @@ export async function runRefAnalysis(refId: number): Promise<void> {
     // 收尾
     const finalAnalyses = await db.referenceChunkAnalysis
       .where('referenceId').equals(refId).toArray()
-    const successRatio = finalAnalyses.length / total
+    const successRatio = total > 0 ? finalAnalyses.length / total : 0
     const finalStatus = successRatio > 0 ? 'done' : 'failed'
     const errMsg = successRatio < 1
       ? `共 ${total} 块，成功 ${finalAnalyses.length}，失败 ${total - finalAnalyses.length}`
