@@ -50,6 +50,11 @@ export const useOutlineStore = create<OutlineStore>((set, get) => ({
     for (const child of children) {
       if (child.id) await get().deleteNode(child.id)
     }
+    // 级联删除挂在本节点上的正文章节 + 细纲（按 outlineNodeId），否则删大纲后正文内容会成孤儿
+    const orphanChapters = (await db.chapters.where('outlineNodeId').equals(id).primaryKeys()) as number[]
+    if (orphanChapters.length) await db.chapters.bulkDelete(orphanChapters)
+    const orphanDetails = (await db.detailedOutlines.where('outlineNodeId').equals(id).primaryKeys()) as number[]
+    if (orphanDetails.length) await db.detailedOutlines.bulkDelete(orphanDetails)
     await db.outlineNodes.delete(id)
     set({ nodes: get().nodes.filter(n => n.id !== id) })
   },

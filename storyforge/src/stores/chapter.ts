@@ -56,6 +56,11 @@ export const useChapterStore = create<ChapterStore>((set, get) => ({
 
   deleteChapter: async (id) => {
     await db.chapters.delete(id)
+    // 清理与该章紧耦合的情感节拍（按 chapterId），否则成孤儿
+    const beatKeys = (await db.emotionBeatCards.where('chapterId').equals(id).primaryKeys()) as number[]
+    if (beatKeys.length) await db.emotionBeatCards.bulkDelete(beatKeys)
+    // 注：物品栏/故事年表/伏笔 中以 chapterId 关联的记录保留（含冗余章节标题，属独立产物，
+    //     是否随章删除语义不明确，不强删以免误删用户产物）。
     set({
       chapters: get().chapters.filter(c => c.id !== id),
       currentChapter: get().currentChapter?.id === id ? null : get().currentChapter,
