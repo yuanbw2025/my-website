@@ -1,4 +1,17 @@
-# StoryForge · AI 行为说明书
+> ⚠️ **此手写版已废弃** ⚠️
+>
+> 综合 GPT 5.5 独立代码审查证实：本说明书至少有 **21 处 prompt key 与实际代码不一致**（如 `chapter.deai` vs 实际 `chapter.de-ai`、`foreshadow.suggest` vs `foreshadow.generate` 等），多处"读什么/写什么"也与实际不符。**不可作为事实源**。
+>
+> 替代方案见 `docs/MASTER-BLUEPRINT.md` §6：
+> - 全集由代码扫描自动生成 → `AI-FUNCTIONS-MANUAL.generated.md`
+> - 语义注解由人工补充 → `AI-FUNCTIONS-MANUAL.semantic.md`
+> - CI 校验两者一致性
+>
+> 本文件保留作历史参考，待 MASTER-BLUEPRINT Phase 1 完成（自动生成器上线）后删除。
+
+---
+
+# StoryForge · AI 行为说明书（手写版 · 已废弃）
 
 > 项目里所有 AI 功能的"全量目录"。按左侧标签栏分组，逐个面板列出：**该面板有哪些字段、有哪些 AI 动作、每个动作读什么、用哪个提示词、写到哪**。
 > 创建：2026-06-04｜口径：当前线上代码（不含未实施的待开发 Phase）。
