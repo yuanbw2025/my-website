@@ -104,6 +104,7 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 | P0-5 | `importProjectJSON` 非事务 + FK 缺失 fallback `0` → 半导入 / 坏引用 | `src/lib/export/json-export.ts:351/413/461/472` |
 | P0-6 | `deleteProject` 漏 `importLogs`/`importFiles`/`importJobs` 与 master blob → 孤儿数据/blob 泄漏 | `src/stores/project.ts:64` |
 | P0-7 | `deleteNode` 绕过 `deleteChapter` → `emotionBeatCards` 残留 | `src/stores/outline.ts:47` |
+| P0-8 | `migrateToMultiWorld` 漏给 `outlineNodes` 盖 `worldGroupId` → 老项目升级多世界后**大纲整体不可见** | `src/stores/world-group.ts:225` |
 
 #### 🟠 P1（影响 AI 行为正确性）
 
@@ -125,6 +126,7 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 | P1-14 | `worldNodes.portalsJSON` 多处 `JSON.parse` 无 safe 包装；删节点不清反向 portal 引用 | `src/stores/world-node.ts:104/141` |
 | P1-15 | 旧 `geography.locations` JSON 删除只删一层，孙层残留孤儿 | `src/components/geography/GeographyPanel.tsx:89` |
 | P1-16 | HTML 导出原样拼 `chapter.content`；EPUB 转换不移除 `on*`/`javascript:` → 导出文件可携带恶意脚本 | `src/lib/export/html-builder.ts:140` / `src/lib/export/epub-export.ts:210` |
+| P1-17 | `handleExtractState` 用全量 `buildStateContext()` 而非已有的 `buildSelectiveStateContext` → 后期 100+ 角色场景 token 爆炸 | `src/components/editor/ChapterEditor.tsx:332/388` |
 
 #### 🟡 P2（体验/质量）
 
@@ -294,6 +296,10 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 
 **位置**：`src/main.tsx:25` + `src/lib/db/ensure-schema.ts:34`
 **前置**：无
+
+**💥 灾难场景还原**：
+> 这是最致命的潜在场景：用户写了半年小说，~200 万字数据全在浏览器 IndexedDB。某天浏览器更新/插件冲突/磁盘异常导致 schema 检测失败（缺一张表）。`ensureSchema` 看到缺表，**直接调用 `Dexie.delete(dbName)` 把整个数据库删干净**。用户打开应用看到空白，半年心血归零。原因是 `REQUIRED_TABLES` 早期写死只列 22 张表，没跟随 schema 升级到 45 张；只要任何一张未登记的表在某个版本误删/重命名，就会触发删库。这是写在代码里的定时炸弹。
+
 **改法**：
 1. `REQUIRED_TABLES` 从 schema 派生（生产环境不写死）：
    ```
@@ -317,6 +323,10 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 
 **位置**：`src/lib/export/json-export.ts:154`/`304`/`595`/`694`
 **前置**：无
+
+**💥 灾难场景还原**：
+> 多世界用户(诸天流写手)项目里有 5 个世界——主世界、斗破、遮天、完美、武动。用户做完一卷后想换电脑写作，点"导出 JSON"备份；新电脑上点"导入 JSON"恢复。**导入后所有数据的世界归属全是错的**：主世界角色跑去了斗破、斗破的修炼体系挂在遮天名下。原因是导出时世界组用了"导出序号"重新编号、但其他表存的还是原始 DB id，导入时键值对不上。用户看到这景象后多半会怀疑是自己操作问题，反复几次后才会发现是 bug；那时候导出的备份文件已经全部串台、不可信。
+
 **改法**：采用 GPT 5.5 报告的 **方案 A**（推荐，统一用 export 序号）：
 1. 导出阶段：所有带 `worldGroupId/homeWorldGroupId` 的表，导出时把这些字段转换为 `_worldGroupExportId`（通过 `worldGroupIdMap.get(rawId)`）；不再保留原始 `worldGroupId` 字段。
 2. 导入阶段（section 27）：只识别 `_worldGroupExportId`，通过 `newWorldGroupIds.get(_exportId)` 拿新 id。
@@ -354,6 +364,10 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 
 **位置**：`src/stores/project.ts:64`
 **前置**：无
+
+**💥 灾难场景还原**：
+> 用户导入了一本 10MB 的小说原文（存入 `importFiles` 表的 Blob 字段）。用过后觉得不满意，在首页点了"删除项目"。项目表面消失了——但那 10MB 的 Blob **永远残留在 IndexedDB**，因为 deleteProject 没删 importFiles。用户再删 10 次类似项目，浏览器存了 100MB 不可见的"游魂数据"，最终：IndexedDB 配额爆满 → 应用无法保存新数据 → 用户写到一半的章节存不进去 → 最终白屏。Master 作品学习也走同条路径（masterWorks 的原文存 importFiles，用 100000+workId 虚拟 sessionId）。
+
 **改法**：
 1. 删项目前，先查 `sessionIds = await db.importSessions.where('projectId').equals(id).primaryKeys()`
 2. 删除：
@@ -398,9 +412,31 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 
 ---
 
+#### 0.8 修复 migrateToMultiWorld 漏给 outlineNodes 盖章
+
+**位置**：`src/stores/world-group.ts:225`
+**前置**：0.2 完成（事务声明已含 codexEntries）
+**改法**：
+1. 在事务声明中添加 `db.outlineNodes`
+2. 在 stamp 调用列表中添加 `await stamp(db.outlineNodes, ...)`
+3. （可选）如发现 `worldNodes`/`importantLocations` 等其它带 worldGroupId 字段表也漏，一并补齐
+
+**💥 灾难场景还原（务必理解为什么这是 P0）**：
+> 老用户的项目在单世界模式下使用了几个月，大纲累积了 50 卷。某天点击"启用多世界"，期望保持现状（只是多了"主世界"标签）。**但这次升级会让所有 50 卷的大纲在屏幕上瞬间消失**——因为多世界模式下大纲页按当前世界 ID 筛选卷，而所有卷的 worldGroupId 是 null（未盖章），不匹配主世界 ID。**用户会以为自己几个月的心血被吃掉了**，而数据其实还在表里，只是失去了归属。
+
+**验证**：
+- 准备一个单世界项目（已有大纲卷）→ 调用 `migrateToMultiWorld` → 断言：
+  - 所有 `outlineNodes.where('projectId').equals(pid)` 的 `worldGroupId === primaryId`
+  - 大纲面板按主世界过滤能正常显示所有卷
+- 跑 §7.1 R-2 测试
+
+**完成判据**：单世界升级多世界后，大纲在 UI 上完整可见。
+
+---
+
 ### Phase 0 完成判据汇总
 
-完成 Phase 0 七项任务后：
+完成 Phase 0 八项任务后：
 - [ ] tsc 零错；build 成功
 - [ ] §7.1 反例测试网（至少前 4 条）全绿
 - [ ] 多世界导出/导入往返测试通过
@@ -595,7 +631,31 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 
 ---
 
-#### 2.7 修复 P1 其余各项 [parallel]
+#### 2.7 修复 handleExtractState 改用按需召回
+
+**位置**：`src/components/editor/ChapterEditor.tsx:332` 和 `:388`
+**前置**：无（独立修复）
+
+**💥 灾难场景还原**：
+> 项目里已有的状态卡系统本来就实现了「按需召回」机制 (`buildSelectiveStateContext`)，根据当前章节相关文本智能筛选只相关的状态卡。但状态提取(`handleExtractState`)和自动状态提取(`handleAutoPostGenerate`)**写死了用全量 `buildStateContext()`**。前期没问题，等用户写到 50 章、累积 100+ 角色卡 + 物品 + 地点状态后，每次提取状态就把全部 100+ 张卡塞进 prompt：① token 账单暴涨 5–10 倍；② 上下文塞满导致 AI 出现严重幻觉，提取出来的 diff 全是乱编。
+
+**改法**：
+1. 把第 332 行 `const stateCtx = buildStateContext()` 改为：
+   ```
+   const stateCtx = buildSelectiveStateContext(plainText, extraStateIds).text
+   ```
+2. 第 388 行（handleAutoPostGenerate 中）同样改为按需召回，召回的 reference 文本用刚生成的正文 `text`
+3. 同步 §8 已有的 `selectiveState` 计算逻辑（185 行），保持一致
+
+**验证**：
+- 构造场景：项目内 50+ 状态卡 → 触发状态提取 → 断言 prompt 实际发送的卡数远少于 50
+- 跑章节生成的自动状态提取，断言 token 消耗显著低于全量召回
+
+**完成判据**：状态提取 prompt 体积稳定在合理范围（与"相关性"成正比，不随项目角色总数线性增长）。
+
+---
+
+#### 2.8 修复 P1 其余各项 [parallel]
 
 按 §1.2 P1-9 至 P1-16 逐一修复（autoTrimToFit 真裁/chat AbortSignal/SceneVerify多世界/portal safe parse/旧地理递归删/HTML+EPUB sanitize 等）
 
@@ -1165,9 +1225,53 @@ jobs:
 
 ---
 
-## 十三、GPT 5.5 审查结论摘要（不可质疑的事实基准）
+## 十三、外部审查综合摘要（不可质疑的事实基准）
 
-本节将 GPT 5.5 提供的关键审查结论固化，作为后续任何接手者**不可质疑**的事实基准（除非用更严格的代码审查推翻）。
+本节固化三份外部独立审查的关键结论。任何接手者均**不得质疑**这些已确认事实，除非用更严格的代码审查推翻。
+
+### 13.0 三份审查来源
+1. **本轮内部全量审计**（Claude，6 批 + 复核）
+2. **GPT 5.5 独立代码审查**（只读、覆盖 src 87,709 行）
+3. **Gemini 3.1 独立代码审查**（脚本驱动 + 灾难场景叙事）
+
+### 13.0.1 三份审查的独立发现分布
+
+| 问题 | 内部 | GPT-5.5 | Gemini-3.1 |
+|---|---|---|---|
+| deleteGroup 事务作用域漏表 | ❌ 漏 | ✅ 抓到 | — |
+| migrateToMultiWorld 事务漏 codexEntries | ❌ 漏 | ✅ 抓到 | — |
+| **migrateToMultiWorld 漏盖章 outlineNodes** | ❌ 漏 | ❌ 漏 | ✅ **独立抓到** |
+| ensureSchema 删库风险 | ❌ 漏 | ✅ 抓到 | — |
+| BUG-EXPORT-WG | ✅ 抓到 | ✅ 复核 | — |
+| importProjectJSON 非事务 + FK 写 0 | ❌ 漏 | ✅ 抓到 | — |
+| deleteProject 漏 importFiles/Logs/Jobs | ⚠️ 部分 | ✅ 完整 | ✅ 含灾难场景 |
+| deleteNode 绕过 deleteChapter | ❌ 漏 | ✅ 抓到 | — |
+| chapter.content 不读 worldRulesContext | ❌ 漏 | ✅ 抓到 | ✅ 独立确认 |
+| **handleExtractState 用全量召回** | ❌ 漏 | ❌ 漏 | ✅ **独立抓到** |
+| WorkflowRunner 无输入 + 不注入项目 | ✅ 抓到 | ✅ 复核 | — |
+| AI Manual 21 处 key 错 | ❌ 漏 | ✅ 抓到 | ✅ 独立确认（"虚假宣发"） |
+| AIFieldCard 不传 currentValue | ❌ 漏 | ✅ 抓到 | — |
+| autoTrimToFit 只算不真裁 | ✅ 自承 | ✅ 复核 | — |
+| chat 不接 AbortSignal | ❌ 漏 | ✅ 抓到 | — |
+| HTML/EPUB 不 sanitize | ❌ 漏 | ✅ 抓到 | — |
+
+**关键观察**：
+- 内部审计漏了 **9 项**
+- GPT-5.5 抓到 **15 项**，独立发现 **8 项**
+- Gemini-3.1 抓到 **8 项**，**独立发现 2 项（P0-8 + P1-17）+ 表达方式贡献**（灾难场景还原）
+- 三份审查互补，叠加后基本无大遗漏
+
+### 13.0.2 三份审查方法论的差异（值得学习）
+
+| 维度 | 内部 | GPT-5.5 | Gemini-3.1 |
+|---|---|---|---|
+| 方法 | 一边修一边审，按记忆 | 静态全量覆盖 + 高风险路径深读 | 脚本驱动 + 业务灾难叙事 |
+| 强项 | 熟悉代码上下文 | 工程严谨（事务作用域/JSON 引用/间接归属） | 用户视角灾难场景 + 教学性表达 |
+| 弱项 | 盲点多（"我以为修了"） | 灾难表达较冷 | 部分判断不够细（如夹带 codex 严重度） |
+
+**接手指南启示**：今后审查请综合多种风格 — 工程严谨 + 用户灾难场景 + 脚本验证。
+
+### 13.1 已确认存在的高危问题
 
 ### 13.1 已确认存在的高危问题
 
@@ -1189,6 +1293,8 @@ jobs:
 | AI 说明书 21 处 key 错 | `docs/AI-FUNCTIONS-MANUAL.md` | §4.3.1 / §6 |
 | ensureSchema 删库风险 | `main.tsx:25` / `ensure-schema.ts:34` | §4.0.3 |
 | AI 调用 meta 覆盖率低（39/59） | 各面板 | §4.3.1 配套 |
+| **migrateToMultiWorld 漏盖章 outlineNodes**（Gemini 独立发现） | `world-group.ts:225` | §4.0.8 |
+| **handleExtractState 用全量召回**（Gemini 独立发现） | `ChapterEditor.tsx:332/388` | §4.2.7 |
 
 ### 13.2 已确认无效的"修复"
 
