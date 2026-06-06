@@ -185,9 +185,24 @@
 
 # ═══ 待开发（按优先级排列）═══
 
+> 📐 **施工权威已转移**：项目重构请以 `docs/MASTER-BLUEPRINT.md`（v2 · 最终蓝图）为唯一依据。
+> 本 ROADMAP 中所有"架构地基级"任务均已纳入 MASTER-BLUEPRINT 的 Phase 0/1/2/3，本节保留索引但不再独立维护。
+
 ## 🔴 优先级：高
 
-### 🏗️ 架构地基重构（三根支柱） — 项目地基级改造
+### 🏗️ 项目重构（主线工作 · 见 MASTER-BLUEPRINT）
+
+**👉 见 `docs/MASTER-BLUEPRINT.md`**
+
+四个阶段（必须严格串行）：
+- **Phase 0 · 紧急修复**（3–5 天）：7 项 P0 修复，含 `deleteGroup`/`migrateToMultiWorld` 事务作用域、`ensureSchema` 删库风险、`BUG-EXPORT-WG`、`importProjectJSON` 事务化、`deleteProject` 漏间接归属表、`deleteNode` 绕过 `deleteChapter`
+- **Phase 1 · 三支柱地基（强化版）**（10–15 天）：`PROJECT_TABLES`（含 JSON/数组/间接归属/Blob owner）+ `FIELD_REGISTRY + AdoptionSchema` + `CONTEXT_SOURCES + 真裁剪`
+- **Phase 2 · 内容完整性 + 多世界贯通**（7–10 天）：Phase 40 真实与幻想多世界化、chapter-adapter 接 worldRulesContext、AIFieldCard 传 currentValue、chunk-writer 支持 worldGroupId、批量正文 worldContextResolver、角色 JSON 引用 remap
+- **Phase 3 · 精品化**（10–15 天）：AI 说明书自动生成器、测试体系、CI lint、安全加固、性能、文档体系收口
+
+---
+
+### 🏗️ 架构地基重构（三根支柱） — 项目地基级改造（v1 设计 · 已升级到 MASTER-BLUEPRINT）
 
 > 📐 完整设计文档：`docs/ARCHITECTURE-REFACTOR.md`（含数据结构、API、迁移示例、验证策略、风险对策、完成判据）
 >
