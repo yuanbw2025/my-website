@@ -4,6 +4,7 @@
 import { create } from 'zustand'
 import { db } from '../lib/db/schema'
 import type { WorldGroup, WorldGroupLink } from '../lib/types'
+import { requireBackupBefore } from '../lib/safety/require-backup-before'
 
 const now = () => Date.now()
 
@@ -81,6 +82,15 @@ export const useWorldGroupStore = create<WorldGroupStore>((set, get) => ({
   deleteGroup: async (id) => {
     const group = get().groups.find(g => g.id === id)
     if (!group || group.type === 'primary') return // 不允许删主世界
+
+    // 数据红线:删世界组前强制提示备份(Pre-Phase 0 安全网)
+    const proceed = await requireBackupBefore({
+      operation: `删除世界「${group.name}」`,
+      projectId: group.projectId,
+      details: '此操作将清除该世界的全部设定数据(世界观、力量体系、地理、历史、词条等),不可恢复。',
+    })
+    if (!proceed) return  // 用户取消
+
 
     const pid = group.projectId
 
@@ -218,6 +228,17 @@ export const useWorldGroupStore = create<WorldGroupStore>((set, get) => ({
   },
 
   migrateToMultiWorld: async (projectId: number) => {
+    // 数据红线:启用多世界前强制提示备份(Pre-Phase 0 安全网)
+    // 理由:此操作会给现有数据盖章 worldGroupId,虽然不删数据,但当前代码已知有
+    //       P0-1/P0-2/P0-8 三处事务作用域 + 漏盖章问题,失败时可能让大纲消失。
+    //       Phase 0 修完后这个安全网可以减弱(但保留)。
+    const proceed = await requireBackupBefore({
+      operation: '启用多世界模式',
+      projectId,
+      details: '此操作将把现有项目数据迁移到「主世界」归属。当前代码存在已知的迁移 bug(详见 MASTER-BLUEPRINT § P0-8),建议先导出备份。',
+    })
+    if (!proceed) return  // 用户取消
+
     // 1. 确保主世界组存在
     const primaryId = await get().ensurePrimaryGroup(projectId)
 
