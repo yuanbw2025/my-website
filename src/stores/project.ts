@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { db } from '../lib/db/schema'
 import type { Project, CreateProjectInput } from '../lib/types'
 import { migrateGenre } from '../lib/types'
+import { requireBackupBefore } from '../lib/safety/require-backup-before'
 
 interface ProjectStore {
   projects: Project[]
@@ -56,6 +57,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   deleteProject: async (id: number) => {
+    // 数据红线:删项目前强制提示备份(Pre-Phase 0 安全网)
+    const proceed = await requireBackupBefore({
+      operation: '删除项目',
+      projectId: id,
+      details: '此操作将清除该项目的全部数据(章节、世界观、角色、词条、状态卡等),不可恢复。',
+    })
+    if (!proceed) return  // 用户取消
+
     // 先收集子表外键 ID（需在主表删除前查询）
     const refIds = await db.references.where('projectId').equals(id).primaryKeys()
     const workIds = await db.masterWorks.where('projectId').equals(id).primaryKeys()
