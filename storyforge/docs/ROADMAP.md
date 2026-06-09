@@ -416,7 +416,7 @@
 四个阶段（必须严格串行）：
 - **Phase 0 · 紧急修复**（3–5 天）：7 项 P0 修复，含 `deleteGroup`/`migrateToMultiWorld` 事务作用域、`ensureSchema` 删库风险、`BUG-EXPORT-WG`、`importProjectJSON` 事务化、`deleteProject` 漏间接归属表、`deleteNode` 绕过 `deleteChapter`
 - **Phase 1 · 三支柱地基（强化版）**（10–15 天）：`PROJECT_TABLES`（含 JSON/数组/间接归属/Blob owner）+ `FIELD_REGISTRY + AdoptionSchema` + `CONTEXT_SOURCES + 真裁剪`
-- **Phase 2 · 内容完整性 + 多世界贯通**（7–10 天）：Phase 40 真实与幻想多世界化、chapter-adapter 接 worldRulesContext、AIFieldCard 传 currentValue、chunk-writer 支持 worldGroupId、批量正文 worldContextResolver、角色 JSON 引用 remap
+- **Phase 2 · 内容完整性 + 多世界贯通**（7–10 天）：Phase 40 真实与幻想多世界化、chapter-adapter 接 worldRulesContext、AIFieldCard 传 currentValue（注:`AIFieldCard` 组件后已被各面板内联编辑器取代并于 2026-06-09 旧代码清除中移除）、chunk-writer 支持 worldGroupId、批量正文 worldContextResolver、角色 JSON 引用 remap
 - **Phase 3 · 精品化**（10–15 天）：AI 说明书自动生成器、测试体系、CI lint、安全加固、性能、文档体系收口
 
 ---
@@ -445,14 +445,14 @@
 ### BUG-INPUT-WITH-GEN — 文本框应可用户自行输入，且 AI 生成时带上用户已输入内容（通用原则）
 
 > 来源：社区反馈 + 用户明确诉求（2026-06-04）。最初表现：「从零到第一章」工作流第一步「一句话故事」用户无法输入。
-> 文件：`src/components/settings/prompt/WorkflowRunner.tsx`（重灾区）、`src/components/shared/AIFieldCard.tsx`、各调用 AIFieldCard/AI 生成按钮的面板。
+> 文件：`src/components/settings/prompt/WorkflowRunner.tsx`（重灾区）、各面板的**内联字段编辑器**（如 `WorldviewOriginPanel` 的 `TextFieldEditor`、`InlineEdit`）、各 AI 生成按钮的面板。（注:旧的 `AIFieldCard.tsx` 已于 2026-06-09 旧代码清除中移除,面板现统一用内联编辑器。）
 
 **用户诉求（通用原则，按此实现）**：
 > 每个文本框都应能让用户**自己输入**内容；当用户点击该文本框对应的「AI 生成」按钮时，**把用户已输入的内容自动带进提示词**，在用户写的基础上生成/扩展（而不是无视用户输入从零生成）。
 
 **已核实的现状**：
 1. **工作流步骤卡（WorkflowRunner StepCard）= 重灾区**：步骤卡**完全没有用户输入框**，只读地显示 AI 的 `result.output` + 一个「重新生成」按钮 → 用户连「一句话故事」都**没法自己敲**，更谈不上带着它去生成。这是本次反馈最直接的痛点。
-2. **普通字段组件 AIFieldCard**：用户**能**编辑字段值（`value`/`onChange`）、也能填一个独立的提示（`hint`）；但「AI 生成时是否把当前字段值（用户已写内容）带进 prompt」**取决于各调用方传入的 `buildMessages` 实现，不统一**——有的带、有的只带 hint 不带 value。
+2. **各面板内联字段编辑器**（如 `WorldviewOriginPanel` 的 `TextFieldEditor`/`InlineEdit`；原 `AIFieldCard` 已移除）：用户**能**编辑字段值（`value`/`onChange`）、也能填一个独立的提示（`hint`）；但「AI 生成时是否把当前字段值（用户已写内容）带进 prompt」**取决于各调用方传入的 `buildMessages` 实现，不统一**——有的带、有的只带 hint 不带 value。
 3. ✅ **（已修 · FB-1, 2026-06-09）** `WorkflowRunner` 裸 `renderPrompt` 不注入项目上下文的问题已修复——现每步走 `assembleContext` 注入 projectName/genres/worldContext/dimension + 步骤间链路贯通。**但步骤卡「可编辑输入框」本身仍未做**（本条 1 仍待办）。
 4. **章节大纲/章节摘要字段(下游自动总结)不可手改 = 首批审计对象**（来源 FB-3 · light莫言）：「读上游内容自动总结生成」的章节大纲，当前不能手动编辑或改了不保存；用户要能手改并保存，不必为改一句话反复整章重生成。这是本通用原则在「下游自动总结字段」方向的典型落点。
 
@@ -463,7 +463,7 @@
 - **首批审计对象清单（按用户实际撞到的优先）**：
   1. 🔴 工作流步骤卡（无输入框）
   2. 🔴 **章节大纲 / 章节摘要**（下游自动总结，不可改/不保存 · FB-3）
-  3. 🟠 各面板 AIFieldCard 字段（buildMessages 是否带 currentValue 不统一）
+  3. 🟠 各面板内联字段编辑器（buildMessages 是否带 currentValue 不统一）
 - **验证**：① 工作流每步可手动输入、且生成带上用户输入；② **章节大纲可手改→失焦保存→刷新仍在→再次生成是在手改基础上改写**；③ 抽查若干面板字段：先输入半句→点 AI 生成→产出是在用户输入基础上扩展而非另起。
 
 ---
