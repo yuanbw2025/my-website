@@ -1,5 +1,7 @@
 # Phase 0 Status Log
 
+> ✅ **COMPLETE & MERGED (2026-06-09)** — Phase 0 (P0.1-P0.8) done, merged to `main` (`6dd652d`), deployed. This file is a historical execution log.
+
 > Purpose: record Phase 0 execution progress after each completed step so the project author can review partial state at any time.
 
 ## Phase 0 Task Board
