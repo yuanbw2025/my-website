@@ -1,15 +1,18 @@
 # StoryForge Refactor Progress
 
+> ## ✅ COMPLETE — Phases 0/1/2/3 all done, merged to `main` and deployed (2026-06-09)
+> Merge commit `6dd652d`; deployed via my-website + Vercel. Final gates: tsc=0 / 87 tests / architecture lint clean / 45 required tables / generated AI manual matches code / build OK. This board is now a historical record. Remaining items in `/docs/ROADMAP.md` (FB-2/4/5/6/7/8, Phase 34-37, Phase 35-b/c, BUG-INPUT-WITH-GEN) are NEW features/bugs, not part of this refactor.
+>
 > Purpose: single progress board for the whole refactor. `PHASE-0-STATUS.md` records detailed Phase 0 execution logs; this file shows the complete project-level picture.
 
 ## Overall Phases
 
 | Phase | Status | Goal | Completion Signal |
 |---|---|---|---|
-| Phase 0 - Emergency fixes | Done | Remove immediate data-loss and invalid-transaction risks before building new architecture. | P0.1-P0.8 all fixed, regression tests green, build green. |
-| Phase 1 - Three registries foundation | Done | Build `PROJECT_TABLES`, `FIELD_REGISTRY + AdoptionSchema`, and `CONTEXT_SOURCES + assembleContext` as single sources of truth. | Lifecycle/read/write paths use registry-derived APIs; lint and registry tests pass. |
-| Phase 2 - Multiworld and content integrity | Done (Reviewed) | Finish multiworld linkage, context completeness, AI current-value usage, import/world routing, JSON reference cleanup, and remaining P1 content integrity fixes. | Complete on stacked task branches 2.1-2.8. Reviewed & approved by Claude 2026-06-09 (57 tests green, 3 anti-pattern greps clean). Pending main merge + real-data upgrade smoke test (see PHASE-2-STATUS review record). |
-| Phase 3 - Project polish | Pending | Add generated AI manual, CI, coverage, safety, performance, README, contributing docs, and i18n preparation. | CI green, coverage target met, generated docs match code, project is presentable as a mature open-source tool. |
+| Phase 0 - Emergency fixes | ✅ Done | Remove immediate data-loss and invalid-transaction risks before building new architecture. | P0.1-P0.8 all fixed, regression tests green, build green. |
+| Phase 1 - Three registries foundation | ✅ Done | Build `PROJECT_TABLES`, `FIELD_REGISTRY + AdoptionSchema`, and `CONTEXT_SOURCES + assembleContext` as single sources of truth. | Lifecycle/read/write paths use registry-derived APIs; lint and registry tests pass. |
+| Phase 2 - Multiworld and content integrity | ✅ Done (Reviewed, Merged) | Finish multiworld linkage, context completeness, AI current-value usage, import/world routing, JSON reference cleanup, and remaining P1 content integrity fixes. | Complete on stacked task branches 2.1-2.8. Reviewed & approved by Claude 2026-06-09. Merged to main 2026-06-09 (`6dd652d`) and deployed. Real-data upgrade smoke test deferred to post-deploy monitoring (auto-backup safety net). |
+| Phase 3 - Project polish | ✅ Done (Merged) | Add generated AI manual, CI, coverage, safety, performance, README, contributing docs, and i18n preparation. | All 7 subtasks done (3.1-3.7). CI 6 gates green, generated docs match code, bundle -30%, PAT session-only, i18n scaffold + key-parity test. Merged & deployed 2026-06-09. |
 
 ## Core Architecture Work
 
@@ -21,8 +24,8 @@
 | `adopt()` unified write path | 1.2 | Done | AI output and structured adoption paths for 1.2b callers now route through validation, alias mapping, dedupe, FK checks, and typed DB writes. |
 | `CONTEXT_SOURCES` registry | 1.3 | Done | 18 AI context sources now declare scope, layer, budgets, worldGroupId/input requirements, enablement rules, and tests. |
 | `assembleContext()` unified read path | 1.3 | Done | Pure-add assembly API exists with source requirements, world-aware reads, per-source caps, true L3->L2->L1 trimming, and migrated core generation callers. |
-| Registry validation and lint | 1.1-1.3 / 3.3 | Pending | Validate Dexie tables vs registries, prompt keys, AI meta coverage, transaction scope, manual sync, and source isolation. |
-| Generated AI manual | 3.1 | Pending | Generate AI behavior documentation from prompt modules, context declarations, adoption schemas, and call metadata. |
+| Registry validation and lint | 1.1-1.3 / 3.3 | ✅ Done | `scripts/check-architecture.mjs` + `check-required-tables.mjs` enforce three-registry law in CI; caught real violations during the refactor. |
+| Generated AI manual | 3.1 | ✅ Done | `scripts/generate-ai-manual.mjs` scans prompt modules / context sources / field registry / call metadata → `docs/AI-FUNCTIONS-MANUAL.generated.md`, with `--check` CI gate. |
 
 ## Phase 0 Emergency Fixes
 

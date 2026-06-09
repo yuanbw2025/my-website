@@ -1,5 +1,7 @@
 # Phase 1 进度板(三注册表地基)
 
+> ✅ **已完成并合并上线(2026-06-09)** — 三注册表(PROJECT_TABLES / FIELD_REGISTRY+adopt / CONTEXT_SOURCES+assembleContext)全部建成并全项目使用,已合并 `main`(`6dd652d`)。本文件为历史进度记录。
+
 > Phase 1 = 建立三个单一事实源注册表。这是整个重构的核心。
 > 接手者(任何 AI / 人)看这个文件就知道做到哪、下一步是什么。
 > **交接规则**:永远从最后一个 commit 接着干,不要从中途工作区。

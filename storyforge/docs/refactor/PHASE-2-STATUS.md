@@ -1,5 +1,7 @@
 # Phase 2 Status - Content Integrity and Multiworld Linkage
 
+> ✅ **COMPLETE, REVIEWED & MERGED (2026-06-09)** — tasks 2.1-2.8 done, Claude-reviewed, merged to `main` (`6dd652d`) and deployed. The "pending main merge / real-data smoke test" notes below are now resolved: merged; real-old-data migration deferred to post-deploy monitoring with auto-backup safety net.
+
 > Scope source: `docs/MASTER-BLUEPRINT.md` Phase 2.
 
 ## Task Board

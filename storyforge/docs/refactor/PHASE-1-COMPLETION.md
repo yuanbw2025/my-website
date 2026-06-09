@@ -1,5 +1,7 @@
 # Phase 1 Completion
 
+> ✅ **DONE & MERGED (2026-06-09)** — historical record; merged to `main` (`6dd652d`) and deployed.
+
 > Completed: 2026-06-08 23:54:34 CST  
 > Scope: 三注册表地基(PROJECT_TABLES / FIELD_REGISTRY + AdoptionSchema / CONTEXT_SOURCES + assembleContext)
 
