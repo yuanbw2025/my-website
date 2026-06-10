@@ -215,6 +215,7 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
       sourceKeys: [
         'contextMemo',
         'chapterOutline',
+        'detailedOutline', // FB-9:正文生成读入本章场景细纲
         'worldview',
         'storyCore',
         'powerSystem',
@@ -272,7 +273,7 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
       ...assembledSegments,
       { label: 'User Prompt', content: messages.find(m => m.role === 'user')?.content || '', layer: 'L1' },
     ])
-    setContextBudget(calculateBudget(aiConfig.provider, aiConfig.model, segments))
+    setContextBudget(calculateBudget(aiConfig.provider, aiConfig.model, segments, aiConfig.contextWindow))
 
     setAIAction('generate')
     ai.start(messages, undefined, { category: 'chapter.content', projectId: project.id! })

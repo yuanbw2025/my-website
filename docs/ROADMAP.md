@@ -3,7 +3,7 @@
 > 🔒 **接手者必读宪法**: [`/CLAUDE.md`](../CLAUDE.md) — 三注册表铁律 + 动手前的「四问」+ 反面教材
 > 📐 **施工权威**: [`docs/MASTER-BLUEPRINT.md`](MASTER-BLUEPRINT.md) — 重构 Phase 0/1/2/3 完整流程
 >
-> **最后更新**: 2026-06-09（社区反馈 FB-1~FB-8；FB-1 已修复；Phase 35 跑偏核对；新增「项目健康度与完善性专项」HEALTH-1~6）
+> **最后更新**: 2026-06-09（社区反馈 FB-1~FB-10;FB-1/8/9/10 已修复;旧代码清除）
 > **说明**: 本文档是唯一的功能规划文档。旧文档已归档至 `docs/archive/`。
 > **结构**: 上半部分「已完成」，下半部分「待开发」按优先级排列。完成后从待办挪到已完成区。
 > **重要**: 任何"加功能 / 修 bug"前，先过 CLAUDE.md 的「四问」。**头疼医头 = 永远拒绝**。
@@ -293,7 +293,7 @@
 > **这正是 `BUG-INPUT-WITH-GEN` 点名的"重灾区"**(见下方「优先级:高」)。本条与之合并,并**再次抬升其优先级**:已有至少 3 位用户(含本条)因工作流步骤不能输入而受阻。
 > 改法见 BUG-INPUT-WITH-GEN:给每个步骤卡加可编辑输入框,点生成时把用户输入并入 ctx。
 
-## 🟠 FB-8（中 · 配置缺口）— 本地/自定义模型上下文窗口被误判为 8K，报"超出窗口限制"
+## ✅ FB-8（已修复 2026-06-09）— 本地/自定义模型上下文窗口可配置(原误判为 8K)
 
 > 反馈人：zzjj。本地 LM Studio 跑 Qwen3 35B,Context Length 设到 170K(模型支持 256K),但 StoryForge 上下文预算面板显示"模型窗口 8.0K"并报"⚠️ 上下文超出窗口限制 超出 4.8K token"。
 > 文件:`src/lib/ai/context-budget.ts`
@@ -306,26 +306,32 @@
 - 设置区"AI 模型配置"加一个"上下文窗口(高级,可选)"输入框,提示"本地/自定义模型请按实际填写,如 131072";
 - **完成判据**:本地模型填 170000 后,预算面板按 170K 计算,不再误报超窗。
 
-## 🟠 FB-9（功能缺口 · 旧路径症状）— 场景细纲(detailed outline)不被正文生成吃进去
+**✅ 已修复(2026-06-09,分支 `fix/fb-8-context-window`)**:AIConfig 加 `contextWindow` 字段;`calculateBudget` 优先级 用户>预设>8K兜底;设置区加"上下文窗口(高级·可选)"输入框;单测5条(含误报超窗复现)。验证全绿。
+
+## ✅ FB-9（已修复 2026-06-09）— 场景细纲(detailed outline)不被正文生成吃进去
 
 > 反馈人：zzjj。诉求:"让 AI 在生成正文的时候去吃这部分细纲的信息挺重要,这样用精度高的模型、较小上下文就能生成好文字"。
-> 文件:`src/lib/ai/adapters/chapter-adapter.ts`(`buildChapterContentPrompt`)、`src/components/editor/ChapterEditor.tsx`、`src/lib/ai/memory-builder.ts`
+> 文件:`src/lib/registry/context-sources.ts`、`src/components/editor/ChapterEditor.tsx`(分支 `fix/fb-9-detailed-outline-source`)
 
-**已确认现状**(读代码核对):正文生成走旧的 `buildChapterContentPrompt(chapterTitle, chapterSummary, worldContext, characterContext, previousChapterEnding, ...)`——**参数列表里根本没有细纲**;`memory-builder` 工作记忆层也只含"当前章节大纲 + 近3章摘要 + 情感节拍",无细纲字段;`ChapterEditor` 调用时只传了 `outlineNode.summary`(大纲摘要),没传场景细纲。**所以细纲只用于展示/批量流程中间步,从未进正文生成的 prompt。**
+**✅ 已修复 · 精确根因**(更正早先误判):细纲(detailedOutlines)**在"基础表"里其实是登记了的**——它是 DB 表、有 adopt 写回规则、有删除级联,所以写得进、删得掉、导得出。**唯独没有登记到"读"那一层(`CONTEXT_SOURCES`)** → `assembleContext` 从来没有任何入口去读它 → 正文/任何生成都吃不到细纲。一句话:**"存得下但读不到"**。(早先曾误写"正文没走 assembleContext",实际 ChapterEditor 已用 assembleContext,缺的是细纲这个**源**。)
 
-**根因**:这正是「旧代码残留」的症状——正文生成至今没切到新的 `assembleContext`,走的是旧 `chapter-adapter`,该旧路径当初就没设计吃细纲。
+**改法**(标准三注册表"加一行·改一处"):① `context-sources.ts` 新增 `detailedOutline` 源(按当前章节节点读出开头衔接 + 逐场景拆解 + 结尾悬念);② ChapterEditor 正文生成 sourceKeys 加 `detailedOutline`(write/continue/expand/polish 共用,一并生效);③ 反例测试 R-FB9(3条)+ 重生成 AI 说明书。**零新增组件文件。**
+
+**遗留(可选)**:批量正文 runner 如需也吃细纲,可后续同样 `need:['detailedOutline']`。
 
 **改法(与旧代码清除联动)**:
 - 把 `detailedOutlines`(场景细纲)登记/确认为一个 `CONTEXT_SOURCE`(若未登记则加一行),正文生成 `assembleContext({ need:[...,'detailedOutline'] })` 自动带上。
 - 把 `ChapterEditor` 的正文生成从旧 `buildFullWorldCtx + buildChapterContentPrompt` 切到 `assembleContext`(属「旧代码清除」专项的一环)。
 - **完成判据**:有细纲的章节,正文生成的请求体里能看到细纲场景信息(可用网络抓包验证,同 FB-1 手法)。
 
-## 🔴 FB-10（数据 bug · 疑似未走 adopt）— 生成卷级大纲，点采纳后未写入
+## ✅ FB-10（数据 bug · 已修复 2026-06-09）— 生成卷级大纲，点采纳后未写入
 
 > 反馈人：买辣椒也用券。"生成卷级大纲,点击采纳写入后,并未写入"。
-> 文件:疑似卷级大纲生成面板的采纳写回路径(`outline.volume` 相关 / `OutlinePanel` / 工作流 saveTarget `create-outline-nodes`)
+> 文件:`src/components/outline/OutlinePanel.tsx`(分支 `fix/fb-10-volume-adopt`)
 
-**待查根因**:采纳后未落库,可能是①该采纳路径没走 `adopt({ target:'outlineNodes' })`(旧手写写回失败静默)②AI 输出非预期 JSON 结构导致解析失败但无提示③卷/章层级 parentId 错误被去重误杀(与 FB-6 同源)。
+**✅ 已修复(2026-06-09)·根因单测坐实**:`OutlinePanel` 的采纳**确实走了** `adopt({target:'outlineNodes'})`,但 outlineNodes 的 AdoptionSchema 是 `duplicatePolicy:'skip'`(identity=parentId+type+title)。命中去重(同名卷/章,常见于"重新生成后再采纳"或 AI 产出标题与已有重复)时,adopt 进 `skipped`、**不写入也不抛错**,而 `handleConfirmVolumes/Chapters` 此前**完全不处理 skipped → 静默无反馈**,用户感知为"点了采纳没反应"。
+**改法**:`addOutlineNodeByAdopt` 返回 skip 原因;两个 confirm 回调统计 written/skipped,全跳过→明确 alert 原因+"想替换请先删同名卷",部分跳过→告知数量。反例测试 `R-FB10`(3条:新卷正常写入 / 同名被skip带原因 / 多卷都写入)。
+**遗留(UX 增强,非 bug)**:若希望"重新生成即自动替换同名卷"而非跳过,需另做替换交互,已另议。
 
 **改法**:定位该采纳入口 → 确认是否走 `adopt()` → 若是旧手写路径则切到 `adopt()` 并加失败提示;补反例测试(喂卷级大纲 AI 输出 → 断言 outlineNodes 实际写入)。**先复现/定位再改。** 与 FB-6(导入大纲丢失)、旧代码清除联动排查。
 
