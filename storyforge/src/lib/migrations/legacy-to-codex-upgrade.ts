@@ -50,51 +50,74 @@ async function existingEntryNames(tx: any, projectId: number, categoryId: number
   return new Set(entries.filter((e: any) => e.categoryId === categoryId).map((e: any) => e.name))
 }
 
-export async function migrateLegacyTablesToCodex(tx: any): Promise<void> {
+/** 把一组道具写入某项目的「人工器物」词条(幂等·按名去重) */
+async function addArtifactItems(api: any, projectId: number, items: LegacyItem[]): Promise<void> {
+  if (!items.length) return
+  const catId = await ensureCategory(api, projectId, 'artifact')
+  if (catId == null) return
+  const names = await existingEntryNames(api, projectId, catId)
+  let order = names.size
   const ts = Date.now()
+  for (const it of items) {
+    const name = (it.name || '').trim()
+    if (!name || names.has(name)) continue
+    await api.table('codexEntries').add({
+      projectId, categoryId: catId, name,
+      summary: it.significance || '', description: it.description || '',
+      fields: JSON.stringify({
+        type: ITEM_TYPE_LABEL[it.type || ''] ?? '其他', rank: it.rank || '',
+        effect: it.abilities || '', origin: it.origin || '', owner: it.owner || '',
+      }),
+      order: order++, worldGroupId: null, createdAt: ts, updatedAt: ts,
+    })
+    names.add(name)
+  }
+}
 
-  // ── 道具系统 → 人工器物词条 ──────────────────────────────
+/** 把体系总述并入某项目世界观的 itemDesign(包含判断防重复追加) */
+async function appendItemDesign(api: any, projectId: number, overview: string): Promise<void> {
+  if (!overview) return
+  const wv = (await api.table('worldviews').where('projectId').equals(projectId).toArray())[0]
+  if (!wv) return
+  const cur = wv.itemDesign || ''
+  if (cur.includes(overview)) return
+  await api.table('worldviews').update(wv.id, { itemDesign: cur ? `${cur}\n\n${overview}` : overview, updatedAt: Date.now() })
+}
+
+/** 把一组势力写入某项目的「势力」词条(幂等·按名去重) */
+async function addFactionItems(api: any, projectId: number, factions: LegacyFaction[]): Promise<void> {
+  if (!factions.length) return
+  const catId = await ensureCategory(api, projectId, 'faction')
+  if (catId == null) return
+  const names = await existingEntryNames(api, projectId, catId)
+  let order = names.size
+  const ts = Date.now()
+  for (const f of factions) {
+    const name = (f.name || '').trim()
+    if (!name || names.has(name)) continue
+    await api.table('codexEntries').add({
+      projectId, categoryId: catId, name, summary: '', description: f.description || '',
+      fields: JSON.stringify({
+        leader: f.leader || '', coreMembers: f.members || '', goal: f.goals || '',
+        relations: f.relationships || '', power: f.resources || '',
+        mapRegion: f.mapRegion || '', color: f.color || '',
+      }),
+      order: order++, worldGroupId: null, createdAt: ts, updatedAt: ts,
+    })
+    names.add(name)
+  }
+}
+
+/** DB v29 升级钩子:读旧表 → 并入词条(随后 v29 stores 删表) */
+export async function migrateLegacyTablesToCodex(tx: any): Promise<void> {
   const itemSystems: any[] = await tx.table('itemSystems').toArray().catch(() => [])
   for (const sys of itemSystems) {
-    const projectId: number = sys.projectId
     let items: LegacyItem[] = []
     try { items = JSON.parse(sys.items || '[]') } catch { items = [] }
-    const overview = (sys.overview || '').trim()
-    if (items.length === 0 && !overview) continue
-
-    if (items.length > 0) {
-      const catId = await ensureCategory(tx, projectId, 'artifact')
-      if (catId != null) {
-        const names = await existingEntryNames(tx, projectId, catId)
-        let order = names.size
-        for (const it of items) {
-          const name = (it.name || '').trim()
-          if (!name || names.has(name)) continue
-          await tx.table('codexEntries').add({
-            projectId, categoryId: catId, name,
-            summary: it.significance || '', description: it.description || '',
-            fields: JSON.stringify({
-              type: ITEM_TYPE_LABEL[it.type || ''] ?? '其他', rank: it.rank || '',
-              effect: it.abilities || '', origin: it.origin || '', owner: it.owner || '',
-            }),
-            order: order++, worldGroupId: null, createdAt: ts, updatedAt: ts,
-          })
-          names.add(name)
-        }
-      }
-    }
-    if (overview) {
-      const wv = (await tx.table('worldviews').where('projectId').equals(projectId).toArray())[0]
-      if (wv) {
-        const cur = wv.itemDesign || ''
-        if (!cur.includes(overview)) {
-          await tx.table('worldviews').update(wv.id, { itemDesign: cur ? `${cur}\n\n${overview}` : overview, updatedAt: ts })
-        }
-      }
-    }
+    await addArtifactItems(tx, sys.projectId, items)
+    await appendItemDesign(tx, sys.projectId, (sys.overview || '').trim())
   }
 
-  // ── 势力 → 势力词条 ─────────────────────────────────────
   const factions: LegacyFaction[] = await tx.table('factions').toArray().catch(() => [])
   const byProject = new Map<number, LegacyFaction[]>()
   for (const f of factions) {
@@ -102,23 +125,26 @@ export async function migrateLegacyTablesToCodex(tx: any): Promise<void> {
     arr.push(f); byProject.set(f.projectId, arr)
   }
   for (const [projectId, list] of byProject) {
-    const catId = await ensureCategory(tx, projectId, 'faction')
-    if (catId == null) continue
-    const names = await existingEntryNames(tx, projectId, catId)
-    let order = names.size
-    for (const f of list) {
-      const name = (f.name || '').trim()
-      if (!name || names.has(name)) continue
-      await tx.table('codexEntries').add({
-        projectId, categoryId: catId, name, summary: '', description: f.description || '',
-        fields: JSON.stringify({
-          leader: f.leader || '', coreMembers: f.members || '', goal: f.goals || '',
-          relations: f.relationships || '', power: f.resources || '',
-          mapRegion: f.mapRegion || '', color: f.color || '',
-        }),
-        order: order++, worldGroupId: null, createdAt: ts, updatedAt: ts,
-      })
-      names.add(name)
-    }
+    await addFactionItems(tx, projectId, list)
+  }
+}
+
+/**
+ * 导入路径复用:把旧版备份 JSON 里的 itemSystems / factions 数组并入新项目的词条。
+ * 用全局 db 作为 api(其 .table(name) 与升级事务 tx 同接口)。
+ */
+export async function importLegacyArraysToCodex(
+  db: any,
+  projectId: number,
+  legacy: { itemSystems?: any[]; factions?: LegacyFaction[] },
+): Promise<void> {
+  for (const sys of legacy.itemSystems ?? []) {
+    let items: LegacyItem[] = []
+    try { items = JSON.parse(sys.items || '[]') } catch { items = [] }
+    await addArtifactItems(db, projectId, items)
+    await appendItemDesign(db, projectId, (sys.overview || '').trim())
+  }
+  if (legacy.factions?.length) {
+    await addFactionItems(db, projectId, legacy.factions)
   }
 }

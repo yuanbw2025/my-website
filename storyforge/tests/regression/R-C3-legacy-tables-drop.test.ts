@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import Dexie from 'dexie'
-import { migrateLegacyTablesToCodex } from '../../src/lib/migrations/legacy-to-codex-upgrade'
+import { migrateLegacyTablesToCodex, importLegacyArraysToCodex } from '../../src/lib/migrations/legacy-to-codex-upgrade'
 
 class LegacyDB extends Dexie {
   constructor(name: string) {
@@ -82,5 +82,23 @@ describe('Stage C 收尾 · 旧表 v29 迁移', () => {
   it('空旧表:无害 no-op', async () => {
     await migrateLegacyTablesToCodex(db as any)
     expect((await db.table('codexEntries').toArray()).length).toBe(0)
+  })
+
+  it('旧版备份导入:importLegacyArraysToCodex 把 JSON 数组并入词条', async () => {
+    const ts = Date.now()
+    await db.table('worldviews').add({ projectId: 7, itemDesign: '', createdAt: ts, updatedAt: ts })
+    await importLegacyArraysToCodex(db as any, 7, {
+      itemSystems: [{ overview: '器之道', items: JSON.stringify([{ name: '断水', type: 'weapon', abilities: '斩浪' }]) }],
+      factions: [{ projectId: 7, name: '沧澜阁', description: '水系势力', mapRegion: '南海', color: '#0EA5E9' } as any],
+    })
+    const cats = await db.table('codexCategories').toArray()
+    const entries = await db.table('codexEntries').toArray()
+    const artifact = cats.find((c: any) => c.builtInKey === 'artifact')!
+    const faction = cats.find((c: any) => c.builtInKey === 'faction')!
+    expect(entries.find((e: any) => e.name === '断水')?.categoryId).toBe(artifact.id)
+    const sect = entries.find((e: any) => e.name === '沧澜阁')!
+    expect(sect.categoryId).toBe(faction.id)
+    expect(JSON.parse(sect.fields).mapRegion).toBe('南海')
+    expect((await db.table('worldviews').toArray())[0].itemDesign).toContain('器之道')
   })
 })
