@@ -8,7 +8,6 @@ import { useChapterStore } from '../stores/chapter'
 import { useForeshadowStore } from '../stores/foreshadow'
 import { useGeographyStore } from '../stores/project-singletons'
 import { useHistoryStore } from '../stores/project-singletons'
-import { useItemSystemStore } from '../stores/project-singletons'
 import { useCreativeRulesStore } from '../stores/project-singletons'
 import { useCharacterRelationStore } from '../stores/character-relation'
 import { useReferenceStore } from '../stores/reference'
@@ -45,8 +44,8 @@ import ForeshadowPanel from '../components/foreshadow/ForeshadowPanel'
 // Phase 3.5 性能:地图类面板拉 three.js / d3 / azgaar(重),懒加载踢出首屏主包
 const GeographyPanel = lazy(() => import('../components/geography/GeographyPanel'))
 import HistoryPanel from '../components/history/HistoryPanel'
-import ItemSystemPanel from '../components/items/ItemSystemPanel'
 import CodexPanel from '../components/codex/CodexPanel'
+import { migrateItemSystemToCodex } from '../lib/migrations/item-system-to-codex'
 import CreativeRulesPanel from '../components/rules/CreativeRulesPanel'
 import CharacterRelationPanel from '../components/relations/CharacterRelationPanel'
 const WorldMapPanel = lazy(() => import('../components/geography/WorldMapPanel'))
@@ -113,7 +112,9 @@ export default function WorkspacePage() {
         useForeshadowStore.getState().loadAll(pid),
         useGeographyStore.getState().loadAll(pid),
         useHistoryStore.getState().loadAll(pid),
-        useItemSystemStore.getState().loadAll(pid),
+        // C1: 道具系统已下线 —— 旧 itemSystems 数据一次性迁移到「人工器物」词条(先迁移后删,幂等)
+        // 防御:迁移失败不得阻塞整个工作区加载(catch 兜底,旧数据保留待下次重试)
+        migrateItemSystemToCodex(pid).catch(e => console.error('[C1] 道具迁移失败(不阻塞加载,旧数据保留):', e)),
         useCreativeRulesStore.getState().loadAll(pid),
         useCharacterRelationStore.getState().loadAll(pid),
         useReferenceStore.getState().loadAll(pid),
@@ -172,8 +173,6 @@ export default function WorkspacePage() {
         return <WorldMapPanel project={project} />
       case 'history':
         return <HistoryPanel project={project} />
-      case 'items':
-        return <ItemSystemPanel project={project} />
       case 'codex':
         return <CodexPanel project={project} />
       case 'power-system':

@@ -38,7 +38,7 @@ const FIELDS: FieldMeta[] = [
   { key: 'factions',  field: 'factionLayout',          emoji: '⚔',  label: '势力分布',       description: '主要势力（门派 / 朝廷 / 商会 / 党派……）的格局和敌友关系' },
   { key: 'pec',       field: 'politicsEconomyCulture', emoji: '🏛', label: '政治/经济/文化', description: '政体 / 货币 / 赋税 / 阶层制度 / 宗教信仰 / 风俗节庆' },
   { key: 'conflicts', field: 'internalConflicts',      emoji: '🔥', label: '矛盾冲突',       description: '社会内在矛盾 / 阶级冲突 / 个体与集体冲突 / 与外部世界的张力' },
-  { key: 'items',     field: 'itemDesign',             emoji: '🗡', label: '道具与器物',     description: '武器 / 法器 / 工具 / 科技装备……物品的来源、品级、规则', hint: '这里写物品体系概述；具体道具条目请到「💎 道具系统」管理，主角随身物品由「🎒 物品栏」自动追踪。' },
+  { key: 'items',     field: 'itemDesign',             emoji: '🗡', label: '道具与器物',     description: '武器 / 法器 / 工具 / 科技装备……物品的来源、品级、规则', hint: '这里写物品体系概述；具体道具条目请到本面板「📚 人文主体·人工器物」词条逐条管理，主角随身物品由「🎒 物品栏」自动追踪。' },
 ]
 
 // ── 主面板 ─────────────────────────────────────────────────────

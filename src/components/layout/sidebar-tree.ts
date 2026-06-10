@@ -4,7 +4,7 @@ import {
   UserCircle, UsersRound, User, Footprints, Network,
   Ruler, BookOpen, FilePen, Eye,
   FileCog, History, Upload, Download, Settings,
-  Map, ClipboardList, GitBranch, Clock, Gem, MapPin, Scale,
+  Map, ClipboardList, GitBranch, Clock, MapPin, Scale,
   Drama, Package, CalendarClock, ScanSearch, Boxes, Coins,
 } from 'lucide-react'
 
@@ -33,7 +33,6 @@ export type SidebarModule =
   | 'geography'             // 地理环境（legacy）
   | 'locations'             // 重要地点（Phase 25.3）
   | 'history'               // 历史年表
-  | 'items'                 // 道具系统
   | 'codex'                 // 设定词条（Phase 35-a）
 
   // 创作区
@@ -147,7 +146,6 @@ export const NAV_TREE: TreeSection[] = [
       },
       leaf('story-design', '故事设计', BookOpen),
       leaf('codex',        '设定词条', Boxes),
-      leaf('items',        '道具系统', Gem),
       {
         kind: 'branch',
         branchId: 'lib.characters',

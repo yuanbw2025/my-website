@@ -184,11 +184,6 @@ function GenericProps({ module }: { module: SidebarModule }) {
       title: '历史年表',
       tips: ['历史事件会为伏笔提供时间参考', '标注影响当前剧情的关键节点'],
     },
-    items: {
-      icon: Info,
-      title: '道具系统',
-      tips: ['重要道具应标注首次出现章节', '神兵利器建议写明来历和能力上限'],
-    },
     rules: {
       icon: Info,
       title: '创作规则',
