@@ -5,7 +5,7 @@ import {
   Ruler, BookOpen, FilePen, Eye,
   FileCog, History, Upload, Download, Settings,
   Map, ClipboardList, GitBranch, Clock, MapPin, Scale,
-  Drama, Package, CalendarClock, ScanSearch, Boxes, Coins,
+  Drama, Package, CalendarClock, ScanSearch, Coins,
 } from 'lucide-react'
 
 /**
@@ -33,7 +33,7 @@ export type SidebarModule =
   | 'geography'             // 地理环境（legacy）
   | 'locations'             // 重要地点（Phase 25.3）
   | 'history'               // 历史年表
-  | 'codex'                 // 设定词条（Phase 35-a）
+  // 'codex' 独立侧栏入口已于 C4 移除：词条改在「自然环境」「人文环境」面板内就地编辑
 
   // 创作区
   | 'rules'
@@ -145,7 +145,6 @@ export const NAV_TREE: TreeSection[] = [
         ],
       },
       leaf('story-design', '故事设计', BookOpen),
-      leaf('codex',        '设定词条', Boxes),
       {
         kind: 'branch',
         branchId: 'lib.characters',
