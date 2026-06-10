@@ -19,11 +19,15 @@ import type { Project } from '../../lib/types'
 
 interface Props {
   project: Project
+  /** B3:嵌入自然/人文面板时锁定领域并隐藏顶部切换标签(独立面板不传=完整两栏切换) */
+  fixedDomain?: CodexDomain
+  /** 嵌入模式:去掉外层标题/高度占满,适配面板内嵌 */
+  embedded?: boolean
 }
 
 const DOMAINS: CodexDomain[] = ['natural', 'humanity']
 
-export default function CodexPanel({ project }: Props) {
+export default function CodexPanel({ project, fixedDomain, embedded }: Props) {
   const projectId = project.id!
   const {
     categories, entries, loadAll,
@@ -31,7 +35,8 @@ export default function CodexPanel({ project }: Props) {
     addEntry, updateEntry, deleteEntry,
   } = useCodexStore()
 
-  const [domain, setDomain] = useState<CodexDomain>('natural')
+  const [domainState, setDomain] = useState<CodexDomain>(fixedDomain ?? 'natural')
+  const domain = fixedDomain ?? domainState
   const [activeCatId, setActiveCatId] = useState<number | null>(null)
   const [activeEntryId, setActiveEntryId] = useState<number | null>(null)
   const [showHidden, setShowHidden] = useState(false)
@@ -102,24 +107,29 @@ export default function CodexPanel({ project }: Props) {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* 顶部：领域切换 */}
+    <div className={embedded ? 'flex flex-col h-[30rem] border border-border rounded-xl overflow-hidden' : 'h-full flex flex-col'}>
+      {/* 顶部：领域切换(嵌入且锁定领域时隐藏) */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <Boxes className="w-5 h-5 text-accent" />
-        <h2 className="text-base font-semibold text-text-primary mr-2">设定词条</h2>
-        <div className="flex rounded-lg bg-bg-elevated p-0.5">
-          {DOMAINS.map(d => (
-            <button
-              key={d}
-              onClick={() => { setDomain(d); setActiveEntryId(null) }}
-              className={`px-3 py-1 text-sm rounded-md transition ${
-                domain === d ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              {CODEX_DOMAIN_LABELS[d]}
-            </button>
-          ))}
-        </div>
+        {!fixedDomain && (
+          <>
+            <Boxes className="w-5 h-5 text-accent" />
+            <h2 className="text-base font-semibold text-text-primary mr-2">设定词条</h2>
+            <div className="flex rounded-lg bg-bg-elevated p-0.5">
+              {DOMAINS.map(d => (
+                <button
+                  key={d}
+                  onClick={() => { setDomain(d); setActiveEntryId(null) }}
+                  className={`px-3 py-1 text-sm rounded-md transition ${
+                    domain === d ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  {CODEX_DOMAIN_LABELS[d]}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {fixedDomain && <span className="text-sm font-medium text-text-secondary">📚 词条({CODEX_DOMAIN_LABELS[fixedDomain]})</span>}
         <button
           onClick={() => setShowHidden(v => !v)}
           className="ml-auto text-xs text-text-muted hover:text-text-primary inline-flex items-center gap-1"
