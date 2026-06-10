@@ -1,4 +1,5 @@
 import { db } from '../db/schema'
+import { importLegacyArraysToCodex } from '../migrations/legacy-to-codex-upgrade'
 import type {
   Project, Worldview, StoryCore, PowerSystem,
   Character, OutlineNode, Chapter,
@@ -604,9 +605,15 @@ export async function importProjectJSON(data: ProjectExportData): Promise<number
     newCharIds.set(i, newId)
   }
 
-  // (4. 势力/道具旧表已删除并入词条;旧备份里的 factions/itemSystems 已不再导入)
-  if (((data as any).factions?.length || (data as any).itemSystems?.length)) {
-    console.warn('[import] 检测到旧版备份中的 factions/itemSystems 字段,这两类已并入词条体系,旧字段不再导入。')
+  // (4. 旧版备份兼容:factions/itemSystems 表已删除,这两类数据并入「势力」/「人工器物」词条)
+  const legacyFactions = (data as any).factions as any[] | undefined
+  const legacyItemSystems = (data as any).itemSystems as any[] | undefined
+  if (legacyFactions?.length || legacyItemSystems?.length) {
+    await importLegacyArraysToCodex(db, newProjectId, {
+      factions: legacyFactions,
+      itemSystems: legacyItemSystems,
+    })
+    console.info('[import] 旧版备份的 势力/道具 已并入「势力」/「人工器物」词条。')
   }
 
   // 5. 导入大纲节点（重建 parentId）

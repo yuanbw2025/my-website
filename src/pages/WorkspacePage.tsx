@@ -231,7 +231,7 @@ export default function WorkspacePage() {
       case 'version-history':
         return <VersionHistoryPanel project={project} />
       case 'import-doc':
-        return <ImportDocPanel project={project} />
+        return <ImportDocPanel project={project} onNavigate={(m) => { setActiveModule(m); setEditorNodeId(null) }} />
       case 'settings':
         return <SettingsPage />
       case 'usage-stats':
