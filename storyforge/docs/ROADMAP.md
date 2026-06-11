@@ -342,6 +342,22 @@
 - 把 `ChapterEditor` 的正文生成从旧 `buildFullWorldCtx + buildChapterContentPrompt` 切到 `assembleContext`(属「旧代码清除」专项的一环)。
 - **完成判据**:有细纲的章节,正文生成的请求体里能看到细纲场景信息(可用网络抓包验证,同 FB-1 手法)。
 
+## ✅ FB-12（prompt bug · 修复 2026-06-11）— 章节大纲展开"跑完整本书"且不按设定章节数
+
+> 反馈人：买辣椒也用券。"章节展开总是在第一卷就展开了整本书的内容,并且不按照我设置的章节数;生成内容跟卷情节摘要不搭。"用的是内置提示词。
+> 文件:`src/lib/ai/prompt-seeds.ts`(outline.chapter seed)。测试:`tests/regression/R-FB12-chapter-outline-volume-scope.test.ts`。
+
+**根因(单点)**:`outline.chapter` 内置模板 user 正文写死「每卷约 15-25 章」,而 `chaptersPerVolume`(本卷章节数)参数**虽已在 seed 里定义、滑块也能调,却从未被任何 `{{}}` 占位符引用** → 用户设的章节数完全失效。同时模板缺「只展开本卷、严格围绕卷情节摘要」的约束,AI 遂自由发挥、几十章把整本书讲完。`pace` 参数本就接通(system 里有 `{{usesPace}}`),唯独章节数漏接。
+
+**修复(只改 seed,老用户自动下发)**:`prompt.ts` 启动时会用 seed 内容更新现有内置模板(仅保留用户 isActive 选择),故改 seed 即可触达所有用内置模板的用户。
+- 接通 `{{chaptersPerVolume}}`,用 `{{#if usesChaptersPerVolume}}`/`{{#if notUsesChaptersPerVolume}}` 守卫(防 optional 参数被注入空串导致"恰好  章"渲染事故,兜底回"约 15-25 章")。
+- 加铁律:① 只展开本卷,结束停在卷摘要终点,不许把后续卷/整本书提前讲完;② 每章落在卷摘要范围内、与之相符;③ 均匀拆分、每章只推进一小步;④ 输出 JSON 数组长度必须恰好为设定章节数。
+- 批量"一键生成全部卷章节"路径(batch-outline-runner,传 undefined options)→ 走默认 20 章 + 同一锁卷约束,同样受益。
+
+部署:storyforge `616b651` / my-website `f31b14e`。
+
+---
+
 ## ✅ FB-10 / FB-10b（数据 bug · 真正修复 2026-06-11）— 生成卷级大纲，点采纳后未写入
 
 > 反馈人：买辣椒也用券。"生成卷级大纲,点击采纳写入后,并未写入"。社区 PR #12（贡献者）独立定位到第二根因。
