@@ -92,7 +92,7 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 | `outlineNodes` | `title` `summary` `parentId` `order` `worldGroupId` |
 | `storyArcs` | `name` `stages` `description` |
 | `storyCores` | `theme` `centralConflict` `plotPattern` `logline` `concept` `mainPlot` `subPlots` |
-| `worldviews` | `geography` `history` `society` `culture` `economy` `rules` `worldOrigin` `powerHierarchy` `divineDesign` `worldStructure` `worldDimensions` `continentLayout` `regionDimensions` `mountainsRivers` `climateByRegion` `naturalResources` `historyLine` `worldEvents` `races` `factionLayout` `politicsEconomyCulture` `internalConflicts` `itemDesign` |
+| `worldviews` | `geography` `history` `society` `culture` `economy` `rules` `worldOrigin` `powerHierarchy` `divineDesign` `worldStructure` `worldDimensions` `continentLayout` `regionDimensions` `mountainsRivers` `climateByRegion` `naturalResourceOverview` `naturalResources` `historyLine` `worldEvents` `races` `factionLayout` `politicsEconomyCulture` `internalConflicts` `itemDesign` |
 
 ## 四、AI 调用点（消耗统计 category · 在哪触发)
 
@@ -119,4 +119,4 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 
 ---
 
-生成时间基准:commit `e2edc85`
+生成时间基准:commit `2bdb750`
