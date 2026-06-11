@@ -13,6 +13,7 @@ import type {
   MasterStyleMetrics, MasterInsight,
   WorldGroup, WorldGroupLink, ItemLedgerEntry, StoryTimelineEvent,
   ImportantLocation, WorldRulesProfile, CodexCategory, CodexEntry,
+  UserStyleProfile,
 } from '../types'
 
 type WorldGroupExportRef = {
@@ -66,6 +67,7 @@ const PROJECT_TABLES_ALL = [
   db.storyArcs,
   db.storyCores,
   db.storyTimelineEvents,
+  db.userStyleProfiles,
   db.worldGroupLinks,
   db.worldGroups,
   db.worldNodes,
@@ -235,6 +237,8 @@ export interface ProjectExportData {
   detailedOutlines?: (Omit<DetailedOutline, 'id' | 'projectId' | 'outlineNodeId'> & { _outlineExportId: number })[]
   emotionBeatCards?: (Omit<EmotionBeatCard, 'id' | 'projectId' | 'chapterId'> & { _chapterExportId: number })[]
   stateCards?: Omit<StateCard, 'id' | 'projectId'>[]
+  /** FB-5 文风画像(每项目单例) */
+  userStyleProfiles?: Omit<UserStyleProfile, 'id' | 'projectId'>[]
   storyArcs?: Omit<StoryArc, 'id' | 'projectId'>[]
   worldNodes?: (Omit<WorldNode, 'id' | 'projectId' | 'worldGroupId'> & WorldGroupExportRef & { _exportId: number; _parentExportId: number | null })[]
   notes?: Omit<Note, 'id' | 'projectId'>[]
@@ -286,6 +290,7 @@ export async function exportProjectJSON(projectId: number): Promise<ProjectExpor
     // v3
     worldGroups, worldGroupLinks, itemLedger, storyTimelineEvents,
     importantLocations, worldRulesProfiles, codexCategories, codexEntries,
+    userStyleProfiles,
   ] = await Promise.all([
     db.worldviews.where('projectId').equals(projectId).toArray(),
     db.storyCores.where('projectId').equals(projectId).toArray(),
@@ -324,6 +329,7 @@ export async function exportProjectJSON(projectId: number): Promise<ProjectExpor
     db.worldRulesProfiles.where('projectId').equals(projectId).toArray(),
     db.codexCategories.where('projectId').equals(projectId).toArray(),
     db.codexEntries.where('projectId').equals(projectId).toArray(),
+    db.userStyleProfiles.where('projectId').equals(projectId).toArray(),
   ])
 
   // ── 构建 ID 映射 ──
@@ -454,6 +460,7 @@ export async function exportProjectJSON(projectId: number): Promise<ProjectExpor
       return { ...rest, _chapterExportId: chapterIdMap.get(chapterId) ?? 0 }
     }),
     stateCards: stateCards.map(({ id: _, projectId: __, ...rest }) => rest),
+    userStyleProfiles: userStyleProfiles.map(({ id: _, projectId: __, ...rest }) => rest),
     storyArcs: storyArcs.map(({ id: _, projectId: __, ...rest }) => rest),
     worldNodes: worldNodes.map((w) => {
       const { id, projectId: __, ...rest } = w
@@ -713,6 +720,11 @@ export async function importProjectJSON(data: ProjectExportData): Promise<number
   // 12. 状态表
   for (const s of data.stateCards || []) {
     await db.stateCards.add({ ...s, projectId: newProjectId } as StateCard)
+  }
+
+  // FB-5 文风画像
+  for (const sp of data.userStyleProfiles || []) {
+    await db.userStyleProfiles.add({ ...sp, projectId: newProjectId } as UserStyleProfile)
   }
 
   // 13. 故事线

@@ -40,6 +40,7 @@ import OutlinePanel from '../components/outline/OutlinePanel'
 import DetailedOutlinePanel from '../components/outline/DetailedOutlinePanel'
 import ChaptersListPanel from '../components/editor/ChaptersListPanel'
 import ForeshadowPanel from '../components/foreshadow/ForeshadowPanel'
+import StyleLearningPanel from '../components/style/StyleLearningPanel'
 // Phase 3.5 性能:地图类面板拉 three.js / d3 / azgaar(重),懒加载踢出首屏主包
 const GeographyPanel = lazy(() => import('../components/geography/GeographyPanel'))
 import HistoryPanel from '../components/history/HistoryPanel'
@@ -212,6 +213,8 @@ export default function WorkspacePage() {
         return <ChaptersListPanel project={project} initialNodeId={editorNodeId} />
       case 'foreshadow':
         return <ForeshadowPanel project={project} />
+      case 'style-learning':
+        return <StyleLearningPanel project={project} />
       case 'locations':
         return <LocationPanel project={project} />
       case 'story-arc':
