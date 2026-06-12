@@ -12,8 +12,6 @@ import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
 import { db } from '../../lib/db/schema'
 import WorldGroupSwitcher from '../world-group/WorldGroupSwitcher'
-// 2D/3D 地图适配器保留但暂不使用
-// import { buildWorldMapPrompt, cleanMapJSON, computeSourceHash } from '../../lib/ai/adapters/world-map-adapter'
 import {
   buildVoronoiMapPrompt,
   parseVoronoiMapConfig,
