@@ -107,6 +107,12 @@ export default function WorkspacePage() {
         return
       }
 
+      // 修复:直链/刷新进入工作区时 projects 列表可能为空(没经首页加载过),
+      // 导致 `project = projects.find(...)` 恒为 null、永久卡"加载中"。这里补加载项目列表。
+      if (useProjectStore.getState().projects.length === 0) {
+        await useProjectStore.getState().loadProjects().catch(() => {})
+      }
+
       // 并行加载所有数据。用 allSettled:任一 store 加载失败也不连累整体、
       // 不会让 setLoading(false) 漏执行而永久卡"加载中"(健壮性,防单点 store 抛错锁死工作区)。
       const pid = p.id!
