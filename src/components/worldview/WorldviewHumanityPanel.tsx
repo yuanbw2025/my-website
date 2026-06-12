@@ -16,7 +16,6 @@ import type { FieldGenerationMode } from '../../lib/ai/field-generation-context'
 async function buildRulesSourceContext(projectId: number, worldGroupId: number | null): Promise<string> {
   return (await assembleContext({ projectId, worldGroupId, sourceKeys: ['worldRules'] })).text
 }
-import CurrencyPanel from './CurrencyPanel'
 import CodexPanel from '../codex/CodexPanel'
 import CodexSearchBar from '../codex/CodexSearchBar'
 
@@ -185,12 +184,6 @@ export default function WorldviewHumanityPanel({ project }: Props) {
                 contextSummary={buildCtx(f.key)}
                 onStreamingChange={streaming => handleStreamingChange(f.key, streaming)}
               />
-              {/* Phase 23.2: 在经济文化字段下追加货币面板 */}
-              {f.key === 'pec' && (
-                <div className="mt-6 max-w-3xl">
-                  <CurrencyPanel projectId={project.id!} />
-                </div>
-              )}
               {/* 词条（下）：在全貌之下,把"本方面"细化为一个个具体条目(只显示对应那一类,可打星) */}
               {HUMANITY_CODEX_KEYS[f.key] && (
                 <div className="mt-6">
