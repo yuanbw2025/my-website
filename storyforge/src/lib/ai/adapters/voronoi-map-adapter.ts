@@ -117,6 +117,7 @@ export function buildVoronoiMapPrompt(
 - 用户没给、但地图需要的元素（还缺多少城镇名、地形走向、温湿度档、大陆数等），你**在不与用户已给内容冲突的前提下合理补全**——这是补全，不是覆盖。
 
 **参数设计指导**：
+- **遵循人地互动常识**：城镇 / 国家依水而聚——大河流域、海岸、河口、绿洲、平原是人口与城池密集区；沙漠、极地、高山、密林地广人稀。据此推断 burgDensity（水土丰美的世界设高，荒漠极地世界设低）、stateCount 与生态配色，让"哪里该有城、哪里该荒"符合地理逻辑，避免把城镇均匀撒满或撒进不毛之地。
 - 根据世界观风格选择 heightmapTemplate：比如"诸岛"用 archipelago，"一块大陆"用 pangea，"高原"用 highland
 - 根据世界观文化氛围选择 namingStyle：中式修仙/武侠 → chinese；和风 → japanese；西方奇幻 → european 或 highFantasy
 - 如果世界观提到"北方寒冷"，设 temperatureShift 为负值；"干旱沙漠"，设 precipitationFactor < 0.6；"群岛"，设 landRatio=0.25-0.35 + heightmapTemplate="archipelago"
