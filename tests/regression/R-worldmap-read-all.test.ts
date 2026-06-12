@@ -35,6 +35,10 @@ describe('R-WORLDMAP 段一 · 地图生成读全已填内容', () => {
     expect(full).toContain('必须尊重用户已设定')
     expect(full).toContain('数量以用户为准')
     expect(full).toMatch(/补全/)
+
+    // 人地互动常识已内化进地图生成
+    expect(full).toContain('人地互动')
+    expect(full).toMatch(/依水而聚|大河流域/)
   })
 
   it('用户没填时仍给出兜底(不报错)', () => {
