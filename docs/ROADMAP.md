@@ -310,9 +310,16 @@
 - **反例测试（防复现）**：新增 `R-WF-1` —— 构造两步工作流（step1 输出固定串 X → step2 模板含 `{{worldContext}}`），断言 step2 渲染出的 messages **必含 X**；`R-WF-2` —— 断言 step2 ctx 中 `projectName` 等于当前项目名（隔离）。
 - **完成判据**：① 两步工作流第 2 步稳定读到第 1 步输出；② 不同项目运行同一工作流，上下文互不串台；③ tsc=0 / build OK / 新增反例测试绿。
 
-## 🟠 FB-2（高频功能）— 大纲章节「拖动排序 / 任意位置插入」
+## ✅ FB-2（完成 2026-06-13）— 大纲章节「拖动排序 / 任意位置插入」
 
 > 反馈人：light莫言。原话：「大纲里面添加章节，能不能弄一个拖动章节位置的功能，现在添加章节只能添加在最后，有时候想自己添加章节很麻烦」。群主已答应「这个可以有」。
+
+**✅ 已实现(2026-06-13)**：
+- **拖动排序**：原生 HTML5 DnD(零依赖),抓行首拖拽手柄(⠿)拖、整行作放置区。覆盖三处:侧栏**卷列表**、卷内**直挂章节**、**故事块内章节**——均限同级(同 parentId)排序。
+- **任意位置插入**：每行 hover 出「在下方插入一章」按钮,插到该行之后,同级 `order` 自动重排 0..n-1 连续无重复。
+- store 新增 `reorderNodes(orderedIds[])`(同级 order 重写,事务内 bulk update)+ `insertNodeAt(node, siblingIds, index)`;沿用 outline store 既有「用户编辑走 store 直写」模式(与 `updateNode` 一致,非 AI 写回故不过 adopt;`check:architecture` 已绿)。复用 helper `computeReorder` 纯函数。
+- 文件：`src/stores/outline.ts`、`src/components/outline/OutlinePanel.tsx`、`src/components/outline/useDragReorder.ts`(新)。测试 `R-FB2-outline-reorder`(computeReorder + reorderNodes 持久化 + insertNodeAt 中间插入)。预览实测插入端到端正确。
+> ——以下为原始记录——
 > 文件：`src/stores/outline.ts`（已有 `order` 字段 + `.sortBy('order')`）、`src/components/outline/OutlinePanel.tsx`
 
 **现状**：`outlineNodes` 已有 `order` 字段、按 order 排序，但只支持「追加到末尾」，无拖动重排、无指定位置插入。
