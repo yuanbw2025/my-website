@@ -13,6 +13,14 @@ interface OutlineStore {
   deleteNode: (id: number) => Promise<void>
   /** 批量添加节点（AI 生成大纲后） */
   addNodes: (nodes: Omit<OutlineNode, 'id' | 'createdAt' | 'updatedAt'>[]) => Promise<void>
+  /** 同级重排：按给定 id 顺序把 order 重写为 0..n-1（拖动排序 / 任意位置插入用，FB-2） */
+  reorderNodes: (orderedIds: number[]) => Promise<void>
+  /** 在某同级位置插入新节点（任意位置插入，FB-2）。siblingIds 为当前同级顺序，index 为插入位。返回新 id */
+  insertNodeAt: (
+    node: Omit<OutlineNode, 'id' | 'createdAt' | 'updatedAt'>,
+    siblingIds: number[],
+    index: number,
+  ) => Promise<number>
 }
 
 const now = () => Date.now()
@@ -67,5 +75,32 @@ export const useOutlineStore = create<OutlineStore>((set, get) => ({
     const ids = await db.outlineNodes.bulkAdd(newNodes, { allKeys: true }) as number[]
     const withIds = newNodes.map((n, i) => ({ ...n, id: ids[i] }))
     set({ nodes: [...get().nodes, ...withIds] })
+  },
+
+  reorderNodes: async (orderedIds) => {
+    const ts = now()
+    const orderById = new Map(orderedIds.map((id, i) => [id, i]))
+    await db.transaction('rw', db.outlineNodes, async () => {
+      for (const [id, order] of orderById) {
+        await db.outlineNodes.update(id, { order, updatedAt: ts })
+      }
+    })
+    set({
+      nodes: get().nodes.map(n =>
+        n.id != null && orderById.has(n.id)
+          ? { ...n, order: orderById.get(n.id)!, updatedAt: ts }
+          : n,
+      ),
+    })
+  },
+
+  insertNodeAt: async (node, siblingIds, index) => {
+    // 先落库（order 临时给末尾），再把它挪到目标位并重排同级，保证 order 连续无重复
+    const newId = await get().addNode({ ...node, order: siblingIds.length })
+    const clamped = Math.max(0, Math.min(index, siblingIds.length))
+    const next = [...siblingIds]
+    next.splice(clamped, 0, newId)
+    await get().reorderNodes(next)
+    return newId
   },
 }))

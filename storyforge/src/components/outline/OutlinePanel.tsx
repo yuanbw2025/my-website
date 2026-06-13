@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { Plus, Trash2, Sparkles, ChevronRight, ChevronDown, Check, X, LayoutList, Layers, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Sparkles, ChevronRight, ChevronDown, Check, X, LayoutList, Layers, Loader2, GripVertical, CornerDownRight } from 'lucide-react'
 import { useOutlineStore } from '../../stores/outline'
+import { useDragReorder, type ItemDnD } from './useDragReorder'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
@@ -28,7 +29,7 @@ interface Props {
 }
 
 export default function OutlinePanel({ project, onOpenChapter }: Props) {
-  const { nodes, loadAll, addNode, updateNode, deleteNode } = useOutlineStore()
+  const { nodes, loadAll, addNode, updateNode, deleteNode, reorderNodes, insertNodeAt } = useOutlineStore()
   const { storyCore } = useWorldviewStore()
   const worldGroups = useWorldGroupStore(s => s.groups)
   const aiConfig = useAIConfigStore(s => s.config)
@@ -92,6 +93,13 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
   // 是否使用故事块模式
   const hasBlocks = selectedVolBlocks.length > 0
 
+  // FB-2 拖动排序：卷列表（侧栏）、直挂章节列表各一套
+  const volumeDnD = useDragReorder(volumes.map(v => v.id), (ids) => reorderNodes(ids))
+  const directChaptersDnD = useDragReorder(
+    selectedVolChapters.map(c => c.id),
+    (ids) => reorderNodes(ids),
+  )
+
   // 自动选中第一个卷
   useEffect(() => {
     if (selectedVolId === null && volumes.length > 0) {
@@ -115,6 +123,20 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
       projectId: project.id!, parentId: pid, type: 'chapter',
       title: `第${siblings.length + 1}章`, summary: '', order: siblings.length,
     })
+  }
+
+  // FB-2 任意位置插入：在某章之后插入一章（同 parentId 内重排 order）
+  const handleInsertChapterAfter = async (afterChapterId: number, parentId: number) => {
+    const siblingIds = nodes
+      .filter(n => n.parentId === parentId && n.type === 'chapter')
+      .sort((a, b) => a.order - b.order)
+      .map(n => n.id!)
+    const index = siblingIds.indexOf(afterChapterId) + 1
+    await insertNodeAt(
+      { projectId: project.id!, parentId, type: 'chapter', title: '新章节', summary: '', order: 0 },
+      siblingIds,
+      index,
+    )
   }
 
   const handleAddStructure = async (structure: StoryStructure) => {
@@ -445,17 +467,26 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
         {volumes.map(vol => {
           const childCount = nodes.filter(n => n.parentId === vol.id).length
           const active = selectedVolId === vol.id
+          const d = volumeDnD.itemDnD(vol.id)
           return (
-            <button
+            <div
               key={vol.id}
-              onClick={() => setSelectedVolId(vol.id!)}
-              className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-all mb-0.5 ${
-                active
-                  ? 'bg-accent/8 border-l-2 border-accent'
-                  : 'hover:bg-bg-hover border-l-2 border-transparent'
-              }`}
+              {...d.dropProps}
+              className={`group/vol flex items-center rounded-lg mb-0.5 transition-all ${
+                active ? 'bg-accent/8 border-l-2 border-accent' : 'hover:bg-bg-hover border-l-2 border-transparent'
+              } ${d.isDragging ? 'opacity-40' : ''} ${d.isOver ? 'ring-1 ring-accent/60' : ''}`}
             >
-              <div className="min-w-0 flex-1">
+              <span
+                {...d.dragHandleProps}
+                title="拖动调整卷顺序"
+                className="shrink-0 pl-1 pr-0.5 py-2 cursor-grab active:cursor-grabbing text-text-muted/40 group-hover/vol:text-text-muted"
+              >
+                <GripVertical className="w-3.5 h-3.5" />
+              </span>
+              <button
+                onClick={() => setSelectedVolId(vol.id!)}
+                className="min-w-0 flex-1 text-left px-1 py-2"
+              >
                 <p className={`text-sm font-medium truncate ${active ? 'text-accent' : 'text-text-primary'}`}>
                   {project.enableMultiWorld && vol.worldGroupId != null && (
                     <span className="mr-1">{worldGroups.find(g => g.id === vol.worldGroupId)?.icon || '🌐'}</span>
@@ -465,8 +496,8 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
                 <p className="text-[10px] text-text-muted">
                   {childCount} 章{vol.summary ? ` · ${vol.summary.slice(0, 20)}...` : ''}
                 </p>
-              </div>
-            </button>
+              </button>
+            </div>
           )
         })}
         {volumes.length === 0 && (
@@ -624,6 +655,8 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
                         onDeleteNode={deleteNode}
                         onAddChapter={() => handleAddChapter(block.id!)}
                         onOpenChapter={onOpenChapter}
+                        onReorder={(ids) => reorderNodes(ids)}
+                        onInsertAfter={(chId) => handleInsertChapterAfter(chId, block.id!)}
                       />
                     )
                   })}
@@ -643,7 +676,12 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
                 ) : (
                   <div className="space-y-1">
                     {selectedVolChapters.map((ch, idx) => (
-                      <ChapterRow key={ch.id} ch={ch} idx={idx} onUpdate={updateNode} onDelete={deleteNode} onOpen={onOpenChapter} />
+                      <ChapterRow
+                        key={ch.id} ch={ch} idx={idx}
+                        onUpdate={updateNode} onDelete={deleteNode} onOpen={onOpenChapter}
+                        dnd={directChaptersDnD.itemDnD(ch.id)}
+                        onInsertAfter={() => handleInsertChapterAfter(ch.id!, selectedVol.id!)}
+                      />
                     ))}
                   </div>
                 )
@@ -702,12 +740,14 @@ function PreviewPanel({
 
 // ── 章节行 ──
 
-function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen }: {
+function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen, dnd, onInsertAfter }: {
   ch: { id?: number; title: string; summary: string }
   idx: number
   onUpdate: (id: number, patch: Record<string, string>) => void
   onDelete: (id: number) => void
   onOpen?: (id: number) => void
+  dnd?: ItemDnD
+  onInsertAfter?: () => void
 }) {
   // FB-3:章节摘要(章节大纲)由单行 input 升级为多行自增 textarea —— 单行下改 1-2 句大纲很难受
   //       (横向滚、看不全、改中间费劲)。本地草稿 + 失焦保存(IME 安全:组合输入结束后才 onBlur 写库)。
@@ -720,7 +760,22 @@ function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen }: {
   }, [summaryDraft])
 
   return (
-    <div className="flex items-start gap-2 px-3 py-2 bg-bg-surface border border-border rounded-md hover:border-accent/30 group transition-colors">
+    <div
+      {...(dnd?.dropProps ?? {})}
+      className={`flex items-start gap-1 px-2 py-2 bg-bg-surface border rounded-md group transition-colors ${
+        dnd?.isOver ? 'border-accent ring-1 ring-accent/50' : 'border-border hover:border-accent/30'
+      } ${dnd?.isDragging ? 'opacity-40' : ''}`}
+    >
+      {/* FB-2 拖拽手柄（抓这里拖动排序） */}
+      {dnd && (
+        <span
+          {...dnd.dragHandleProps}
+          title="拖动调整章节顺序"
+          className="shrink-0 mt-1 cursor-grab active:cursor-grabbing text-text-muted/40 group-hover:text-text-muted"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </span>
+      )}
       <span className="text-xs text-text-muted mt-1.5 shrink-0 w-5 text-right">{idx + 1}</span>
       <div className="flex-1 min-w-0">
         <CInput
@@ -739,6 +794,11 @@ function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen }: {
         />
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1">
+        {onInsertAfter && (
+          <button onClick={onInsertAfter} className="p-1 text-text-muted hover:text-accent rounded" title="在此章下方插入一章">
+            <CornerDownRight className="w-3.5 h-3.5" />
+          </button>
+        )}
         {onOpen && (
           <button onClick={() => onOpen(ch.id!)} className="p-1 text-text-muted hover:text-accent rounded" title="编辑章节">
             <ChevronRight className="w-3.5 h-3.5" />
@@ -754,15 +814,18 @@ function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen }: {
 
 // ── 故事块区域 ──
 
-function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddChapter, onOpenChapter }: {
+function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddChapter, onOpenChapter, onReorder, onInsertAfter }: {
   block: { id?: number; title: string; summary: string }
   chapters: { id?: number; title: string; summary: string }[]
   onUpdateNode: (id: number, patch: Record<string, string>) => void
   onDeleteNode: (id: number) => void
   onAddChapter: () => void
   onOpenChapter?: (id: number) => void
+  onReorder: (orderedIds: number[]) => void
+  onInsertAfter: (chapterId: number) => void
 }) {
   const [expanded, setExpanded] = useState(true)
+  const blockChaptersDnD = useDragReorder(chapters.map(c => c.id), onReorder)
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -804,7 +867,12 @@ function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddC
             </div>
           ) : (
             chapters.map((ch, idx) => (
-              <ChapterRow key={ch.id} ch={ch} idx={idx} onUpdate={onUpdateNode} onDelete={onDeleteNode} onOpen={onOpenChapter} />
+              <ChapterRow
+                key={ch.id} ch={ch} idx={idx}
+                onUpdate={onUpdateNode} onDelete={onDeleteNode} onOpen={onOpenChapter}
+                dnd={blockChaptersDnD.itemDnD(ch.id)}
+                onInsertAfter={() => onInsertAfter(ch.id!)}
+              />
             ))
           )}
         </div>
