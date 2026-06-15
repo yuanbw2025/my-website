@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, RotateCcw, Save, Settings2 } from 'lucide-react'
 import { usePromptStore } from '../../stores/prompt'
+import { useAIConfigStore } from '../../stores/ai-config'
+import { getModelPreset } from '../../lib/ai/context-budget'
 import type { PromptModuleKey, PromptParameter, PromptTemplate } from '../../lib/types/prompt'
 import { useDialog } from './Dialog'
 import { useToast } from './Toast'
@@ -204,9 +206,15 @@ function ParamControl({
   value: unknown
   onChange: (v: unknown) => void
 }) {
+  const aiConfig = useAIConfigStore(s => s.config)
   const enabled = !param.optional || (value !== undefined && value !== '')
   // 显示用值（用户值或默认值）
   const shown = value !== undefined && value !== '' ? value : param.default
+
+  // 字数类滑块:上限动态 = 当前模型最大输出换算字数(token×1.5);否则用静态 param.max
+  const sliderMax = param.maxFromModelOutput
+    ? Math.max(param.min ?? 0, Math.round((getModelPreset(aiConfig.provider, aiConfig.model).maxOutput * 1.5) / 100) * 100)
+    : param.max
 
   return (
     <div className="flex items-center gap-2">
@@ -238,7 +246,7 @@ function ParamControl({
           <input
             type="range"
             min={param.min}
-            max={param.max}
+            max={sliderMax}
             step={param.step ?? 1}
             value={Number(shown)}
             onChange={e => onChange(Number(e.target.value))}

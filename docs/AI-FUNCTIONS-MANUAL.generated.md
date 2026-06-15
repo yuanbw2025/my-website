@@ -58,11 +58,11 @@
 | `chapterOutline` | 当前章节大纲 | node | L1 | 800 |
 | `detailedOutline` | 本章细纲(场景拆解) | node | L1 | 1500 |
 | `previousChapterEnding` | 上一章结尾 | manual | L1 | 500 |
-| `worldview` | 世界观 | world | L2 | 2500 |
-| `storyCore` | 故事核心 | project | L1 | 1200 |
-| `powerSystem` | 力量体系 | world | L2 | 1200 |
-| `codex` | 设定词条 | world | L2 | 2500 |
-| `characters` | 角色档案 | world | L2 | 2500 |
+| `worldview` | 世界观 | world | L2 | 8000 |
+| `storyCore` | 故事核心 | project | L1 | 4000 |
+| `powerSystem` | 力量体系 | world | L2 | 4000 |
+| `codex` | 设定词条 | world | L2 | 6000 |
+| `characters` | 角色档案 | world | L2 | 8000 |
 | `creativeRules` | 创作规则 | project | L1 | 1000 |
 | `worldRules` | 真实与幻想规则 | world | L1 | 1200 |
 | `historical` | 历史时间线 | world | L2 | 1800 |
@@ -102,12 +102,12 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 | category | 触发文件 |
 |---|---|
 | `ai.restructure` | `src/lib/ai/restructure.ts:52` |
-| `chapter.content` | `src/components/editor/ChapterEditor.tsx:272` |
+| `chapter.content` | `src/components/editor/ChapterEditor.tsx:274` |
 | `chapter.content.batch` | `src/lib/ai/batch-detail-runner.ts:256` |
-| `chapter.continue` | `src/components/editor/ChapterEditor.tsx:280` |
-| `chapter.deai` | `src/components/editor/ChapterEditor.tsx:304` |
-| `chapter.expand` | `src/components/editor/ChapterEditor.tsx:296` |
-| `chapter.polish` | `src/components/editor/ChapterEditor.tsx:288` |
+| `chapter.continue` | `src/components/editor/ChapterEditor.tsx:284` |
+| `chapter.deai` | `src/components/editor/ChapterEditor.tsx:308` |
+| `chapter.expand` | `src/components/editor/ChapterEditor.tsx:300` |
+| `chapter.polish` | `src/components/editor/ChapterEditor.tsx:292` |
 | `chapter.toolbar` | `src/components/editor/FloatingToolbar.tsx:105` |
 | `character.generate` | `src/components/character/CharacterPanel.tsx:132` |
 | `character.structure` | `src/lib/ai/parse-character-output.ts:92` |
@@ -147,4 +147,4 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 
 ---
 
-生成时间基准:commit `286a042`
+生成时间基准:commit `bb55aea`

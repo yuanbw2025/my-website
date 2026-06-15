@@ -3,12 +3,27 @@
  *
  * 1.3a 只新增入口。1.3b 再把 ai.start/chat 调用迁移到这里。
  */
-import { estimateTokens, type ContextLayer, type ContextSegment } from '../ai/context-budget'
+import { estimateTokens, getModelPreset, type ContextLayer, type ContextSegment } from '../ai/context-budget'
 import { CONTEXT_SOURCES, CONTEXT_SOURCE_BY_KEY } from './context-sources'
 import type { AssembleContextInput, AssembleContextResult, ContextSource } from './types'
 
-const DEFAULT_INPUT_BUDGET = 24_000
+/** 拿不到模型时的保守默认输入预算(原固定 24K 偏紧,放宽避免内部提前裁) */
+const FALLBACK_INPUT_BUDGET = 48_000
 const LAYERS_BY_TRIM_PRIORITY: ContextLayer[] = ['L3', 'L2', 'L1']
+
+/**
+ * 输入预算 = 所选模型的上下文窗口(减输出预留与安全边际)。
+ * 这样上下文只在「真的接近模型窗口」时才按优先级软裁,而不是被固定小预算提前砍。
+ */
+function deriveInputBudget(input: AssembleContextInput): number {
+  if (input.inputBudgetTokens && input.inputBudgetTokens > 0) return input.inputBudgetTokens
+  if (input.provider && input.model) {
+    const preset = getModelPreset(input.provider, input.model)
+    const budget = preset.maxContext - preset.maxOutput - Math.round(preset.maxContext * 0.05)
+    if (budget > 0) return budget
+  }
+  return FALLBACK_INPUT_BUDGET
+}
 
 export async function assembleContext(input: AssembleContextInput): Promise<AssembleContextResult> {
   const selected = selectSources(input)
@@ -43,7 +58,7 @@ export async function assembleContext(input: AssembleContextInput): Promise<Asse
   }
 
   const totalBeforeTrim = keyedSegments.reduce((sum, s) => sum + s.segment.tokens, 0)
-  const inputBudget = input.inputBudgetTokens ?? DEFAULT_INPUT_BUDGET
+  const inputBudget = deriveInputBudget(input)
   const overBudgetBeforeTrim = totalBeforeTrim > inputBudget
   const { kept, trimmed } = trimToFit(keyedSegments, inputBudget)
   const segments = kept.map(s => s.segment)

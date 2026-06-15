@@ -201,7 +201,7 @@ export const CONTEXT_SOURCES: ContextSource[] = [
     label: '世界观',
     scope: 'world',
     layer: 'L2',
-    budgetTokens: 2500,
+    budgetTokens: 8000, // 放宽:容下完整世界观设定,超大才软截断(并配合总窗口软裁)
     requiresWorldGroupId: true,
     read: async input => formatWorldviewBlock(await readWorldview(input.projectId, input.worldGroupId)),
   },
@@ -210,7 +210,7 @@ export const CONTEXT_SOURCES: ContextSource[] = [
     label: '故事核心',
     scope: 'project',
     layer: 'L1',
-    budgetTokens: 1200,
+    budgetTokens: 4000, // 放宽:容下完整故事核心(主线/复线)
     read: async input => formatStoryCoreBlock(await db.storyCores.where('projectId').equals(input.projectId).first() ?? null),
   },
   {
@@ -218,7 +218,7 @@ export const CONTEXT_SOURCES: ContextSource[] = [
     label: '力量体系',
     scope: 'world',
     layer: 'L2',
-    budgetTokens: 1200,
+    budgetTokens: 4000, // 放宽:容下完整力量体系(描述/等级/规则)
     requiresWorldGroupId: true,
     read: async input => formatPowerSystemBlock(await readPowerSystem(input.projectId, input.worldGroupId)),
   },
@@ -227,7 +227,7 @@ export const CONTEXT_SOURCES: ContextSource[] = [
     label: '设定词条',
     scope: 'world',
     layer: 'L2',
-    budgetTokens: 2500,
+    budgetTokens: 6000, // 放宽:容下更多设定词条
     requiresWorldGroupId: true,
     read: input => buildCodexContext(input.projectId, input.worldGroupId),
   },
@@ -236,7 +236,7 @@ export const CONTEXT_SOURCES: ContextSource[] = [
     label: '角色档案',
     scope: 'world',
     layer: 'L2',
-    budgetTokens: 2500,
+    budgetTokens: 8000, // 放宽:容下完整角色档案(核心角色不再被砍残)
     requiresWorldGroupId: true,
     read: async input => buildCharacterContext(await readCharacters(input.projectId, input.worldGroupId)),
   },

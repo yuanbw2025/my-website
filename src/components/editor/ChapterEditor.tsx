@@ -205,6 +205,8 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
       citedReferenceIds: citedIds,
       stateReferenceText: stateRef,
       extraStateIds,
+      // 注意:不含 'characters' —— 角色由 charCtx 单独注入(见 handleGenerate / handleContinue),
+      // 此前 fullCtx(含characters)+charCtx 双传导致角色内容被注入两遍、白白吃掉一大块 token。
       sourceKeys: [
         'contextMemo',
         'chapterOutline',
@@ -213,7 +215,6 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
         'storyCore',
         'powerSystem',
         'codex',
-        'characters',
         'creativeRules',
         'worldRules',
         'historical',
@@ -256,6 +257,7 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
       charCtx,
       prevEnding,
       worldRulesContext,
+      customInstruction.trim() || undefined,
     )
 
     // Phase 21.3: 计算上下文预算
@@ -275,7 +277,9 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   const handleContinue = async () => {
     if (!plainText || !outlineNode) return
     const { text: fullCtx } = await buildFullWorldCtx('write')
-    const messages = buildContinuePrompt(plainText, outlineNode.summary, fullCtx)
+    // fullCtx 已不含角色(见 buildFullWorldCtx),续写也要角色 → 把 charCtx 一并带上(只此一次,不重复)
+    const ctxWithChars = charCtx ? `${fullCtx}\n\n【角色设定】\n${charCtx}` : fullCtx
+    const messages = buildContinuePrompt(plainText, outlineNode.summary, ctxWithChars, customInstruction.trim() || undefined)
     setAIAction('continue')
     ai.start(messages, undefined, { category: 'chapter.continue', projectId: project.id! })
   }
@@ -291,7 +295,7 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   const handleExpand = () => {
     const selected = editorRef.current?.getSelectedText() || plainText.slice(-500)
     if (!selected) return
-    const messages = buildExpandPrompt(selected)
+    const messages = buildExpandPrompt(selected, customInstruction.trim() || undefined)
     setAIAction('expand')
     ai.start(messages, undefined, { category: 'chapter.expand', projectId: project.id! })
   }

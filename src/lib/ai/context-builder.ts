@@ -63,36 +63,38 @@ function formatNaturalResources(nr: Worldview['naturalResources']): string {
  */
 export function formatWorldviewBlock(wv: Worldview | null): string {
   if (!wv) return ''
+  // 放开字段级硬截断:核心设定完整注入,不再每字段砍成 150-300 字。
+  // 每个上下文源仍有 token 软上限(assembleContext 的 capBySourceBudget),真超模型窗口才软裁。
   const d = wv.divineDesign
   const divine = d?.hasDivinity
-    ? `神明设定：${[d.divineRank, d.divineNames, d.divineRules].filter(Boolean).join('；').slice(0, 200)}`
+    ? `神明设定：${[d.divineRank, d.divineNames, d.divineRules].filter(Boolean).join('；')}`
     : ''
   const v3 = [
-    wv.summary && `摘要：${wv.summary.slice(0, 300)}`,
-    wv.worldOrigin && `世界来源：${wv.worldOrigin.slice(0, 300)}`,
-    wv.powerHierarchy && `力量体系：${wv.powerHierarchy.slice(0, 200)}`,
+    wv.summary && `摘要：${wv.summary}`,
+    wv.worldOrigin && `世界来源：${wv.worldOrigin}`,
+    wv.powerHierarchy && `力量体系：${wv.powerHierarchy}`,
     divine,
-    wv.worldStructure && `世界结构：${wv.worldStructure.slice(0, 150)}`,
-    wv.worldDimensions && `世界尺寸：${wv.worldDimensions.slice(0, 100)}`,
-    wv.continentLayout && `地貌分布：${wv.continentLayout.slice(0, 200)}`,
-    wv.regionDimensions && `重镇/区域分布：${wv.regionDimensions.slice(0, 120)}`,
-    wv.mountainsRivers && `山川河流：${wv.mountainsRivers.slice(0, 150)}`,
-    wv.climateByRegion && `气候环境：${wv.climateByRegion.slice(0, 120)}`,
-    wv.historyLine && `世界历史：${wv.historyLine.slice(0, 200)}`,
-    wv.worldEvents && `世界大事记：${wv.worldEvents.slice(0, 200)}`,
-    wv.naturalResourceOverview && `自然资源：${wv.naturalResourceOverview.slice(0, 150)}`,
+    wv.worldStructure && `世界结构：${wv.worldStructure}`,
+    wv.worldDimensions && `世界尺寸：${wv.worldDimensions}`,
+    wv.continentLayout && `地貌分布：${wv.continentLayout}`,
+    wv.regionDimensions && `重镇/区域分布：${wv.regionDimensions}`,
+    wv.mountainsRivers && `山川河流：${wv.mountainsRivers}`,
+    wv.climateByRegion && `气候环境：${wv.climateByRegion}`,
+    wv.historyLine && `世界历史：${wv.historyLine}`,
+    wv.worldEvents && `世界大事记：${wv.worldEvents}`,
+    wv.naturalResourceOverview && `自然资源：${wv.naturalResourceOverview}`,
     formatNaturalResources(wv.naturalResources),
-    wv.races && `种族民族：${wv.races.slice(0, 150)}`,
-    wv.factionLayout && `势力分布：${wv.factionLayout.slice(0, 200)}`,
-    wv.politicsEconomyCulture && `政经文化：${wv.politicsEconomyCulture.slice(0, 150)}`,
-    wv.internalConflicts && `矛盾冲突：${wv.internalConflicts.slice(0, 150)}`,
-    wv.itemDesign && `道具设计：${wv.itemDesign.slice(0, 150)}`,
+    wv.races && `种族民族：${wv.races}`,
+    wv.factionLayout && `势力分布：${wv.factionLayout}`,
+    wv.politicsEconomyCulture && `政经文化：${wv.politicsEconomyCulture}`,
+    wv.internalConflicts && `矛盾冲突：${wv.internalConflicts}`,
+    wv.itemDesign && `道具设计：${wv.itemDesign}`,
   ].filter(Boolean)
   if (v3.length) return `【世界观】\n${v3.join('\n')}`
   const v2 = [
-    wv.geography && `地理：${wv.geography.slice(0, 200)}`,
-    wv.society && `社会：${wv.society.slice(0, 200)}`,
-    wv.rules && `规则：${wv.rules.slice(0, 200)}`,
+    wv.geography && `地理：${wv.geography}`,
+    wv.society && `社会：${wv.society}`,
+    wv.rules && `规则：${wv.rules}`,
   ].filter(Boolean)
   return v2.length ? `【世界观】\n${v2.join('\n')}` : ''
 }
@@ -105,8 +107,8 @@ export function formatStoryCoreBlock(sc: StoryCore | null): string {
     sc.theme && `主题：${sc.theme}`,
     sc.centralConflict && `核心冲突：${sc.centralConflict}`,
     sc.plotPattern && `情节模式：${sc.plotPattern}`,
-    (sc.mainPlot || sc.storyLines) && `主线：${(sc.mainPlot || sc.storyLines).slice(0, 250)}`,
-    sc.subPlots && `复线：${sc.subPlots.slice(0, 200)}`,
+    (sc.mainPlot || sc.storyLines) && `主线：${sc.mainPlot || sc.storyLines}`,
+    sc.subPlots && `复线：${sc.subPlots}`,
   ].filter(Boolean)
   return parts.length ? `【故事核心】\n${parts.join('\n')}` : ''
 }
@@ -115,16 +117,16 @@ export function formatStoryCoreBlock(sc: StoryCore | null): string {
 export function formatPowerSystemBlock(ps: PowerSystem | null): string {
   if (!ps?.name && !ps?.description && !ps?.levels) return ''
   const parts: string[] = []
-  if (ps.name) parts.push(`${ps.name}：${ps.description?.slice(0, 200) || ''}`)
-  else if (ps.description) parts.push(ps.description.slice(0, 200))
+  if (ps.name) parts.push(`${ps.name}：${ps.description || ''}`)
+  else if (ps.description) parts.push(ps.description)
   try {
     const levels = JSON.parse(ps.levels || '[]')
     if (Array.isArray(levels) && levels.length) {
       const names = levels.map((l: { name?: string } | string) => typeof l === 'string' ? l : (l.name || '')).filter(Boolean)
-      if (names.length) parts.push(`等级阶梯：${names.join(' → ').slice(0, 250)}`)
+      if (names.length) parts.push(`等级阶梯：${names.join(' → ')}`)
     }
   } catch { /* ignore */ }
-  if (ps.rules) parts.push(`规则：${ps.rules.slice(0, 150)}`)
+  if (ps.rules) parts.push(`规则：${ps.rules}`)
   return parts.length ? `【力量体系】\n${parts.join('\n')}` : ''
 }
 
@@ -188,15 +190,16 @@ export function buildCharacterContext(characters: Character[]): string {
   if (core.length) {
     parts.push('【核心角色（完整信息）】')
     for (const c of core) {
+      // 核心角色:放开字段硬截断,完整注入(源级 token 软上限仍兜底)
       const details = [
         `${c.name}（${getRoleLabel(c.role)}）`,
         c.shortDescription ? `简介：${c.shortDescription}` : '',
-        c.appearance ? `外貌：${c.appearance.slice(0, 150)}` : '',
-        c.personality ? `性格：${c.personality.slice(0, 150)}` : '',
-        c.background ? `背景：${c.background.slice(0, 200)}` : '',
-        c.motivation ? `动机：${c.motivation.slice(0, 150)}` : '',
-        c.abilities ? `能力：${c.abilities.slice(0, 150)}` : '',
-        c.arc ? `成长弧线：${c.arc.slice(0, 150)}` : '',
+        c.appearance ? `外貌：${c.appearance}` : '',
+        c.personality ? `性格：${c.personality}` : '',
+        c.background ? `背景：${c.background}` : '',
+        c.motivation ? `动机：${c.motivation}` : '',
+        c.abilities ? `能力：${c.abilities}` : '',
+        c.arc ? `成长弧线：${c.arc}` : '',
       ].filter(Boolean).join('；')
       parts.push(details)
     }

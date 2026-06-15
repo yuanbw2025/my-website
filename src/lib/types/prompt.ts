@@ -74,6 +74,8 @@ export interface PromptParameter {
   min?: number
   max?: number
   step?: number
+  /** slider 专用:上限动态取「当前所选模型的最大输出」(换算字数),覆盖 max。用于字数类滑块,放开写死的低天花板。 */
+  maxFromModelOutput?: boolean
   /** 默认值（按 type 决定） */
   default: string | number | boolean
   /** 短描述（鼠标悬停或副标题展示） */
