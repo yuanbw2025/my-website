@@ -7,7 +7,7 @@
  * - 鼠标 hover 显示各段详情
  */
 import { useState } from 'react'
-import { AlertTriangle, ChevronDown, ChevronUp, Zap } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, Zap, Eye } from 'lucide-react'
 import {
   formatTokenCount,
   getBudgetColorClass,
@@ -40,6 +40,8 @@ const LAYER_LABELS: Record<ContextLayer, string> = {
 
 export default function ContextBudgetBar({ budget, onTrim, compact }: Props) {
   const [showDetail, setShowDetail] = useState(false)
+  // 展开查看某段「实际注入给 AI 的内容」（数据本就在 seg.content，这里只是显示出来）
+  const [openSeg, setOpenSeg] = useState<number | null>(null)
   const pct = Math.min(budget.usageRatio * 100, 100)
   const colorClass = getBudgetColorClass(budget.usageRatio)
 
@@ -122,19 +124,35 @@ export default function ContextBudgetBar({ budget, onTrim, compact }: Props) {
             ))}
           </div>
 
-          {/* 各段明细 */}
+          {/* 各段明细（点击查看本段实际注入给 AI 的内容） */}
           {budget.segments.map((seg, i) => {
             const segPct = budget.inputBudget > 0
               ? ((seg.tokens / budget.inputBudget) * 100).toFixed(1)
               : '0'
+            const open = openSeg === i
+            const hasContent = !!seg.content?.trim()
             return (
-              <div key={i} className="flex items-center gap-2 text-[10px]">
-                <span className={`w-2 h-2 rounded-sm flex-shrink-0 ${LAYER_COLORS[seg.layer]}`} />
-                <span className="flex-1 text-text-secondary truncate" title={seg.label}>
-                  {seg.label}
-                </span>
-                <span className="text-text-muted tabular-nums">{formatTokenCount(seg.tokens)}</span>
-                <span className="text-text-muted tabular-nums w-10 text-right">{segPct}%</span>
+              <div key={i}>
+                <button
+                  type="button"
+                  disabled={!hasContent}
+                  onClick={() => setOpenSeg(open ? null : i)}
+                  className={`w-full flex items-center gap-2 text-[10px] rounded px-0.5 py-0.5 ${
+                    hasContent ? 'hover:bg-bg-hover cursor-pointer' : 'cursor-default opacity-70'
+                  }`}
+                  title={hasContent ? '点击查看本段实际注入内容' : seg.label}
+                >
+                  <span className={`w-2 h-2 rounded-sm flex-shrink-0 ${LAYER_COLORS[seg.layer]}`} />
+                  <span className="flex-1 text-left text-text-secondary truncate">{seg.label}</span>
+                  {hasContent && <Eye className={`w-3 h-3 flex-shrink-0 ${open ? 'text-accent' : 'text-text-muted'}`} />}
+                  <span className="text-text-muted tabular-nums">{formatTokenCount(seg.tokens)}</span>
+                  <span className="text-text-muted tabular-nums w-10 text-right">{segPct}%</span>
+                </button>
+                {open && hasContent && (
+                  <pre className="mt-0.5 mb-1 ml-4 max-h-48 overflow-auto whitespace-pre-wrap break-words bg-bg-elevated border border-border rounded p-2 text-[10px] leading-relaxed text-text-secondary">
+                    {seg.content}
+                  </pre>
+                )}
               </div>
             )
           })}
