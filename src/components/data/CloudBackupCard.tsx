@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { Cloud, CloudUpload, CloudDownload, Check, Loader2, LogOut, ExternalLink, History } from 'lucide-react'
 import { useGistStore } from '../../stores/gist'
 import type { GistBackupMeta, GistRevisionMeta } from '../../lib/export/gist-export'
+import { useDialog } from '../shared/Dialog'
 
 interface Props {
   projectId: number
@@ -15,8 +16,10 @@ interface Props {
 }
 
 export default function CloudBackupCard({ projectId, onImported }: Props) {
-  const { pat, username, autoBackup, busy, error, connect, disconnect, backupProject, restoreFromGist, listBackups, listRevisions, setAutoBackup, projBackup } = useGistStore()
+  const { pat, username, rememberPat, autoBackup, busy, error, connect, disconnect, backupProject, restoreFromGist, listBackups, listRevisions, setAutoBackup, projBackup } = useGistStore()
+  const dialog = useDialog()
   const [patInput, setPatInput] = useState('')
+  const [rememberPatInput, setRememberPatInput] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [backups, setBackups] = useState<GistBackupMeta[] | null>(null)
   const [revisions, setRevisions] = useState<GistRevisionMeta[] | null>(null)
@@ -24,8 +27,8 @@ export default function CloudBackupCard({ projectId, onImported }: Props) {
 
   const handleConnect = async () => {
     if (!patInput.trim()) return
-    const ok = await connect(patInput)
-    if (ok) { setPatInput(''); setMsg('已连接 GitHub') }
+    const ok = await connect(patInput, rememberPatInput)
+    if (ok) { setPatInput(''); setRememberPatInput(false); setMsg('已连接 GitHub') }
   }
   const handleBackup = async () => {
     setMsg(null)
@@ -38,7 +41,12 @@ export default function CloudBackupCard({ projectId, onImported }: Props) {
     setBackups(await listBackups())
   }
   const handleRestore = async (gistId: string, title: string) => {
-    if (!confirm(`从云端恢复「${title}」？将新建一个项目，不会覆盖当前项目。`)) return
+    const ok = await dialog.confirm({
+      title: `从云端恢复「${title}」？`,
+      message: '将新建一个项目，不会覆盖当前项目。',
+      confirmText: '恢复为新项目',
+    })
+    if (!ok) return
     const newId = await restoreFromGist(gistId)
     if (newId) { setMsg('✓ 已从云端恢复为新项目'); setBackups(null); onImported?.(newId) }
   }
@@ -52,7 +60,12 @@ export default function CloudBackupCard({ projectId, onImported }: Props) {
   const handleRestoreRevision = async (rev: GistRevisionMeta) => {
     if (!proj?.gistId) return
     const when = new Date(rev.committedAt).toLocaleString('zh-CN')
-    if (!confirm(`恢复 ${when} 这一版？将新建一个项目，不会覆盖当前项目。`)) return
+    const ok = await dialog.confirm({
+      title: `恢复 ${when} 这一版？`,
+      message: '将新建一个项目，不会覆盖当前项目。',
+      confirmText: '恢复为新项目',
+    })
+    if (!ok) return
     const newId = await restoreFromGist(proj.gistId, rev.version)
     if (newId) { setMsg(`✓ 已恢复 ${when} 的版本为新项目`); setRevisions(null); onImported?.(newId) }
   }
@@ -87,7 +100,18 @@ export default function CloudBackupCard({ projectId, onImported }: Props) {
               如何创建 Token <ExternalLink className="w-3 h-3" />
             </a>
           </div>
-          <p className="text-[11px] text-text-muted">Token 只存在你本机浏览器，仅用于读写你自己的私密 Gist。</p>
+          <label className="flex items-start gap-2 text-[11px] text-text-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={rememberPatInput}
+              onChange={e => setRememberPatInput(e.target.checked)}
+              className="mt-0.5 accent-sky-400"
+            />
+            <span>在本机记住 Token（写入 localStorage）。不勾选时仅本次浏览器会话有效。</span>
+          </label>
+          <p className="text-[11px] text-text-muted">
+            云备份会把完整项目 JSON 明文上传到你的 GitHub 私密 Gist；Private Gist 不是端到端加密保险箱。
+          </p>
         </div>
       ) : (
         // 已连接
@@ -95,11 +119,17 @@ export default function CloudBackupCard({ projectId, onImported }: Props) {
           <div className="flex items-center justify-between">
             <span className="text-xs text-text-secondary flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 text-success" /> 已连接 <strong>@{username}</strong>
+              <em className="not-italic text-[10px] text-text-muted">
+                {rememberPat ? '已在本机记住' : '仅本会话'}
+              </em>
             </span>
             <button onClick={() => { disconnect(); setBackups(null) }} className="text-[11px] text-text-muted hover:text-error flex items-center gap-0.5">
               <LogOut className="w-3 h-3" /> 断开
             </button>
           </div>
+          <p className="text-[11px] text-text-muted">
+            备份内容会作为完整项目 JSON 明文上传到 GitHub 私密 Gist；Token {rememberPat ? '保存在本机 localStorage' : '仅保存在本次浏览器会话'}。
+          </p>
 
           <div className="flex flex-wrap gap-2">
             <button onClick={handleBackup} disabled={busy}

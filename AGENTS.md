@@ -42,7 +42,7 @@
 ## 项目背景速览
 
 - 纯前端 React + TypeScript + IndexedDB（Dexie）
-- ~59000 行 / 282 个源文件 / 45 张表 / 56 个 AI 动作
+- 约 56k 行 / 275+ 源文件 / 39 required tables；具体规模以当前仓库扫描、`schema.ts`、`REQUIRED_TABLES`、`PROJECT_TABLES` 和生成版 AI manual 为准
 - 已有真实用户，数据全在浏览器
 - 没有 staging 环境，main 即生产
 

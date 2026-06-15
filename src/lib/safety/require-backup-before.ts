@@ -41,11 +41,28 @@ export type BackupChoice =
   | 'proceed-backup-now'          // 用户选择立即备份后继续(已下载 JSON)
   | 'cancel'                       // 用户取消
 
+interface SafetyConfirmOptions {
+  title: string
+  message?: string
+  confirmText?: string
+  tone?: 'info' | 'danger'
+}
+
+interface BackupDialogAdapter {
+  chooseBackup: (options: RequireBackupOptions) => Promise<BackupChoice>
+  confirm: (options: SafetyConfirmOptions) => Promise<boolean>
+}
+
+let dialogAdapter: BackupDialogAdapter | null = null
+
+export function setBackupDialogAdapter(adapter: BackupDialogAdapter | null): void {
+  dialogAdapter = adapter
+}
+
 /**
  * 显示弹窗并返回用户选择。
  *
- * 当前实现:浏览器原生 confirm(简单可靠,纯前端 0 依赖)。
- * Phase 2/3 可替换为更友好的模态框 UI(BackupConfirmModal 组件)。
+ * React 根节点会注册应用内 Dialog；Provider 尚未挂载时才回退到浏览器确认。
  */
 export async function requireBackupBefore(
   options: RequireBackupOptions,
@@ -54,7 +71,7 @@ export async function requireBackupBefore(
   if (isTestEnv()) {
     return true
   }
-  const choice = await promptUserChoice(options)
+  const choice = await (dialogAdapter?.chooseBackup(options) ?? promptUserChoiceFallback(options))
 
   switch (choice) {
     case 'cancel':
@@ -69,9 +86,12 @@ export async function requireBackupBefore(
         } catch (err) {
           console.error('[Safety] 备份下载失败,中止操作', err)
           // 备份失败时拒绝操作,保护用户数据
-          const proceedAnyway = window.confirm(
-            `备份下载失败:${(err as Error).message}\n\n仍要继续高危操作"${options.operation}"吗?(强烈不建议)`
-          )
+          const proceedAnyway = await confirmFallback({
+            title: `备份下载失败，仍要继续「${options.operation}」？`,
+            message: `${(err as Error).message}\n\n强烈不建议在备份失败时继续高危操作。`,
+            confirmText: '仍要继续',
+            tone: 'danger',
+          })
           if (!proceedAnyway) return false
         }
       }
@@ -96,16 +116,16 @@ export async function requireBackupBefore(
  *
  * 更友好的 UI 见 Phase 2/3 替换。
  */
-async function promptUserChoice(options: RequireBackupOptions): Promise<BackupChoice> {
+async function promptUserChoiceFallback(options: RequireBackupOptions): Promise<BackupChoice> {
   const banner = `⚠️ 危险操作:${options.operation}`
   const detail = options.details ? `\n\n${options.details}` : ''
 
-  const proceed = window.confirm(
-    `${banner}${detail}\n\n` +
-    `此操作不可恢复。是否继续?\n\n` +
-    `✅ 确定 = 继续(下一步会询问是否立即备份)\n` +
-    `❌ 取消 = 终止本次操作`
-  )
+  const proceed = await confirmFallback({
+    title: banner,
+    message: `${detail.trim() ? `${detail.trim()}\n\n` : ''}此操作不可恢复。是否继续？下一步会询问是否立即备份。`,
+    confirmText: '继续',
+    tone: 'danger',
+  })
   if (!proceed) return 'cancel'
 
   if (options.projectId == null) {
@@ -113,11 +133,11 @@ async function promptUserChoice(options: RequireBackupOptions): Promise<BackupCh
     return 'proceed-already-backed-up'
   }
 
-  const wantBackup = window.confirm(
-    `📦 是否立即下载备份(JSON 文件到本地)?\n\n` +
-    `✅ 确定 = 立即下载备份,然后继续\n` +
-    `❌ 取消 = 我已经备份过,直接继续`
-  )
+  const wantBackup = await confirmFallback({
+    title: '是否立即下载备份(JSON 文件到本地)?',
+    message: '确认后会立即下载备份，然后继续；取消表示你已经备份过，直接继续。',
+    confirmText: '立即备份',
+  })
 
   return wantBackup ? 'proceed-backup-now' : 'proceed-already-backed-up'
 }
@@ -151,7 +171,18 @@ async function downloadProjectBackup(projectId: number, operation: string): Prom
  */
 export async function requireConfirmation(message: string): Promise<boolean> {
   if (isTestEnv()) return true
-  return Promise.resolve(window.confirm(message))
+  return confirmFallback({
+    title: '确认继续？',
+    message,
+    confirmText: '继续',
+    tone: 'danger',
+  })
+}
+
+function confirmFallback(options: SafetyConfirmOptions): Promise<boolean> {
+  if (dialogAdapter) return dialogAdapter.confirm(options)
+  const lines = [options.title, options.message].filter(Boolean).join('\n\n')
+  return Promise.resolve(globalThis.confirm(lines))
 }
 
 /**

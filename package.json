@@ -14,7 +14,7 @@
     "gen:ai-manual": "node scripts/generate-ai-manual.mjs",
     "check:ai-manual": "node scripts/generate-ai-manual.mjs --check",
     "check:architecture": "node scripts/check-architecture.mjs",
-    "ci": "npm run check:required-tables && npm run check:ai-manual && npm run check:architecture && npx tsc --noEmit && npm test && npm run build"
+    "ci": "npm run check:required-tables && npm run check:ai-manual && npm run check:architecture && npx tsc --noEmit && npm run test:coverage && npm run build"
   },
   "dependencies": {
     "@tiptap/extension-placeholder": "^3.22.3",

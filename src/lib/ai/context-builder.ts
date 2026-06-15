@@ -292,15 +292,20 @@ export async function buildRefAnalysisContext(refIds: number[]): Promise<string>
  * 从 DB 读取项目的历史事件和关键词，格式化为 AI 可用的上下文。
  * Token 预算控制：最多 2000 字（约上下文窗口的 10%）。
  */
-export async function buildHistoricalContext(projectId: number): Promise<string> {
+export async function buildHistoricalContext(projectId: number, worldGroupId?: number | null): Promise<string> {
   const MAX_CHARS = 2000
   const parts: string[] = []
   let charCount = 0
+  const project = await db.projects.get(projectId)
+  const filterWorldScope = <T extends { worldGroupId?: number | null }>(rows: T[]): T[] => {
+    if (!project?.enableMultiWorld) return rows
+    return rows.filter(row => row.worldGroupId == null || row.worldGroupId === worldGroupId)
+  }
 
   // 1. 历史时间线事件（按年份排序，取关键事件）
-  const events = await db.historicalTimelineEvents
+  const events = filterWorldScope(await db.historicalTimelineEvents
     .where('projectId').equals(projectId)
-    .sortBy('year')
+    .sortBy('year'))
 
   if (events.length > 0) {
     const eventLines: string[] = ['【历史时间线】']
@@ -317,9 +322,9 @@ export async function buildHistoricalContext(projectId: number): Promise<string>
   }
 
   // 2. 历史关键词（按分类分组）
-  const keywords = await db.historicalKeywords
+  const keywords = filterWorldScope(await db.historicalKeywords
     .where('projectId').equals(projectId)
-    .toArray()
+    .toArray())
 
   if (keywords.length > 0) {
     const byCategory = new Map<HistoricalKeywordCategory, HistoricalKeyword[]>()

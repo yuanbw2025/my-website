@@ -239,7 +239,7 @@ function HumanityFieldEditor({
     const messages = buildWorldviewPrompt(
       meta.label, project.name, project.genre || '', contextSummary, hint, opts, value, mode,
     )
-    ai.start(messages)
+    ai.start(messages, undefined, { category: 'worldview.dimension', projectId: project.id! })
   }
 
   return (

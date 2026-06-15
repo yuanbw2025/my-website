@@ -1,5 +1,7 @@
 import { db } from '../db/schema'
 import { importLegacyArraysToCodex } from '../migrations/legacy-to-codex-upgrade'
+import { transactionTablesFor } from '../registry/lifecycle'
+import { remapWorldPortalTargets } from '../utils/world-portals'
 import type {
   Project, Worldview, StoryCore, PowerSystem,
   Character, OutlineNode, Chapter,
@@ -25,48 +27,6 @@ type HomeWorldGroupExportRef = {
   /** Legacy export compatibility only. New exports should not write this field. */
   homeWorldGroupId?: number | null
 }
-
-const PROJECT_TABLES_ALL = [
-  db.aiUsageLog,
-  db.chapters,
-  db.characterRelations,
-  db.characters,
-  db.codexCategories,
-  db.codexEntries,
-  db.creativeRules,
-  db.detailedOutlines,
-  db.emotionBeatCards,
-  db.foreshadows,
-  db.geographies,
-  db.historicalKeywords,
-  db.historicalTimelineEvents,
-  db.histories,
-  db.importFiles,
-  db.importJobs,
-  db.importLogs,
-  db.importSessions,
-  db.importantLocations,
-  db.itemLedger,
-  db.notes,
-  db.outlineNodes,
-  db.powerSystems,
-  db.projects,
-  db.promptTemplates,
-  db.promptWorkflows,
-  db.referenceChunkAnalysis,
-  db.references,
-  db.snapshots,
-  db.stateCards,
-  db.storyArcs,
-  db.storyCores,
-  db.storyTimelineEvents,
-  db.userStyleProfiles,
-  db.worldGroupLinks,
-  db.worldGroups,
-  db.worldNodes,
-  db.worldRulesProfiles,
-  db.worldviews,
-]
 
 function requireMappedId(
   map: Map<number, number>,
@@ -418,9 +378,10 @@ export async function exportProjectJSON(projectId: number): Promise<ProjectExpor
     userStyleProfiles: userStyleProfiles.map(({ id: _, projectId: __, ...rest }) => rest),
     storyArcs: storyArcs.map(({ id: _, projectId: __, ...rest }) => rest),
     worldNodes: worldNodes.map((w) => {
-      const { id, projectId: __, ...rest } = w
+      const { id, projectId: __, portalsJSON, ...rest } = w
       return {
         ...withWorldGroupExportId(rest),
+        portalsJSON: remapWorldPortalTargets(portalsJSON, targetId => worldNodeIdMap.get(targetId)),
         _exportId: worldNodeIdMap.get(id!) ?? 0,
         _parentExportId: w.parentId ? (worldNodeIdMap.get(w.parentId) ?? null) : null,
       }
@@ -494,7 +455,7 @@ export async function importProjectJSON(data: ProjectExportData): Promise<number
 
   const now = Date.now()
 
-  return await db.transaction('rw', PROJECT_TABLES_ALL, async () => {
+  return await db.transaction('rw', transactionTablesFor('importProject'), async () => {
   // 1. 创建项目
   const newProjectId = await db.projects.add({
     ...data.project,
@@ -677,8 +638,9 @@ export async function importProjectJSON(data: ProjectExportData): Promise<number
     if (a._parentExportId !== null && b._parentExportId === null) return 1
     return (a._exportId ?? 0) - (b._exportId ?? 0)
   })
+  const pendingWorldNodePortals: Array<{ id: number; portalsJSON?: string }> = []
   for (const w of sortedWorldNodes) {
-    const { _exportId, _parentExportId, parentId: _, ...rest } = w
+    const { _exportId, _parentExportId, parentId: _, portalsJSON, ...rest } = w
     const newParentId = optionalMappedId(newWorldNodeIds, _parentExportId, 'worldNodes.parentId')
     const newId = await db.worldNodes.add({
       ...importWorldScoped(rest),
@@ -686,6 +648,13 @@ export async function importProjectJSON(data: ProjectExportData): Promise<number
       projectId: newProjectId,
     } as WorldNode) as number
     newWorldNodeIds.set(_exportId, newId)
+    pendingWorldNodePortals.push({ id: newId, portalsJSON })
+  }
+  for (const pending of pendingWorldNodePortals) {
+    const portalsJSON = remapWorldPortalTargets(pending.portalsJSON, targetExportId => newWorldNodeIds.get(targetExportId))
+    if (portalsJSON) {
+      await db.worldNodes.update(pending.id, { portalsJSON, updatedAt: now })
+    }
   }
 
   // 15. 便签

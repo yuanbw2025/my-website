@@ -47,7 +47,7 @@ export default function WorldGroupOverview({ project }: Props) {
       existingWorlds,
       userHint: '',
     })
-    const result = await ai.start(messages)
+    const result = await ai.start(messages, undefined, { category: 'world-group.suggest', projectId: project.id! })
     if (!result) return
     const parsed = parseWorldSuggestOutput(result)
     setSuggested(parsed)

@@ -4,7 +4,7 @@
  * AI 生成的 SVG（概念地图等）会以 dangerouslySetInnerHTML 渲染。SVG 可携带
  * <script>、on* 事件、javascript: URL、<foreignObject> 等可执行内容；若 AI 端点
  * 被劫持或发生提示词注入，会在应用源内执行任意脚本（窃取 IndexedDB 中的小说、
- * localStorage 中的 API Key 等）。此函数用 DOM 解析后剔除可执行向量再序列化，
+ * local/sessionStorage 中的敏感配置等）。此函数用 DOM 解析后剔除可执行向量再序列化，
  * 比正则更可靠。
  */
 

@@ -133,7 +133,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-bg-base" onClick={() => setDeleteConfirm(null)}>
       {/* 新手引导 */}
-      <WelcomeGuide onGoSettings={() => navigate('/workspace/settings')} />
+      <WelcomeGuide onGoSettings={() => navigate('/settings')} />
 
       {/* ── 顶栏 ──────────────────────────────────────── */}
       <header className="border-b border-border px-8 py-4 flex items-center sticky top-0 bg-bg-base/90 backdrop-blur-sm z-20">

@@ -85,7 +85,7 @@ export async function* streamChat(
   result?: StreamResult,
   meta?: AICallMeta,
 ): AsyncGenerator<string> {
-  const trimmed = trimMessagesToFit(messages, config.provider, config.model, config.maxTokens)
+  const trimmed = trimMessagesToFit(messages, config.provider, config.model, config.maxTokens, config.contextWindow)
   if (trimmed.trimmed) {
     console.warn(`[AI] request messages trimmed to fit context window: ${trimmed.totalInputTokens}/${trimmed.inputBudget} tokens`)
   }
@@ -198,7 +198,7 @@ export async function chat(
   meta?: AICallMeta,
   signal?: AbortSignal,
 ): Promise<string> {
-  const trimmed = trimMessagesToFit(messages, config.provider, config.model, config.maxTokens)
+  const trimmed = trimMessagesToFit(messages, config.provider, config.model, config.maxTokens, config.contextWindow)
   if (trimmed.trimmed) {
     console.warn(`[AI] request messages trimmed to fit context window: ${trimmed.totalInputTokens}/${trimmed.inputBudget} tokens`)
   }

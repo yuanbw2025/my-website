@@ -396,9 +396,10 @@ sequenceDiagram
     CE->>ADP: buildChapterContentPrompt
     ADP-->>CE: messages
 
-    CE->>CE: analyzeContextSegments + calculateBudget<br/>ContextBudgetBar 只算不真裁
+    CE->>CE: analyzeContextSegments + calculateBudget<br/>ContextBudgetBar 显示预算
     CE->>HOOK: ai.start messages meta
     HOOK->>CLI: streamChat
+    CLI->>CLI: trimMessagesToFit<br/>请求侧真裁剪
     CLI->>AI: POST chat/completions stream
 
     loop 流式
@@ -659,11 +660,11 @@ flowchart TB
     WG ==全世界摘要==> BAW
 
     subgraph EXP_S["📦 导出/导入"]
-        EXP_OUT["exportProjectJSON<br/>worldGroups 用 _exportId index<br/>BUG-EXPORT-WG<br/>其它表 worldGroupId 是原始 id<br/>导入 remap 键不匹配<br/>多世界归属丢失"]
-        IMP_OUT["importProjectJSON<br/>newWorldGroupIds index 新 id<br/>section 27 remap"]
+        EXP_OUT["exportProjectJSON<br/>worldGroups 用 _exportId index<br/>其它 worldGroupId 同协议重映射<br/>portalsJSON 引用同步 remap"]
+        IMP_OUT["importProjectJSON<br/>newWorldGroupIds index 新 id<br/>统一 remap + 回归覆盖"]
     end
 
-    EXP_OUT -.待修.-> IMP_OUT
+    EXP_OUT ==已修复==> IMP_OUT
 
     classDef wg fill:#dc2626,stroke:#b91c1c,color:#fff;
     classDef wgt fill:#1d4ed8,stroke:#1e40af,color:#fff;
@@ -790,8 +791,8 @@ flowchart LR
         FX_AIL["aiUsageLog<br/>此前 deleteProject 漏"]
     end
 
-    subgraph TBL_BUG["🔴 仍有 BUG"]
-        BUG_WG["worldGroups 自身<br/>BUG-EXPORT-WG<br/>导出用 index 重映射键值错位"]
+    subgraph TBL_BUG["🟢 BUG-EXPORT-WG 已修"]
+        BUG_WG["worldGroups 自身<br/>export-index remap 统一<br/>portal 引用同步覆盖"]
     end
 
     EXP -.全覆盖.-> OK_WV
@@ -812,7 +813,7 @@ flowchart LR
     IMP ==修复后==> FX_WR
     IMP ==修复后==> FX_CC
     IMP ==修复后==> FX_CE
-    IMP -.受 BUG-EXPORT-WG 影响.-> BUG_WG
+    IMP ==修复后==> BUG_WG
 
     DELP -.全覆盖.-> OK_WV
     DELP ==修复后==> FX_LOC
@@ -970,7 +971,7 @@ flowchart TB
     EM --> BUILD
     SM --> BUILD
 
-    OUT["拼装 fullContext<br/>Semantic + Episodic + Working<br/>由静到动顺序<br/>ContextBudgetBar 显示预算分布<br/>autoTrimToFit 仅显示 不真裁 待开发"]
+    OUT["拼装 fullContext<br/>Semantic + Episodic + Working<br/>由静到动顺序<br/>ContextBudgetBar 显示预算分布<br/>请求侧 trimMessagesToFit 真裁剪"]
     BUILD --> OUT
     OUT ==> CHAPGEN["buildChapterContentPrompt"]
 
@@ -1009,7 +1010,7 @@ flowchart TB
     RESTORE --> NEW["新 project 与全部子表"]
 
     subgraph EXPORTS["📦 导出格式"]
-        EXP_JSON["JSON 全量备份<br/>exportProjectJSON<br/>含 27 张表用户内容<br/>ID 重映射 parent category worldGroup<br/>worldGroupId 重映射键值待修"]
+        EXP_JSON["JSON 全量备份<br/>exportProjectJSON<br/>含项目内容表<br/>ID 重映射 parent category worldGroup<br/>worldGroupId remap 已修"]
         EXP_MD["Markdown text-export"]
         EXP_HTML["HTML 设定集<br/>html-builder<br/>世界观 v3 全字段<br/>角色卡完整字段"]
         EXP_EPUB["EPUB epub-export jszip"]

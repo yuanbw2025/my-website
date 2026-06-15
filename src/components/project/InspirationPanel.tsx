@@ -107,7 +107,7 @@ export default function InspirationPanel({ project }: Props) {
     const messages = isMW
       ? buildInspirationReverseMultiWorldPrompt(project.name, genres, inspiration, userHint || undefined)
       : buildInspirationReversePrompt(project.name, genres, inspiration, userHint || undefined)
-    await ai.start(messages)
+    await ai.start(messages, undefined, { category: 'inspiration.reverse', projectId: project.id! })
   }
 
   // ── 多世界：一键采纳（创建世界组 + 各世界世界观 + 故事核心 + 角色归属）──

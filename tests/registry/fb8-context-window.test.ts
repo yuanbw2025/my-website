@@ -6,7 +6,7 @@
  * 修复:calculateBudget 增加 contextWindowOverride 参数,优先级 用户>预设>8K兜底。
  */
 import { describe, it, expect } from 'vitest'
-import { calculateBudget, type ContextSegment } from '../../src/lib/ai/context-budget'
+import { calculateBudget, trimMessagesToFit, type ContextSegment } from '../../src/lib/ai/context-budget'
 
 const seg = (tokens: number): ContextSegment => ({
   label: 'x', layer: 'L1', content: 'x', tokens, trimmable: true,
@@ -40,5 +40,19 @@ describe('FB-8 · 上下文窗口可配置', () => {
   it('override=0/undefined → 回退预设(留空等于用预设)', () => {
     const b = calculateBudget('ollama' as any, 'local', [seg(100)], 0)
     expect(b.maxContext).toBe(8000)
+  })
+
+  it('request-side trimMessagesToFit 也尊重 contextWindow override', () => {
+    const huge = '长'.repeat(6000)
+    const messages = [
+      { role: 'system' as const, content: 'system' },
+      { role: 'user' as const, content: huge },
+    ]
+    const without = trimMessagesToFit(messages, 'ollama' as any, 'local', 4096)
+    const withOverride = trimMessagesToFit(messages, 'ollama' as any, 'local', 4096, 170000)
+
+    expect(without.trimmed).toBe(true)
+    expect(withOverride.trimmed).toBe(false)
+    expect(withOverride.messages[1].content).toBe(huge)
   })
 })

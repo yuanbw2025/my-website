@@ -4,6 +4,7 @@ import { useAIConfigStore, type TestResult } from '../../stores/ai-config'
 import type { AIProvider } from '../../lib/types'
 import { PROVIDER_MODELS } from '../../lib/types'
 import { getLogs, subscribeLogs, clearLogs, formatLog } from '../../lib/ai/logger'
+import { useDialog } from '../shared/Dialog'
 
 const PROVIDER_OPTIONS: { value: AIProvider; label: string; cors: boolean; hint: string }[] = [
   { value: 'deepseek', label: 'DeepSeek', cors: false, hint: '获取 Key: platform.deepseek.com → API Keys（需点击下方「切换到本地代理」）' },
@@ -31,7 +32,9 @@ const THEME_OPTIONS = [
 
 export default function AIConfigPanel() {
   const { config, setConfig, switchProvider, testConnection,
+    rememberApiKey, setRememberApiKey,
     presets, activePresetId, saveAsPreset, applyPreset, updatePresetFromCurrent, renamePreset, deletePreset } = useAIConfigStore()
+  const dialog = useDialog()
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<TestResult | null>(null)
@@ -66,6 +69,25 @@ export default function AIConfigPanel() {
     window.dispatchEvent(new Event('themechange'))
   }
 
+  const handleRenamePreset = async (id: string, currentName: string) => {
+    const name = await dialog.prompt({
+      title: '重命名预设',
+      defaultValue: currentName,
+      placeholder: '输入新的预设名称',
+    })
+    if (name?.trim()) renamePreset(id, name.trim())
+  }
+
+  const handleDeletePreset = async (id: string, name: string) => {
+    const ok = await dialog.confirm({
+      title: `删除预设「${name}」？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (ok) deletePreset(id)
+  }
+
   // 切换 provider 时清空测试结果
   useEffect(() => {
     setTestResult(null)
@@ -78,6 +100,9 @@ export default function AIConfigPanel() {
       {/* AI 配置 */}
       <div className="bg-bg-surface border border-border rounded-xl p-5 mb-6">
         <h3 className="text-base font-semibold text-text-primary mb-4">AI 模型配置</h3>
+        <p className="text-[11px] text-text-muted mb-4 rounded-lg border border-border bg-bg-base px-3 py-2">
+          API Key 默认仅保存在本次浏览器会话；勾选“记住在本机”才会写入 localStorage。发起 AI 生成、测试连接或使用自定义 baseUrl 时，相关提示词和上下文会发送到你配置的模型服务。
+        </p>
 
         {/* ── API 配置预设（多套一键切换） ── */}
         <div className="mb-4 pb-4 border-b border-border/50">
@@ -130,12 +155,12 @@ export default function AIConfigPanel() {
                     >💾</button>
                   )}
                   <button
-                    onClick={() => { const n = prompt('重命名预设', p.name); if (n) renamePreset(p.id, n) }}
+                    onClick={() => { void handleRenamePreset(p.id, p.name) }}
                     title="重命名"
                     className="opacity-0 group-hover:opacity-70 hover:opacity-100"
                   >✎</button>
                   <button
-                    onClick={() => { if (confirm(`删除预设「${p.name}」？`)) deletePreset(p.id) }}
+                    onClick={() => { void handleDeletePreset(p.id, p.name) }}
                     title="删除"
                     className="opacity-0 group-hover:opacity-70 hover:opacity-100 hover:text-red-400"
                   >✕</button>
@@ -184,6 +209,17 @@ export default function AIConfigPanel() {
                 {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            <label className="mt-2 flex items-start gap-2 text-[11px] text-text-secondary cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rememberApiKey}
+                onChange={e => setRememberApiKey(e.target.checked)}
+                className="mt-0.5 accent-accent"
+              />
+              <span>
+                在本机记住 API Key（写入 localStorage）。不勾选时仅本次浏览器会话有效。
+              </span>
+            </label>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -41,10 +41,11 @@ export function exportableTables(): TableSpec[] {
  * 防止"事务声明漏表"(Phase 0 反复踩的坑)。
  */
 export function transactionTablesFor(
-  op: 'deleteProject' | 'deleteGroup' | 'migrate',
+  op: 'deleteProject' | 'deleteGroup' | 'migrate' | 'importProject',
 ): Table[] {
-  if (op === 'deleteProject') {
-    // 删项目:所有非 global 表
+  if (op === 'deleteProject' || op === 'importProject') {
+    // 删项目/导入项目:所有非 global 表。导入事务保持宽表声明,
+    // 避免导入过程中的完整性断言或新增 project-scoped 表漏进事务。
     return projectScopedTables().map(s => s.table)
   }
   if (op === 'deleteGroup') {

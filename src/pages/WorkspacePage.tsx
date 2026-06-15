@@ -20,44 +20,43 @@ import { PanelRight } from 'lucide-react'
 import Sidebar, { type SidebarModule } from '../components/layout/Sidebar'
 import PropertiesPanel from '../components/layout/PropertiesPanel'
 import ProjectInfoPanel from '../components/project/ProjectInfoPanel'
-import ReferencePanel from '../components/project/ReferencePanel'
-import SettingsPage from '../components/settings/SettingsPage'
-import UsageStatsPage from '../components/settings/UsageStatsPage'
-import VersionHistoryPanel from '../components/system/VersionHistoryPanel'
-import ImportDocPanel from '../components/system/ImportDocPanel'
-import PromptManagerPanel from '../components/settings/prompt/PromptManagerPanel'
 // 旧「作品学习」面板已整合进 ReferencePanel（Phase 20，子系统于 v32 下线）
-import DataManagementPanel from '../components/data/DataManagementPanel'
-import WorldRulesPanel from '../components/worldview/WorldRulesPanel'
-import StoryCorePanel from '../components/worldview/StoryCorePanel'
-import PowerSystemPanel from '../components/worldview/PowerSystemPanel'
-import WorldviewOriginPanel from '../components/worldview/WorldviewOriginPanel'
-import WorldviewNaturalPanel from '../components/worldview/WorldviewNaturalPanel'
-import WorldviewHumanityPanel from '../components/worldview/WorldviewHumanityPanel'
-import CharacterPanel from '../components/character/CharacterPanel'
-import CharacterMinorPanel from '../components/character/CharacterMinorPanel'
-import CharacterNPCPanel from '../components/character/CharacterNPCPanel'
-import CharacterExtraPanel from '../components/character/CharacterExtraPanel'
-import OutlinePanel from '../components/outline/OutlinePanel'
-import DetailedOutlinePanel from '../components/outline/DetailedOutlinePanel'
-import ChaptersListPanel from '../components/editor/ChaptersListPanel'
-import ForeshadowPanel from '../components/foreshadow/ForeshadowPanel'
-import StyleLearningPanel from '../components/style/StyleLearningPanel'
-// Phase 3.5 性能:地图类面板拉 three.js / d3 / azgaar(重),懒加载踢出首屏主包
+const ReferencePanel = lazy(() => import('../components/project/ReferencePanel'))
+const SettingsPage = lazy(() => import('../components/settings/SettingsPage'))
+const UsageStatsPage = lazy(() => import('../components/settings/UsageStatsPage'))
+const VersionHistoryPanel = lazy(() => import('../components/system/VersionHistoryPanel'))
+const ImportDocPanel = lazy(() => import('../components/system/ImportDocPanel'))
+const PromptManagerPanel = lazy(() => import('../components/settings/prompt/PromptManagerPanel'))
+const DataManagementPanel = lazy(() => import('../components/data/DataManagementPanel'))
+const WorldRulesPanel = lazy(() => import('../components/worldview/WorldRulesPanel'))
+const StoryCorePanel = lazy(() => import('../components/worldview/StoryCorePanel'))
+const PowerSystemPanel = lazy(() => import('../components/worldview/PowerSystemPanel'))
+const WorldviewOriginPanel = lazy(() => import('../components/worldview/WorldviewOriginPanel'))
+const WorldviewNaturalPanel = lazy(() => import('../components/worldview/WorldviewNaturalPanel'))
+const WorldviewHumanityPanel = lazy(() => import('../components/worldview/WorldviewHumanityPanel'))
+const CharacterPanel = lazy(() => import('../components/character/CharacterPanel'))
+const CharacterMinorPanel = lazy(() => import('../components/character/CharacterMinorPanel'))
+const CharacterNPCPanel = lazy(() => import('../components/character/CharacterNPCPanel'))
+const CharacterExtraPanel = lazy(() => import('../components/character/CharacterExtraPanel'))
+const OutlinePanel = lazy(() => import('../components/outline/OutlinePanel'))
+const DetailedOutlinePanel = lazy(() => import('../components/outline/DetailedOutlinePanel'))
+const ChaptersListPanel = lazy(() => import('../components/editor/ChaptersListPanel'))
+const ForeshadowPanel = lazy(() => import('../components/foreshadow/ForeshadowPanel'))
+const StyleLearningPanel = lazy(() => import('../components/style/StyleLearningPanel'))
 const GeographyPanel = lazy(() => import('../components/geography/GeographyPanel'))
-import HistoryPanel from '../components/history/HistoryPanel'
-import CreativeRulesPanel from '../components/rules/CreativeRulesPanel'
-import CharacterRelationPanel from '../components/relations/CharacterRelationPanel'
+const HistoryPanel = lazy(() => import('../components/history/HistoryPanel'))
+const CreativeRulesPanel = lazy(() => import('../components/rules/CreativeRulesPanel'))
+const CharacterRelationPanel = lazy(() => import('../components/relations/CharacterRelationPanel'))
 const WorldMapPanel = lazy(() => import('../components/geography/WorldMapPanel'))
-import StatePanel from '../components/state/StatePanel'
-import StoryArcPanel from '../components/outline/StoryArcPanel'
-import CharacterDrivenPlotPanel from '../components/outline/CharacterDrivenPlotPanel'
-import InspirationPanel from '../components/project/InspirationPanel'
-import LocationPanel from '../components/location/LocationPanel'
-import InventoryPanel from '../components/items/InventoryPanel'
-import StoryTimelinePanel from '../components/timeline/StoryTimelinePanel'
-import SceneVerifyPanel from '../components/scene/SceneVerifyPanel'
-import WorldGroupOverview from '../components/world-group/WorldGroupOverview'
+const StatePanel = lazy(() => import('../components/state/StatePanel'))
+const StoryArcPanel = lazy(() => import('../components/outline/StoryArcPanel'))
+const CharacterDrivenPlotPanel = lazy(() => import('../components/outline/CharacterDrivenPlotPanel'))
+const InspirationPanel = lazy(() => import('../components/project/InspirationPanel'))
+const LocationPanel = lazy(() => import('../components/location/LocationPanel'))
+const InventoryPanel = lazy(() => import('../components/items/InventoryPanel'))
+const StoryTimelinePanel = lazy(() => import('../components/timeline/StoryTimelinePanel'))
+const SceneVerifyPanel = lazy(() => import('../components/scene/SceneVerifyPanel'))
+const WorldGroupOverview = lazy(() => import('../components/world-group/WorldGroupOverview'))
 import { useLocationStore } from '../stores/location'
 import { useWorldGroupStore } from '../stores/world-group'
 

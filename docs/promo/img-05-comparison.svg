@@ -69,7 +69,7 @@
     <rect x="454" y="292" width="340" height="52" rx="6" fill="#052e16" stroke="#166534"/>
     <text x="474" y="316" font-size="20" fill="#10b981">✅</text>
     <text x="502" y="316" font-size="13" fill="#6ee7b7" font-weight="600">100% 本地（IndexedDB）</text>
-    <text x="502" y="333" font-size="11.5" fill="#4ade80">API Key 存 localStorage，不经后端</text>
+    <text x="502" y="333" font-size="11.5" fill="#4ade80">Key 默认会话保存，不经后端</text>
 
     <rect x="808" y="292" width="332" height="52" rx="6" fill="#78350f" stroke="#92400e" opacity="0.8"/>
     <text x="828" y="316" font-size="20" fill="#fbbf24">⚠️</text>

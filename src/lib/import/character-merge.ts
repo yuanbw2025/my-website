@@ -70,7 +70,7 @@ export async function runCharacterMerge(args: RunCharacterMergeArgs): Promise<vo
     }
     if (!config.apiKey) throw new Error('未配置 AI API Key')
 
-    const output = await chatWithAbort(messages, config, signal)
+    const output = await chatWithAbort(messages, config, signal, { category: 'import.merge-characters', projectId })
     const parsed = extractJSON(output) as { mergeGroups?: Array<{
       canonical: string
       aliases: string[]

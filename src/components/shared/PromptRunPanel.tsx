@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp, RotateCcw, Save, Settings2 } from 'lucide-react'
 import { usePromptStore } from '../../stores/prompt'
 import type { PromptModuleKey, PromptParameter, PromptTemplate } from '../../lib/types/prompt'
+import { useDialog } from './Dialog'
+import { useToast } from './Toast'
 
 interface Props {
   /** 当前调用使用的 moduleKey */
@@ -32,6 +34,8 @@ export default function PromptRunPanel({
   userOverride, onUserOverrideChange,
   defaultOpen = false,
 }: Props) {
+  const dialog = useDialog()
+  const toast = useToast()
   const templates = usePromptStore(s => s.templates)
   const cloneTemplate = usePromptStore(s => s.cloneTemplate)
   const saveTemplate = usePromptStore(s => s.saveTemplate)
@@ -57,7 +61,11 @@ export default function PromptRunPanel({
 
   /** 把当前覆盖另存为新的"我的"模板 */
   const handleSaveAs = async () => {
-    const name = prompt('新模板名称：', `${tpl.name}（我的微调）`)
+    const name = await dialog.prompt({
+      title: '另存为新模板',
+      defaultValue: `${tpl.name}（我的微调）`,
+      placeholder: '输入模板名称',
+    })
     if (!name) return
     const newId = await cloneTemplate(tpl.id!, name)
     // 把当前覆盖写入新模板
@@ -79,7 +87,7 @@ export default function PromptRunPanel({
       onParamChange({})
       onSystemOverrideChange(null)
       onUserOverrideChange(null)
-      alert(`已另存为「${name}」。在「提示词库」里把它设为激活即可使用。`)
+      toast.success(`已另存为「${name}」。在「提示词库」里把它设为激活即可使用。`)
     }
   }
 

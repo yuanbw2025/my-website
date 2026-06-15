@@ -1008,7 +1008,7 @@
 
 ### 审计遗留低优先项（2026-06-04 全量审计）
 
-- **上下文预算真裁剪**（功能逻辑审计发现）：`autoTrimToFit` 已实现但仅用于 UI 显示「会裁哪些层」，**实际发送的上下文从不真裁** → 超出模型窗口时直接 API 报错而非逐层降级。多数场景被三层记忆字符预算兜住，但 L3（参考分析/大师洞察引用）可叠加超限。根治需把上下文组装改为 token-aware（按 segment 真删 L3→L2→L1）再发送。中优先。
+- **上下文预算真裁剪**（功能逻辑审计发现）：旧问题为 `autoTrimToFit` 只用于 UI 显示、请求侧不真裁。**已修复**：`chat()` / `streamChat()` 发送前调用 `trimMessagesToFit()`，并尊重用户配置的 `contextWindow`；回归见 `tests/registry/fb8-context-window.test.ts`。后续只保留 token-aware 细粒度 segment 裁剪优化。
 
 - **提示词内容质量审查**（#4）：本次审计只核对了提示词与解析器的「字段 key 对齐」，未评估提示词本身产出质量。后续可逐个 prompt seed 评估输出是否达标、是否需调优。属调优非 bug。
 - **性能·懒加载应用面板**（#5 续）：已完成——重型依赖 pdfjs/mammoth 改动态 import（首屏少加载 ~866KB）、three.js 本就动态、vite 拆 vendor-react。**剩余**：主包仍 ~1.93MB（应用代码 + dexie/zustand/lucide/canvas 渲染），进一步可用 `React.lazy` 懒加载重面板（3D 地图 / 作品学习 / 导入 / 世界地图）。中低优先。

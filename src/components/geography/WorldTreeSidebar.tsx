@@ -15,6 +15,8 @@ import {
   PanelLeftOpen,
 } from 'lucide-react'
 import { useWorldNodeStore, type WorldTreeNode } from '../../stores/world-node'
+import { parseWorldPortals } from '../../lib/utils/world-portals'
+import { useDialog } from '../shared/Dialog'
 
 interface Props {
   projectId: number
@@ -145,13 +147,14 @@ interface TreeItemProps {
 function TreeItem({
   node, depth, activeId, onSelect, onAddChild, onDelete, onRename,
 }: TreeItemProps) {
+  const dialog = useDialog()
   const [expanded, setExpanded] = useState(true)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(node.name)
 
   const isActive = activeId === node.id
   const hasChildren = node.children.length > 0
-  const portals = node.portalsJSON ? JSON.parse(node.portalsJSON) : []
+  const portals = parseWorldPortals(node.portalsJSON)
 
   const handleRename = () => {
     if (editName.trim() && editName !== node.name) {
@@ -222,9 +225,15 @@ function TreeItem({
             <Plus className="w-2.5 h-2.5" />
           </button>
           <button
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation()
-              if (confirm(`确定删除「${node.name}」及其所有子世界吗？`)) onDelete(node.id!)
+              const ok = await dialog.confirm({
+                title: `删除「${node.name}」及其所有子世界？`,
+                message: '此操作不可恢复。',
+                confirmText: '删除',
+                tone: 'danger',
+              })
+              if (ok) onDelete(node.id!)
             }}
             className="p-0.5 rounded hover:bg-bg-base text-text-muted hover:text-red-400"
             title="删除"

@@ -8,9 +8,11 @@ import { resolve } from 'node:path'
 import { trimMessagesToFit } from '../../src/lib/ai/context-budget'
 import { chat } from '../../src/lib/ai/client'
 import { sanitizeExportHtml } from '../../src/lib/export/sanitize-html'
+import { sanitizeSvg } from '../../src/lib/utils/sanitize-svg'
 import { removeLocationSubtree } from '../../src/components/geography/GeographyPanel'
 import { filterExistingIds } from '../../src/components/outline/DetailedOutlinePanel'
 import { useWorldNodeStore } from '../../src/stores/world-node'
+import { parseWorldPortals } from '../../src/lib/utils/world-portals'
 import type { AIConfig, Location } from '../../src/lib/types'
 
 describe('R-18: request trimming and abort signal', () => {
@@ -59,6 +61,23 @@ describe('R-18: export sanitization', () => {
     expect(clean).not.toContain('onclick')
     expect(clean).not.toContain('javascript:')
     expect(clean).not.toContain('<script')
+  })
+
+  it('removes active SVG payloads before dangerous innerHTML rendering', () => {
+    const dirty = `<svg onload="steal()" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+      <foreignObject><div xmlns="http://www.w3.org/1999/xhtml" onload="x()">bad</div></foreignObject>
+      <script>alert(1)</script>
+      <a href="javascript:alert(1)" xlink:href="data:text/html,%3Cscript%3Ex%3C/script%3E">x</a>
+      <rect onclick="x()" style="background:url(javascript:alert(1))" width="10" height="10" />
+    </svg>`
+    const clean = sanitizeSvg(dirty)
+    expect(clean).toContain('<svg')
+    expect(clean.toLowerCase()).not.toContain('foreignobject')
+    expect(clean.toLowerCase()).not.toContain('<script')
+    expect(clean.toLowerCase()).not.toContain('javascript:')
+    expect(clean.toLowerCase()).not.toContain('data:text/html')
+    expect(clean.toLowerCase()).not.toContain('onload')
+    expect(clean.toLowerCase()).not.toContain('onclick')
   })
 })
 
@@ -112,6 +131,14 @@ describe('R-18: world portal cleanup', () => {
     const other = await db.worldNodes.get(otherId)
     expect(other?.portalsJSON ?? '').not.toContain(String(childId))
   })
+
+  it('parses portal JSON defensively for render paths', () => {
+    expect(parseWorldPortals('{bad json')).toEqual([])
+    expect(parseWorldPortals(JSON.stringify([
+      { name: 'valid', targetWorldId: 1, x: 2, y: 3 },
+      { name: 'invalid', targetNodeId: 1, x: 2, y: 3 },
+    ]))).toEqual([{ name: 'valid', targetWorldId: 1, x: 2, y: 3 }])
+  })
 })
 
 describe('R-18: multiworld context wiring', () => {
@@ -128,6 +155,16 @@ describe('R-18: multiworld context wiring', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/worldview/StoryCorePanel.tsx'), 'utf8')
     expect(source).toContain('useWorldGroupStore')
     expect(source).toContain('loadAll(project.id!, project.enableMultiWorld ? activeGroupId : null)')
+  })
+})
+
+describe('R-18: onboarding settings route', () => {
+  it('WelcomeGuide settings CTA goes to a global settings route, not an invalid workspace id', () => {
+    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
+    const home = readFileSync(resolve(process.cwd(), 'src/pages/HomePage.tsx'), 'utf8')
+    expect(app).toContain('path="/settings"')
+    expect(home).toContain("navigate('/settings')")
+    expect(home).not.toContain("navigate('/workspace/settings')")
   })
 })
 

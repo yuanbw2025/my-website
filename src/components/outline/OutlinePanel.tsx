@@ -14,12 +14,15 @@ import {
 import { useAIConfigStore } from '../../stores/ai-config'
 import { runBatchOutlineGeneration, type BatchOutlineProgress } from '../../lib/ai/batch-outline-runner'
 import { adopt } from '../../lib/registry/adopt'
+import { getTopLevelVolumes } from '../../lib/outline/selectors'
 import type { AssembleContextResult } from '../../lib/registry/types'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
 import PanelLayout from '../shared/PanelLayout'
 import AutoResizeTextarea from '../shared/AutoResizeTextarea'
 import { CInput } from '../shared/CompositionInput'
+import { useDialog } from '../shared/Dialog'
+import { useToast } from '../shared/Toast'
 import type { Project, StoryStructure } from '../../lib/types'
 import { STORY_STRUCTURES } from '../../lib/types/outline'
 
@@ -29,6 +32,8 @@ interface Props {
 }
 
 export default function OutlinePanel({ project, onOpenChapter }: Props) {
+  const dialog = useDialog()
+  const toast = useToast()
   const { nodes, loadAll, addNode, updateNode, deleteNode, reorderNodes, insertNodeAt } = useOutlineStore()
   const { storyCore } = useWorldviewStore()
   const worldGroups = useWorldGroupStore(s => s.groups)
@@ -73,9 +78,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
 
   useEffect(() => { loadAll(project.id!) }, [project.id, loadAll])
 
-  // 用 `== null`(宽松)而非 `=== null`:既匹配新写入的 parentId:null,也修复存量坏数据
-  // (FB-10b 修复前采纳的顶层卷 parentId 被存成 undefined,严格相等会把它们永远藏起)。
-  const volumes = nodes.filter(n => n.type === 'volume' && n.parentId == null).sort((a, b) => a.order - b.order)
+  const volumes = getTopLevelVolumes(nodes)
   const selectedVol = volumes.find(v => v.id === selectedVolId) || null
 
   // 故事块和章节层级
@@ -294,7 +297,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
       }
     } catch (err) {
       console.error('[Outline] 批量写入章节失败:', err)
-      alert(`批量写入章节时出错：${err instanceof Error ? err.message : '未知错误'}。\n请查看控制台获取详情。`)
+      toast.error(`批量写入章节时出错：${err instanceof Error ? err.message : '未知错误'}。请查看控制台获取详情。`)
       return
     }
     await loadAll(project.id!)
@@ -311,14 +314,14 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
       if (activeModuleKey === 'outline.volume') {
         const parsed = await parseVolumeOutlineSmart(text, aiConfig)
         if (parsed.length === 0) {
-          alert('未能从 AI 输出中解析出卷级大纲，请检查输出内容或重试。')
+          toast.error('未能从 AI 输出中解析出卷级大纲，请检查输出内容或重试。')
           return
         }
         setPreviewVolumes(parsed)
       } else {
         const parsed = await parseChapterOutlineSmart(text, aiConfig)
         if (parsed.length === 0) {
-          alert('未能从 AI 输出中解析出章节大纲，请检查输出内容或重试。')
+          toast.error('未能从 AI 输出中解析出章节大纲，请检查输出内容或重试。')
           return
         }
         setPreviewChapters(parsed)
@@ -347,7 +350,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
       }
     } catch (err) {
       console.error('[Outline] 写入卷失败:', err)
-      alert(`写入卷时出错：${err instanceof Error ? err.message : '未知错误'}。\n请查看控制台获取详情。`)
+      toast.error(`写入卷时出错：${err instanceof Error ? err.message : '未知错误'}。请查看控制台获取详情。`)
       return
     }
     await loadAll(project.id!)
@@ -355,9 +358,11 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     if (firstId) setSelectedVolId(firstId)
     // FB-10:不再静默——全跳过/部分跳过都明确告知用户原因
     if (written === 0) {
-      alert(`未写入任何卷。原因:${[...skipReasons].join('；') || '与已有卷标题重复(已跳过)'}。\n若想替换/更新同名卷,请先删除同名卷再采纳。`)
+      toast.error(`未写入任何卷。原因:${[...skipReasons].join('；') || '与已有卷标题重复(已跳过)'}。若想替换/更新同名卷,请先删除同名卷再采纳。`)
     } else if (written < previewVolumes.length) {
-      alert(`已写入 ${written} 个卷,另有 ${previewVolumes.length - written} 个被跳过(${[...skipReasons].join('；') || '标题重复'})。`)
+      toast.info(`已写入 ${written} 个卷,另有 ${previewVolumes.length - written} 个被跳过(${[...skipReasons].join('；') || '标题重复'})。`)
+    } else {
+      toast.success(`已写入 ${written} 个卷。`)
     }
   }
 
@@ -379,16 +384,29 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
       }
     } catch (err) {
       console.error('[Outline] 写入章节失败:', err)
-      alert(`写入章节时出错：${err instanceof Error ? err.message : '未知错误'}。\n请查看控制台获取详情。`)
+      toast.error(`写入章节时出错：${err instanceof Error ? err.message : '未知错误'}。请查看控制台获取详情。`)
       return
     }
     await loadAll(project.id!)
     setPreviewChapters(null)
     if (written === 0) {
-      alert(`未写入任何章节。原因:${[...skipReasons].join('；') || '与本卷已有章节标题重复(已跳过)'}。`)
+      toast.error(`未写入任何章节。原因:${[...skipReasons].join('；') || '与本卷已有章节标题重复(已跳过)'}。`)
     } else if (written < previewChapters.length) {
-      alert(`已写入 ${written} 章,另有 ${previewChapters.length - written} 章被跳过(${[...skipReasons].join('；') || '标题重复'})。`)
+      toast.info(`已写入 ${written} 章,另有 ${previewChapters.length - written} 章被跳过(${[...skipReasons].join('；') || '标题重复'})。`)
     }
+  }
+
+  const handleDeleteSelectedVolume = async () => {
+    if (!selectedVol?.id) return
+    const ok = await dialog.confirm({
+      title: `删除「${selectedVol.title}」及其所有章节？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
+    deleteNode(selectedVol.id)
+    setSelectedVolId(null)
   }
 
   const handleCancelPreview = () => {
@@ -588,12 +606,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
                   className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-bg-elevated text-text-secondary rounded-md hover:text-text-primary border border-border transition-colors">
                   <Plus className="w-3.5 h-3.5" /> 添加章节
                 </button>
-                <button onClick={() => {
-                  if (confirm(`确定删除「${selectedVol.title}」及其所有章节？`)) {
-                    deleteNode(selectedVol.id!)
-                    setSelectedVolId(null)
-                  }
-                }} className="p-1.5 text-text-muted hover:text-error rounded transition-colors">
+                <button onClick={() => { void handleDeleteSelectedVolume() }} className="p-1.5 text-text-muted hover:text-error rounded transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -824,8 +837,19 @@ function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddC
   onReorder: (orderedIds: number[]) => void
   onInsertAfter: (chapterId: number) => void
 }) {
+  const dialog = useDialog()
   const [expanded, setExpanded] = useState(true)
   const blockChaptersDnD = useDragReorder(chapters.map(c => c.id), onReorder)
+  const handleDeleteBlock = async () => {
+    if (!block.id) return
+    const ok = await dialog.confirm({
+      title: `删除故事块「${block.title}」？`,
+      message: '其下章节也会被删除，此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (ok) onDeleteNode(block.id)
+  }
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -844,10 +868,7 @@ function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddC
         <button onClick={onAddChapter} className="p-1 text-text-muted hover:text-accent rounded" title="添加章节">
           <Plus className="w-3 h-3" />
         </button>
-        <button onClick={() => {
-          if (confirm(`删除故事块「${block.title}」？其下章节也会被删除。`))
-            onDeleteNode(block.id!)
-        }} className="p-1 text-text-muted hover:text-error rounded">
+        <button onClick={() => { void handleDeleteBlock() }} className="p-1 text-text-muted hover:text-error rounded">
           <Trash2 className="w-3 h-3" />
         </button>
       </div>

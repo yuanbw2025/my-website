@@ -5,18 +5,19 @@
  * 抽到这里。非流式 chat() 已把 signal 传给 fetch,取消会真正中断请求。
  */
 
-import { chat } from '../ai/client'
+import { chat, type AICallMeta } from '../ai/client'
 import type { AIConfig, ChatMessage } from '../types'
 
 export async function chatWithAbort(
   messages: ChatMessage[],
   config: AIConfig,
   signal?: AbortSignal,
+  meta?: AICallMeta,
 ): Promise<string> {
   if (signal?.aborted) {
     const e = new Error('aborted')
     e.name = 'AbortError'
     throw e
   }
-  return await chat(messages, config, undefined, signal)
+  return await chat(messages, config, meta, signal)
 }

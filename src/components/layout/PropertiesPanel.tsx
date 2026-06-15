@@ -197,7 +197,7 @@ function GenericProps({ module }: { module: SidebarModule }) {
     settings: {
       icon: Info,
       title: '设置',
-      tips: ['推荐使用 DeepSeek 以降低成本', 'API Key 仅存储在本地 localStorage'],
+      tips: ['推荐使用 DeepSeek 以降低成本', 'API Key 默认仅保存本次会话；勾选记住本机才写入 localStorage，AI 请求会发送到所选模型服务'],
     },
     info: {
       icon: FileText,

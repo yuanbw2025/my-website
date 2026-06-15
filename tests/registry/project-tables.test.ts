@@ -72,6 +72,15 @@ describe('Phase 1.1a · PROJECT_TABLES 注册表', () => {
       expect(tableNames).toContain('codexEntries')
       expect(tableNames).toContain('worldRulesProfiles')
     })
+
+    it('transactionTablesFor(importProject) 从 projectScopedTables 派生', () => {
+      const importNames = transactionTablesFor('importProject').map(t => t.name).sort()
+      const projectScopedNames = projectScopedTables().map(s => s.table.name).sort()
+      expect(importNames).toEqual(projectScopedNames)
+      expect(importNames).toContain('projects')
+      expect(importNames).toContain('codexEntries')
+      expect(importNames).not.toContain('promptTemplates')
+    })
   })
 
   describe('派生生命周期 API 行为', () => {

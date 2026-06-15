@@ -8,6 +8,8 @@ import {
   saveTargetToValue,
   valueToSaveTarget,
 } from './workflow-helpers'
+import { useDialog } from '../../shared/Dialog'
+import { useToast } from '../../shared/Toast'
 
 /**
  * 工作流编辑器：编辑一个 PromptWorkflow 的元信息与步骤列表。
@@ -20,6 +22,8 @@ export default function WorkflowEditor({
   workflow: PromptWorkflow
   onClose: () => void
 }) {
+  const dialog = useDialog()
+  const toast = useToast()
   const saveWorkflow = useWorkflowStore(s => s.save)
   const removeWorkflow = useWorkflowStore(s => s.remove)
   const [draft, setDraft] = useState<PromptWorkflow>(workflow)
@@ -70,7 +74,33 @@ export default function WorkflowEditor({
   const handleSave = async () => {
     await saveWorkflow(draft)
     setDirty(false)
-    alert('已保存')
+    toast.success('已保存')
+  }
+
+  const handleClose = async () => {
+    if (dirty) {
+      const ok = await dialog.confirm({
+        title: '放弃未保存的更改？',
+        message: '当前工作流编辑内容尚未保存，返回后会丢失。',
+        confirmText: '放弃并返回',
+        tone: 'danger',
+      })
+      if (!ok) return
+    }
+    onClose()
+  }
+
+  const handleDelete = async () => {
+    if (!draft.id) return
+    const ok = await dialog.confirm({
+      title: `删除工作流「${draft.name}」？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
+    removeWorkflow(draft.id)
+    onClose()
   }
 
   return (
@@ -87,10 +117,7 @@ export default function WorkflowEditor({
             <Save className="w-4 h-4" /> 保存{dirty && ' *'}
           </button>
           <button
-            onClick={() => {
-              if (dirty && !confirm('未保存的更改将丢失，确认返回？')) return
-              onClose()
-            }}
+            onClick={() => { void handleClose() }}
             className="px-3 py-1.5 text-text-secondary text-sm rounded hover:bg-bg-hover"
           >
             返回
@@ -227,12 +254,7 @@ export default function WorkflowEditor({
       {/* 底部删除（仅用户工作流） */}
       {draft.scope === 'user' && draft.id && (
         <button
-          onClick={() => {
-            if (confirm(`删除工作流「${draft.name}」？此操作不可恢复。`)) {
-              removeWorkflow(draft.id!)
-              onClose()
-            }
-          }}
+          onClick={() => { void handleDelete() }}
           className="flex items-center gap-1.5 px-3 py-1.5 text-error text-xs hover:bg-error/10 rounded"
         >
           <Trash2 className="w-3 h-3" /> 删除工作流

@@ -65,7 +65,7 @@ src/
 │   ├── _factories.ts           # R2.1 通用 store 工厂（createCrudStore / createSingletonStore）
 │   ├── project-singletons.ts   # R2.1 8 个 1:1 store 实例（worldview/storyCore/…）
 │   ├── project.ts              # 项目列表 CRUD
-│   ├── ai-config.ts            # AI 配置（localStorage 持久化）
+│   ├── ai-config.ts            # AI 配置（API Key 默认 sessionStorage，显式记住才 localStorage）
 │   ├── character.ts / character-relation.ts / chapter.ts
 │   ├── outline.ts / detailed-outline.ts / foreshadow.ts
 │   ├── prompt.ts / workflow.ts / reference.ts / backup.ts
@@ -90,7 +90,7 @@ src/
 │   │       └── import-adapter.ts
 │   │
 │   ├── db/
-│   │   ├── schema.ts           # Dexie.js DB 定义（v11，24 张表）
+│   │   ├── schema.ts           # Dexie.js DB 定义（39 张 required tables）
 │   │   └── ensure-schema.ts    # 首次启动 seed
 │   │
 │   ├── data/

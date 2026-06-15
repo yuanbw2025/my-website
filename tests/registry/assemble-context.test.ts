@@ -148,6 +148,42 @@ describe('Phase 1.3a · 统一上下文装配层', () => {
     expect(assembled.text).not.toContain('雾钟')
   })
 
+  it('historical source 按 worldGroupId 读取当前世界 + 全局旧数据', async () => {
+    const now = Date.now()
+    const projectId = await createProject()
+    const worldA = await db.worldGroups.add({
+      projectId, name: '镜城', type: 'primary', order: 0, createdAt: now, updatedAt: now,
+    } as any) as number
+    const worldB = await db.worldGroups.add({
+      projectId, name: '雾都', type: 'parallel', order: 1, createdAt: now, updatedAt: now,
+    } as any) as number
+
+    await db.historicalTimelineEvents.bulkAdd([
+      { projectId, worldGroupId: worldA, era: 'custom', year: 1, date: '镜元年', title: '镜城开埠', description: '', isHistorical: false, createdAt: now, updatedAt: now },
+      { projectId, worldGroupId: worldB, era: 'custom', year: 2, date: '雾元年', title: '雾钟敲响', description: '', isHistorical: false, createdAt: now, updatedAt: now },
+      { projectId, worldGroupId: null, era: 'custom', year: 0, date: '旧纪元', title: '全局旧史', description: '', isHistorical: true, createdAt: now, updatedAt: now },
+    ] as any[])
+    await db.historicalKeywords.bulkAdd([
+      { projectId, worldGroupId: worldA, keyword: '镜税', category: 'politics', era: 'custom', description: '', createdAt: now, updatedAt: now },
+      { projectId, worldGroupId: worldB, keyword: '雾钟', category: 'politics', era: 'custom', description: '', createdAt: now, updatedAt: now },
+      { projectId, worldGroupId: null, keyword: '通用礼法', category: 'culture', era: 'custom', description: '', createdAt: now, updatedAt: now },
+    ] as any[])
+
+    const assembled = await assembleContext({
+      projectId,
+      worldGroupId: worldA,
+      sourceKeys: ['historical'],
+    })
+
+    expect(assembled.included).toEqual(['historical'])
+    expect(assembled.text).toContain('镜城开埠')
+    expect(assembled.text).toContain('镜税')
+    expect(assembled.text).toContain('全局旧史')
+    expect(assembled.text).toContain('通用礼法')
+    expect(assembled.text).not.toContain('雾钟敲响')
+    expect(assembled.text).not.toContain('雾钟')
+  })
+
   it('assembleContext 真裁剪:预算不足时 L3 从最终文本移除', async () => {
     const now = Date.now()
     const projectId = await createProject()

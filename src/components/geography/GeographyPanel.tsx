@@ -107,7 +107,7 @@ export default function GeographyPanel({ project }: Props) {
     setSvgContent('')
     setView('aimap')
     const messages = buildConceptMapPrompt(overview, locations)
-    const result = await ai.start(messages)
+    const result = await ai.start(messages, undefined, { category: 'geography.concept-map', projectId: project.id! })
     // 提取 SVG 代码（去掉可能的 markdown code block）
     const svg = result
       .replace(/^```(?:svg|xml)?\n?/i, '')

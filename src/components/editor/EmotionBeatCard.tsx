@@ -9,6 +9,7 @@ import { useEmotionBeatStore } from '../../stores/emotion-beat'
 import { useAIStream } from '../../hooks/useAIStream'
 import { buildEmotionBeatPrompt, parseEmotionBeats } from '../../lib/ai/adapters/emotion-beat-adapter'
 import type { EmotionBeat } from '../../lib/types'
+import { useDialog } from '../shared/Dialog'
 
 interface Props {
   projectId: number
@@ -43,6 +44,7 @@ export default function EmotionBeatCard({
   projectId, chapterId, chapterTitle, chapterSummary,
   worldContext, characterContext, prevChapterEnding,
 }: Props) {
+  const dialog = useDialog()
   const { getByChapter, saveCard, updateCard, deleteCard, loadAll } = useEmotionBeatStore()
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -60,7 +62,7 @@ export default function EmotionBeatCard({
         chapterTitle, chapterSummary, worldContext, characterContext, prevChapterEnding,
       )
       console.log('[EmotionBeat] 开始生成节拍卡:', chapterTitle)
-      const raw = await ai.start(messages)
+      const raw = await ai.start(messages, undefined, { category: 'emotion.beat', projectId })
       const { overallArc, beats, error } = parseEmotionBeats(raw)
       if (error) console.warn('[EmotionBeat] 解析警告:', error)
       if (beats.length > 0) {
@@ -113,7 +115,13 @@ export default function EmotionBeatCard({
 
   const handleDelete = async () => {
     if (!card?.id) return
-    if (!confirm('确定删除本章的情感节拍卡？')) return
+    const ok = await dialog.confirm({
+      title: '删除本章的情感节拍卡？',
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     try {
       await deleteCard(card.id)
       setExpanded(false)

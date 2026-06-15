@@ -249,7 +249,7 @@
 | 国内 | 通义千问 / 豆包 / 文心一言 / Kimi / 智谱 GLM / MiniMax |
 | 本地 | Ollama |
 
-所有 API Key **存在你自己的浏览器本地（localStorage），不经过任何服务器**。你的数据和密钥不会上传到任何地方。
+API Key 默认只保存在本次浏览器会话；如果你选择“在本机记住”，才会写入 localStorage。StoryForge 不提供后端中转，但发起 AI 调用时，相关提示词和上下文会直接发送到你配置的模型服务。
 
 想用便宜的 DeepSeek 打草稿，用 Claude 做精修？随时切换，不用重新配置项目。
 
@@ -273,8 +273,8 @@
 纯前端应用，没有后端：
 
 - React 19 + TypeScript 5 + Vite 6
-- Zustand 5（17 个 Store，工厂模式）
-- Dexie.js → IndexedDB（28 张表）
+- Zustand 5
+- Dexie.js 4 → IndexedDB（39 张 required tables）
 - TipTap 富文本编辑器
 - D3-force 关系力导图
 - PWA 支持离线使用

@@ -95,7 +95,7 @@ export default function WorldMapPanel({ project }: Props) {
     // 读全:把当前世界作用域下的自然/人文词条(具体山川/势力/城池)也喂给地图生成
     const codexCtx = await buildCodexContext(project.id!, scopedGroupId, { maxChars: 2000 })
     const messages = buildVoronoiMapPrompt(wv, overview, locations, codexCtx)
-    const result = await ai.start(messages)
+    const result = await ai.start(messages, undefined, { category: 'geography.world-map', projectId: project.id! })
     if (!result) return
 
     try {
@@ -149,10 +149,12 @@ export default function WorldMapPanel({ project }: Props) {
               <Globe className="w-3 h-3" /> 奇幻
             </button>
             <button
-              onClick={() => alert('3D 地图功能正在开发调优中，敬请期待！')}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs rounded transition-colors text-text-muted hover:text-text-primary"
+              type="button"
+              disabled
+              title="3D 地图仍处于 Labs 阶段，当前不可用"
+              className="flex items-center gap-1 px-2.5 py-1 text-xs rounded transition-colors text-text-muted/50 cursor-not-allowed"
             >
-              <Box className="w-3 h-3" /> 3D
+              <Box className="w-3 h-3" /> 3D Labs
             </button>
           </div>
 

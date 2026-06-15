@@ -3,6 +3,8 @@ import { Plus, Trash2, Sparkles, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-re
 import { useAIStream } from '../../../hooks/useAIStream'
 import { useAIConfigStore } from '../../../stores/ai-config'
 import type { PromptTemplate, PromptExample } from '../../../lib/types/prompt'
+import { useDialog } from '../../shared/Dialog'
+import { useToast } from '../../shared/Toast'
 
 interface Props {
   template: PromptTemplate
@@ -20,6 +22,8 @@ interface Props {
  * 示例会自动被 prompt-engine 拼到 user prompt 末尾作为 few-shot 参考。
  */
 export default function PromptExamplesEditor({ template, onChange, readOnly }: Props) {
+  const dialog = useDialog()
+  const toast = useToast()
   const ai = useAIStream()
   const aiConfig = useAIConfigStore(s => s.config)
   const [generatingFor, setGeneratingFor] = useState<'good' | 'bad' | null>(null)
@@ -28,9 +32,13 @@ export default function PromptExamplesEditor({ template, onChange, readOnly }: P
   const good = examples.good || []
   const bad = examples.bad || []
 
-  const addManual = (kind: 'good' | 'bad') => {
+  const addManual = async (kind: 'good' | 'bad') => {
     if (readOnly) return
-    const text = prompt(kind === 'good' ? '粘贴一条好示例：' : '粘贴一条反例：')
+    const text = await dialog.prompt({
+      title: kind === 'good' ? '添加好示例' : '添加反例',
+      message: '粘贴一条完整示例文本。',
+      placeholder: '粘贴示例内容',
+    })
     if (!text || !text.trim()) return
     const ex: PromptExample = {
       id: `ex-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -57,7 +65,7 @@ export default function PromptExamplesEditor({ template, onChange, readOnly }: P
   const generateWithAI = async (kind: 'good' | 'bad') => {
     if (readOnly) return
     if (!aiConfig.apiKey) {
-      alert('请先在「设置 → AI 配置」里配 API Key')
+      toast.error('请先在「设置 → AI 配置」里配 API Key')
       return
     }
     setGeneratingFor(kind)
@@ -97,7 +105,7 @@ ${template.systemPrompt}
       const result = await ai.start([
         { role: 'system', content: '你是一位提示词工程师助手，擅长为提示词模板生成示例数据。' },
         { role: 'user', content: metaPrompt },
-      ])
+      ], undefined, { category: 'prompt.examples' })
       // 解析输出
       const parts = result.split(/===EXAMPLE===/i).map(s => s.trim()).filter(Boolean)
       const newExamples: PromptExample[] = parts.slice(0, 3).map(t => ({
@@ -108,7 +116,7 @@ ${template.systemPrompt}
         createdAt: Date.now(),
       }))
       if (newExamples.length === 0) {
-        alert('AI 输出未识别到示例，请重试或手动添加')
+        toast.error('AI 输出未识别到示例，请重试或手动添加')
       } else {
         onChange({
           ...examples,
@@ -116,7 +124,7 @@ ${template.systemPrompt}
         })
       }
     } catch (e) {
-      alert(`生成失败：${e instanceof Error ? e.message : String(e)}`)
+      toast.error(`生成失败：${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setGeneratingFor(null)
       ai.reset()
@@ -143,7 +151,7 @@ ${template.systemPrompt}
           {!readOnly && (
             <div className="flex items-center gap-1">
               <button
-                onClick={() => addManual(kind)}
+                onClick={() => { void addManual(kind) }}
                 className="flex items-center gap-1 px-2 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded"
                 title="手动添加一条"
               >

@@ -80,42 +80,71 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 
 | 目标表 | 可写字段 |
 |---|---|
-| `chapters` | `title` `content` `summary` `outlineNodeId` `wordCount` `order` `notes` |
-| `characters` | `name` `shortDescription` `appearance` `personality` `background` `motivation` `abilities` `relationships` `arc` `location` `firstAppearance` `storyRole` `ending` `firstAppearChapterId` `activeChapterRange` `exitChapterId` `homeWorldGroupId` `isCrossWorld` |
-| `codexCategories` | `name` `parentId` `icon` `builtInKey` `fieldSchema` `hidden` `order` `worldGroupId` |
-| `codexEntries` | `name` `categoryId` `icon` `summary` `description` `fields` `refs` `order` `worldGroupId` |
-| `creativeRules` | `writingStyle` `atmosphere` `prohibitions` `consistencyRules` `specialRequirements` `citedReferenceIds` `citedInsightIds` |
-| `detailedOutlines` | `outlineNodeId` `scenes` `openingHook` `endingCliffhanger` `sceneLocation` `appearingCharacterIds` `foreshadowIds` `lastUsedSummary` |
-| `foreshadows` | `name` `description` `plantChapterId` `echoChapterIds` `resolveChapterId` `notes` `timelinePosition` `expectedResolveChapterId` `importance` |
-| `outlineNodes` | `title` `summary` `parentId` `order` `worldGroupId` |
-| `storyArcs` | `name` `stages` `description` |
-| `storyCores` | `theme` `centralConflict` `plotPattern` `logline` `concept` `mainPlot` `subPlots` |
-| `worldviews` | `geography` `history` `society` `culture` `economy` `rules` `worldOrigin` `powerHierarchy` `divineDesign` `worldStructure` `worldDimensions` `continentLayout` `regionDimensions` `mountainsRivers` `climateByRegion` `naturalResourceOverview` `naturalResources` `historyLine` `worldEvents` `races` `factionLayout` `politicsEconomyCulture` `internalConflicts` `itemDesign` |
+| `chapters` | `content` `notes` `order` `outlineNodeId` `status` `summary` `title` `wordCount` |
+| `characters` | `abilities` `activeChapterRange` `alignment` `appearance` `arc` `background` `ending` `exitChapterId` `firstAppearChapterId` `firstAppearance` `homeWorldGroupId` `isCrossWorld` `location` `motivation` `name` `personality` `relationships` `role` `shortDescription` `storyRole` |
+| `codexCategories` | `builtInKey` `domain` `fieldSchema` `hidden` `icon` `name` `order` `parentId` `worldGroupId` |
+| `codexEntries` | `categoryId` `description` `fields` `icon` `name` `order` `refs` `summary` `worldGroupId` |
+| `creativeRules` | `atmosphere` `citedInsightIds` `citedReferenceIds` `consistencyRules` `narrativePOV` `prohibitions` `referenceWorksV2` `specialRequirements` `writingStyle` |
+| `detailedOutlines` | `appearingCharacterIds` `emotionArc` `endingCliffhanger` `foreshadowIds` `lastUsedSummary` `openingHook` `outlineNodeId` `sceneLocation` `scenes` |
+| `foreshadows` | `description` `echoChapterIds` `expectedResolveChapterId` `importance` `name` `notes` `plantChapterId` `resolveChapterId` `status` `timelinePosition` `type` `urgency` |
+| `outlineNodes` | `order` `parentId` `summary` `title` `type` `worldGroupId` |
+| `storyArcs` | `description` `name` `stages` `type` |
+| `storyCores` | `centralConflict` `concept` `logline` `mainPlot` `plotPattern` `subPlots` `theme` |
+| `worldviews` | `climateByRegion` `continentLayout` `culture` `divineDesign` `economy` `factionLayout` `geography` `history` `historyLine` `internalConflicts` `itemDesign` `mountainsRivers` `naturalResourceOverview` `naturalResources` `politicsEconomyCulture` `powerHierarchy` `races` `regionDimensions` `rules` `society` `worldDimensions` `worldEvents` `worldOrigin` `worldStructure` |
 
 ## 四、AI 调用点（消耗统计 category · 在哪触发)
 
-共 17 个 category。
+共 41 个 category。
+未分类调用: 0 个。动态 category 调用: 1 个。
 
 | category | 触发文件 |
 |---|---|
-| `chapter.content` | `src/components/editor/ChapterEditor.tsx` |
-| `chapter.continue` | `src/components/editor/ChapterEditor.tsx` |
-| `chapter.deai` | `src/components/editor/ChapterEditor.tsx` |
-| `chapter.expand` | `src/components/editor/ChapterEditor.tsx` |
-| `chapter.polish` | `src/components/editor/ChapterEditor.tsx` |
-| `character.generate` | `src/components/character/CharacterPanel.tsx` |
-| `detail.scene` | `src/components/outline/DetailedOutlinePanel.tsx`<br/>`src/components/outline/ScenePanel.tsx`<br/>`src/lib/ai/batch-detail-runner.ts` |
-| `inventory.extract` | `src/components/items/InventoryPanel.tsx` |
-| `outline.chapter` | `src/components/outline/OutlinePanel.tsx`<br/>`src/lib/ai/batch-outline-runner.ts` |
-| `outline.volume` | `src/components/outline/OutlinePanel.tsx` |
-| `rules.generate` | `src/components/rules/CreativeRulesPanel.tsx` |
-| `state.extract` | `src/components/editor/ChapterEditor.tsx` |
-| `story.generate` | `src/components/worldview/StoryCorePanel.tsx` |
-| `story.timeline` | `src/components/timeline/StoryTimelinePanel.tsx` |
-| `style.learn` | `src/components/style/StyleLearningPanel.tsx` |
-| `summary` | `src/components/editor/ChapterEditor.tsx` |
-| `technology` | `src/components/history/HistoryPanel.tsx` |
+| `ai.restructure` | `src/lib/ai/restructure.ts:52` |
+| `chapter.content` | `src/components/editor/ChapterEditor.tsx:272` |
+| `chapter.content.batch` | `src/lib/ai/batch-detail-runner.ts:256` |
+| `chapter.continue` | `src/components/editor/ChapterEditor.tsx:280` |
+| `chapter.deai` | `src/components/editor/ChapterEditor.tsx:304` |
+| `chapter.expand` | `src/components/editor/ChapterEditor.tsx:296` |
+| `chapter.polish` | `src/components/editor/ChapterEditor.tsx:288` |
+| `chapter.toolbar` | `src/components/editor/FloatingToolbar.tsx:105` |
+| `character.generate` | `src/components/character/CharacterPanel.tsx:132` |
+| `character.structure` | `src/lib/ai/parse-character-output.ts:92` |
+| `detail.scene` | `src/components/outline/DetailedOutlinePanel.tsx:163`<br/>`src/components/outline/ScenePanel.tsx:110`<br/>`src/lib/ai/batch-detail-runner.ts:109` |
+| `emotion.beat` | `src/components/editor/EmotionBeatCard.tsx:65` |
+| `foreshadow.structure` | `src/components/foreshadow/ForeshadowPanel.tsx:59` |
+| `foreshadow.suggest` | `src/components/foreshadow/ForeshadowPanel.tsx:158` |
+| `geography.concept-map` | `src/components/geography/GeographyPanel.tsx:110` |
+| `geography.world-map` | `src/components/geography/WorldMapPanel.tsx:98` |
+| `history.consult` | `src/components/history/HistoryPanel.tsx:221` |
+| `history.keyword` | `src/components/history/HistoryPanel.tsx:271` |
+| `inspiration.reverse` | `src/components/project/InspirationPanel.tsx:110` |
+| `inventory.extract` | `src/components/items/InventoryPanel.tsx:63` |
+| `outline.chapter` | `src/components/outline/OutlinePanel.tsx:224`<br/>`src/lib/ai/batch-outline-runner.ts:123` |
+| `outline.character-driven` | `src/components/outline/CharacterDrivenPlotPanel.tsx:115` |
+| `outline.volume` | `src/components/outline/OutlinePanel.tsx:209` |
+| `prompt.examples` | `src/components/settings/prompt/PromptExamplesEditor.tsx:105` |
+| `reference.characters` | `src/components/project/AnalysisReportViewer.tsx:138` |
+| `reference.summary` | `src/components/project/AnalysisReportViewer.tsx:109` |
+| `relation.extract` | `src/components/relations/CharacterRelationPanel.tsx:71` |
+| `review.anti-ai` | `src/components/editor/ReviewPanel.tsx:57` |
+| `review.quality` | `src/components/editor/ReviewPanel.tsx:49` |
+| `review.readability` | `src/components/editor/ReviewPanel.tsx:66` |
+| `rules.generate` | `src/components/rules/CreativeRulesPanel.tsx:77` |
+| `scene.verify` | `src/components/scene/SceneVerifyPanel.tsx:76` |
+| `story-arc.generate` | `src/components/outline/StoryArcPanel.tsx:83` |
+| `story.generate` | `src/components/worldview/StoryCorePanel.tsx:190` |
+| `story.timeline` | `src/components/timeline/StoryTimelinePanel.tsx:70` |
+| `style.learn` | `src/components/style/StyleLearningPanel.tsx:76` |
+| `world-group.expand` | `src/components/world-group/WorldGroupDetail.tsx:97` |
+| `world-group.suggest` | `src/components/world-group/WorldGroupOverview.tsx:50` |
+| `worldview.dimension` | `src/components/worldview/WorldviewFieldEditor.tsx:70`<br/>`src/components/worldview/WorldviewHumanityPanel.tsx:242`<br/>`src/components/worldview/WorldviewNaturalPanel.tsx:261`<br/>`src/components/worldview/WorldviewOriginPanel.tsx:265` |
+| `worldview.divine` | `src/components/worldview/WorldviewOriginPanel.tsx:360` |
+| `worldview.divine.split` | `src/components/worldview/WorldviewOriginPanel.tsx:384` |
+
+### 动态 category 调用
+
+- `src/components/settings/prompt/WorkflowRunner.tsx:273 · ai.start`
 
 ---
 
-生成时间基准:commit `4666f1b`
+生成时间基准:commit `bdc8f87`

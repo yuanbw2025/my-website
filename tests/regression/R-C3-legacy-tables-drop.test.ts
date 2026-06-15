@@ -23,6 +23,38 @@ class LegacyDB extends Dexie {
   }
 }
 
+class OldV28DB extends Dexie {
+  constructor(name: string) {
+    super(name)
+    this.version(28).stores({
+      itemSystems: '++id, projectId',
+      factions: '++id, projectId',
+      worldviews: '++id, projectId',
+      codexCategories: '++id, projectId',
+      codexEntries: '++id, projectId, categoryId',
+    })
+  }
+}
+
+class UpgradedV29DB extends Dexie {
+  constructor(name: string) {
+    super(name)
+    this.version(28).stores({
+      itemSystems: '++id, projectId',
+      factions: '++id, projectId',
+      worldviews: '++id, projectId',
+      codexCategories: '++id, projectId',
+      codexEntries: '++id, projectId, categoryId',
+    })
+    this.version(29).stores({
+      itemSystems: null,
+      factions: null,
+    }).upgrade(async (tx) => {
+      await migrateLegacyTablesToCodex(tx)
+    })
+  }
+}
+
 let db: LegacyDB
 beforeEach(async () => { db = new LegacyDB('legacy-test-' + Math.random()); await db.open() })
 afterEach(async () => { await db.delete(); db.close() })
@@ -101,4 +133,64 @@ describe('Stage C 收尾 · 旧表 v29 迁移', () => {
     expect(JSON.parse(sect.fields).mapRegion).toBe('南海')
     expect((await db.table('worldviews').toArray())[0].itemDesign).toContain('器之道')
   })
+
+  it('真实 Dexie v28→v29 升级:先迁移旧表数据,再删除旧 object store', async () => {
+    const name = 'legacy-upgrade-v29-' + Math.random()
+    const ts = Date.now()
+    const oldDb = new OldV28DB(name)
+    await oldDb.open()
+    await oldDb.table('worldviews').add({ projectId: 9, itemDesign: '既有器物设定', createdAt: ts, updatedAt: ts })
+    await oldDb.table('itemSystems').add({
+      projectId: 9,
+      overview: '灵器需认主',
+      items: JSON.stringify([{ name: '照胆镜', type: 'artifact', description: '照见心魔', abilities: '破幻' }]),
+      createdAt: ts,
+      updatedAt: ts,
+    })
+    await oldDb.table('factions').add({
+      projectId: 9,
+      name: '镜湖盟',
+      description: '湖上散修联盟',
+      leader: '沈照',
+      mapRegion: '镜湖',
+      color: '#38BDF8',
+      createdAt: ts,
+      updatedAt: ts,
+    })
+    oldDb.close()
+
+    const upgradedDb = new UpgradedV29DB(name)
+    await upgradedDb.open()
+    const cats = await upgradedDb.table('codexCategories').toArray()
+    const entries = await upgradedDb.table('codexEntries').toArray()
+    const artifact = cats.find((c: any) => c.builtInKey === 'artifact')!
+    const faction = cats.find((c: any) => c.builtInKey === 'faction')!
+    expect(entries.find((e: any) => e.name === '照胆镜')?.categoryId).toBe(artifact.id)
+    const sect = entries.find((e: any) => e.name === '镜湖盟')!
+    expect(sect.categoryId).toBe(faction.id)
+    expect(JSON.parse(sect.fields).mapRegion).toBe('镜湖')
+    expect((await upgradedDb.table('worldviews').toArray())[0].itemDesign).toContain('灵器需认主')
+    upgradedDb.close()
+
+    const stores = await readNativeStoreNames(name)
+    expect(stores).not.toContain('itemSystems')
+    expect(stores).not.toContain('factions')
+    expect(stores).toContain('codexEntries')
+
+    await Dexie.delete(name)
+  })
 })
+
+function readNativeStoreNames(name: string): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(name)
+    req.onsuccess = () => {
+      const database = req.result
+      const stores = [...database.objectStoreNames]
+      database.close()
+      resolve(stores)
+    }
+    req.onerror = () => reject(req.error)
+    req.onblocked = () => reject(new Error('DB read blocked'))
+  })
+}

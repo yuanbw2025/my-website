@@ -13,6 +13,7 @@ import { assembleContext } from '../../lib/registry/assemble-context'
 import { CInput } from '../shared/CompositionInput'
 import { CTextarea } from '../shared/CompositionInput'
 import AIStreamOutput from '../shared/AIStreamOutput'
+import { useDialog } from '../shared/Dialog'
 import type { Project, StoryArcType } from '../../lib/types'
 import { parseStages, stringifyStages, type StoryStage } from '../../lib/types/story-arc'
 import { nanoid } from 'nanoid'
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function StoryArcPanel({ project }: Props) {
+  const dialog = useDialog()
   const { arcs, activeArcId, loadAll, setActiveArc, addArc, updateArc, deleteArc, updateStages } = useStoryArcStore()
   const { storyCore, loadAll: loadWorldview } = useWorldviewStore()
   const { nodes, loadAll: loadOutline } = useOutlineStore()
@@ -78,7 +80,7 @@ export default function StoryArcPanel({ project }: Props) {
     const messages = buildStoryArcPrompt(
       project.name, project.genre || '', worldCtx, storyCoreCtx, outlineSummary, genType, existingArcs,
     )
-    const raw = await ai.start(messages)
+    const raw = await ai.start(messages, undefined, { category: 'story-arc.generate', projectId: project.id! })
     if (!raw) return
 
     const result = parseStoryArcResult(raw)
@@ -110,7 +112,13 @@ export default function StoryArcPanel({ project }: Props) {
   const handleDeleteArc = async (id: number) => {
     const arc = arcs.find(a => a.id === id)
     if (!arc) return
-    if (!confirm(`删除故事线「${arc.name}」？此操作不可恢复。`)) return
+    const ok = await dialog.confirm({
+      title: `删除故事线「${arc.name}」？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     await deleteArc(id)
   }
 

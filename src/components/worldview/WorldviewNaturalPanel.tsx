@@ -258,7 +258,7 @@ function SimpleFieldEditor({ field, value, onChange, project, contextSummary, on
     const messages = buildWorldviewPrompt(
       field.label, project.name, project.genre || '', contextSummary, hint, opts, value, mode,
     )
-    ai.start(messages)
+    ai.start(messages, undefined, { category: 'worldview.dimension', projectId: project.id! })
   }
 
   return (

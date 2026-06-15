@@ -12,7 +12,7 @@
 import Dexie from 'dexie'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { db } from '../../src/lib/db/schema'
-import { ensureSchema, REQUIRED_TABLES_V26 } from '../../src/lib/db/ensure-schema'
+import { ensureSchema, REQUIRED_TABLES } from '../../src/lib/db/ensure-schema'
 
 const DB_NAME = 'storyforge'
 
@@ -28,9 +28,9 @@ describe('R-17: ensureSchema 生产环境不自动删库', () => {
     await deleteNativeDb(DB_NAME)
   })
 
-  it('REQUIRED_TABLES_V26 与 schema.ts 当前 Dexie 表双向一致', () => {
+  it('REQUIRED_TABLES 与 schema.ts 当前 Dexie 表双向一致', () => {
     const schemaTables = db.tables.map(table => table.name).sort()
-    const requiredTables = [...REQUIRED_TABLES_V26].sort()
+    const requiredTables = [...REQUIRED_TABLES].sort()
 
     expect(requiredTables).toHaveLength(39)   // v29 删 itemSystems/factions:45→43;FB-5 加 userStyleProfiles:43→44;v32 删 5 张 master 表:44→39
     expect(requiredTables).toEqual(schemaTables)
@@ -40,7 +40,7 @@ describe('R-17: ensureSchema 生产环境不自动删库', () => {
     await createLegacyDbWithOnlyProjects()
     const deleteSpy = vi.spyOn(Dexie, 'delete')
 
-    const result = await ensureSchema(REQUIRED_TABLES_V26, {
+    const result = await ensureSchema(REQUIRED_TABLES, {
       allowReset: false,
       notifyUser: false,
     })
