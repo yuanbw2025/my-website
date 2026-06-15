@@ -210,6 +210,70 @@
 
 ---
 
+## 📋 AUDIT — 商业成熟度审查·剩余待办（2026-06-13 立项）
+
+> **来源**：桌面《StoryForge商业成熟度全面审查报告.md》（GPT-5.5 报告 §5/§10 + Claude 复核 §11）。
+> **已完成批次（2026-06-13，commit `81f3b1e`，Codex 交付 + Claude 复核合并）**：P0-1 portal 字段名+安全解析+导出导入两阶段 remap｜P0-3 PAT/APIKey 默认 sessionStorage+记住开关+旧 token 迁移｜P0-4 全量 AI 调用补 category + check-architecture 加 category 守卫｜P0-5 全局 `/settings` 路由修引导断裂｜P0-6 historical 多世界过滤（当前世界∪null）｜P1-2 README/AGENTS/refactor 文档同步｜P1-4 真实旧库迁移测试 `R-db-upgrade-fixtures`（v30→31→32）｜P1-5 APIKey/PAT 风险说明 + `R-ai-config-storage`｜P1-6 `trimMessagesToFit` 接 `config.contextWindow`｜新增统一 `Dialog` 组件（替换工作未完成，见下）。
+> **下面是经核实仍未做 / 只部分完成的项，按严重度排列。每条含：位置 · 问题 · 改法 · 验收。**
+
+### 🟠 AUDIT-1（P0-2 续 · 部分完成）— 导出主体完全注册表派生
+- **位置**：`src/lib/export/json-export.ts`。
+- **现状**：**导入事务表已派生**（`transactionTablesFor('importProject')`）✅；但**导出主体仍是手写枚举**——`exportProjectJSON()` 逐表查询 + 逐表字段映射，未消费 `PROJECT_TABLES.exportable/exportRemap`。
+- **风险**：加新表只登记 PROJECT_TABLES **不会**自动进导出，必须手动补 json-export 四处（现状已知陷阱）。非当前数据丢失，属未来踩坑隐患。
+- **改法**：导出表选择、worldGroup remap、父子树 remap 尽量由注册表派生，特殊表保留 adapter 但由注册表驱动；移除残留手写枚举。
+- **验收**：新增可导出表只登记注册表即可进入导出/导入往返；既有备份格式兼容；往返测试通过。
+
+### 🟠 AUDIT-2（P1-3 续 · 部分完成）— 原生 alert/confirm/prompt 全面替换为 Dialog
+- **位置**：`src/components/shared/Dialog.tsx` 已建；但仍有 **约 23 个文件**用原生 `alert/confirm/prompt`（`OutlinePanel`、`ImportDocPanel`、`AIConfigPanel`、`CodexPanel`、`require-backup-before.ts` 等）。
+- **改法**：先处理**数据破坏性 / 导入导出 / 设置**相关路径，统一走 `Dialog`（确认对话框 + Toast + 危险操作影响范围说明）。
+- **验收**：高风险操作不再用原生 `confirm`；失败提示带下一步建议。可分批，每批一 PR。
+
+### 🟠 AUDIT-3（决策③已定 · 尚未实施）— 引入 ESLint（先 warning 不 fail）
+- **现状**：**未配置**——无 eslint 依赖、无 `lint` 脚本、无配置文件（此前 commit message 声称"加 lint"但实际未落地，已核实）。
+- **改法**（§11.5 决策③）：装 ESLint + `@typescript-eslint` + `react-hooks` + `import/order`；**默认全 warning，CI 不阻断**；仅 `react-hooks/rules-of-hooks`、`no-floating-promises`（如启用 type-aware）设 error；留一轮清理期后再逐步收紧。`package.json` 加 `lint` 脚本，README 据此修正。
+- **验收**：`npm run lint` 可跑；CI 先不因 lint fail；高价值规则 error。
+
+### 🟡 AUDIT-4（3.3 · 安全）— 出口 HTML/EPUB 用成熟 sanitizer + SVG XSS 回归测试
+- **位置**：`src/lib/export/sanitize-html.ts`（正则式，非 DOMPurify 级）、`src/lib/utils/sanitize-svg.ts` + `GeographyPanel` 的 `dangerouslySetInnerHTML`。
+- **现状**：DOMPurify **未引入**；正则 sanitizer 能挡基础脚本但不够稳。
+- **改法**：出口 HTML/EPUB 改用 DOMPurify 或白名单模板渲染；给 AI 生成 SVG 加 XSS payload 回归测试（覆盖 `foreignObject`、事件属性、`javascript:`、外链）。
+- **验收**：XSS 回归测试绿；导出产物不含可执行脚本。
+
+### 🟡 AUDIT-5（3.4 · 新手转化）— 信息架构分层 + 首次成果闭环 + 隐藏未完成入口
+- **位置**：`src/components/layout/Sidebar.tsx`（模块极多、默认全展开）、`WorldMapPanel.tsx:152`（"3D 地图开发调优中"仍在正式 UI）、整体缺"前 10 分钟出成果"。
+- **改法**：① 侧栏分层（新手/专家模式 + 搜索/命令面板，高级模块默认折叠）；② 首页四主路径（继续写作/新建/导入/配 AI）+ 创作仪表盘（下一步建议/最近章节/待采纳/数据健康）；③ 模板项目/示例工程/一步式创建/第一章生成引导；④ 隐藏或标 Labs 的未完成入口（3D 地图）。
+- **验收**：新用户能在 onboarding 内完成"建项目→配 Key→生成/导入→采纳→导出"；首屏信息密度可控。
+
+### 🟡 AUDIT-6（3.5 / P2-2 · 可维护性）— 拆分巨型组件 / prompt 文件
+- **位置**：`prompt-seeds.ts`、`json-export.ts`（800+ 行）、大型 panel（多个 600-1500 行混 prompt/UI/业务）。
+- **改法**：按领域拆 prompt pack / service / hook / view；大 panel 先拆状态逻辑与纯 UI；形成 use-case/service 层（`importProjectUseCase()` / `generateChapterUseCase()`）。
+- **验收**：主要 panel 单文件尽量 <500 行；业务逻辑下沉；测试不退化。
+
+### 🟡 AUDIT-7（P2-1 / 3.7 · 测试与发布护栏）— Playwright 核心路径 E2E + 崩溃上报 + 发布清单
+- **改法**：① Playwright 5 条商业级 smoke（建项目/配 AI/生成/采纳/导出导入/备份恢复）；② 可关闭的匿名错误上报或本地诊断包导出；③ release checklist（升级前自动快照、变更说明、回滚方案、已知问题）。
+- **验收**：核心路径 E2E 通过；有发布前自动快照与回滚预案。
+- **注**：与现有 HEALTH-2/HEALTH-5 重叠，实施时合并推进，勿重复立项。
+
+### 🟢 AUDIT-8（3.3 · 决策待定）— Gist 云备份端到端加密
+- **现状**：Gist 上传的是**完整项目 JSON 明文**（Private Gist ≠ 加密保险箱）。
+- **决策（§11.5）**：先做"明示风险 + session PAT"（已完成）；**加密作为 Pro/高级选项**，不阻塞当前。需用户拍板是否做、以及密码丢失→无法恢复的取舍。
+- **改法（若做）**：用户密码派生密钥加密后上传；UI 明示"上传完整项目 JSON"。
+
+### 🟢 AUDIT-9（P2-5 · 需负责人决策）— 商业法律文本 + LICENSE
+- **现状**：无 `LICENSE` / `PRIVACY` / `TERMS` / `SECURITY.md`；`package.json` `private:true` 无 license 字段。
+- **依赖决策**：授权策略（开源核心 / 买断 / Pro / 闭源）未定 → 先定策略再补文本（§10.2）。
+- **改法**：起草隐私政策 / 服务条款 / 免责声明 / 第三方 API 数据说明 + 应用内入口；定 LICENSE 与漏洞披露渠道。
+
+### 🟢 AUDIT-10（P2-3 / P2-4 · 远期）— 桌面安全版 + 产品级帮助系统
+- 桌面壳：Keychain 存钥匙、文件系统备份、自动更新、崩溃日志；帮助系统：内置文档、示例项目、问题诊断、导出诊断包。属"成熟商业产品"阶段，远期。
+
+### 🟢 AUDIT-11（3.4 · 国际化 · 决策待定）— i18n 核心路径
+- **现状**：i18n 只是脚手架，绝大多数 UI/提示/错误文案组件内中文硬编码。
+- **决策（§11.5）**：先中文商业 Beta；**英文作为后续 milestone**。若上 Steam/海外工具站再做：优先迁首页/设置/备份/导入导出/错误提示/法律文本到 i18n。
+- **注**：与 HEALTH-5 的 i18n 渐进迁移重叠。
+
+---
+
 ## ✅ FB-11（数据红线 · 已根治 2026-06-13）— 更新后项目数据"重置"/不持久
 
 > 来源：社区群（买辣椒也用券 · LV6 管理员，2026-06-11）。
