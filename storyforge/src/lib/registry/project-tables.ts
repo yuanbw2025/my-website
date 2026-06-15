@@ -40,7 +40,7 @@ export const PROJECT_TABLES: TableSpec[] = [
   { table: db.worldNodes, name: 'worldNodes', owner: 'project', worldScoped: true,
     exportable: true, tree: { parentField: 'parentId' },
     refs: [
-      { kind: 'json', field: 'portalsJSON', jsonPath: '$[].targetNodeId', target: 'worldNodes[id]', onDelete: 'remap' },
+      { kind: 'json', field: 'portalsJSON', jsonPath: '$[].targetWorldId', target: 'worldNodes[id]', onDelete: 'remap' },
     ],
     exportRemap: [
       { field: 'parentId', remapVia: 'worldNodes', selfTree: true },

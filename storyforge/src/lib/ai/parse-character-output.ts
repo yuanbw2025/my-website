@@ -80,6 +80,7 @@ export async function parseCharacterOutput(
 注意：
 - 所有字段值都是纯文字，不含 Markdown 标记（不含 **bold**、##标题、- 列表符号等）
 - 如果原文没有对应内容，该字段填空字符串 ""
+- 原文中的"金手指 / 系统 / 外挂 / 天赋 / 特殊能力 / 宝物能力"等属于角色能力设定时,统一并入 abilities,不要当成角色姓名或 relationships
 - role 字段必须是英文枚举值之一，根据原文定位描述来判断
 - 只输出 JSON，不要输出其他任何内容`
 
@@ -94,6 +95,7 @@ ${rawText}`
         { role: 'user',   content: userPrompt },
       ],
       config,
+      { category: 'character.structure' },
     )
 
     // 从响应中提取 JSON（防止模型多输出前后文）

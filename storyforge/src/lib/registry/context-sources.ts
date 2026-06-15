@@ -264,7 +264,7 @@ export const CONTEXT_SOURCES: ContextSource[] = [
     layer: 'L2',
     budgetTokens: 1800,
     requiresWorldGroupId: true,
-    read: input => buildHistoricalContext(input.projectId),
+    read: input => buildHistoricalContext(input.projectId, input.worldGroupId),
   },
   {
     key: 'locations',

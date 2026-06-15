@@ -18,6 +18,7 @@ import {
   setRefAnalysisPipelineListener,
 } from '../../lib/reference-analysis/pipeline'
 import AnalysisReportViewer from './AnalysisReportViewer'
+import { useDialog } from '../shared/Dialog'
 
 // ── 常量 ─────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ interface Props { project: Project }
 // ── 主面板 ─────────────────────────────────────────────────────────
 
 export default function ReferencePanel({ project }: Props) {
+  const dialog = useDialog()
   const { references, loadAll, updateReference, deleteReference } = useReferenceStore()
   const [filter, setFilter] = useState<ReferenceType | 'all'>('all')
   const [selected, setSelected] = useState<number | null>(null)
@@ -77,7 +79,13 @@ export default function ReferencePanel({ project }: Props) {
   const selectedRef = references.find(r => r.id === selected)
 
   const handleDelete = async (ref: Reference) => {
-    if (!confirm(`确定删除「${ref.title}」？`)) return
+    const ok = await dialog.confirm({
+      title: `删除「${ref.title}」？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     await deleteReference(ref.id!)
     if (selected === ref.id) setSelected(null)
   }
@@ -705,4 +713,3 @@ function OutlineNodeView({ node, depth }: { node: Record<string, unknown>; depth
     </div>
   )
 }
-

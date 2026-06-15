@@ -13,6 +13,7 @@ import { useAIStream } from '../../hooks/useAIStream'
 import type { Project, HistoricalTimelineEvent, HistoricalEra, HistoricalKeyword, HistoricalKeywordCategory } from '../../lib/types'
 import { HISTORICAL_ERA_LABELS, KEYWORD_CATEGORY_LABELS } from '../../lib/types/history'
 import AIStreamOutput from '../shared/AIStreamOutput'
+import { useDialog } from '../shared/Dialog'
 
 interface Props {
   project: Project
@@ -21,6 +22,7 @@ interface Props {
 type TabKey = 'overview' | 'timeline' | 'keywords'
 
 export default function HistoryPanel({ project }: Props) {
+  const dialog = useDialog()
   const [activeTab, setActiveTab] = useState<TabKey>('timeline')
 
   // ── 多世界：世界标签 ──
@@ -51,6 +53,26 @@ export default function HistoryPanel({ project }: Props) {
     keywords, loadingKeywords, loadKeywords, addKeyword, updateKeyword, deleteKeyword
   } = useHistoricalStore()
   const { chapters, loadAll: loadChapters } = useChapterStore()
+
+  const handleDeleteEvent = async (id: number) => {
+    const ok = await dialog.confirm({
+      title: '删除该历史事件？',
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (ok) deleteEvent(id)
+  }
+
+  const handleDeleteKeyword = async (id: number) => {
+    const ok = await dialog.confirm({
+      title: '删除该关键词？',
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (ok) deleteKeyword(id)
+  }
 
   // ── UI 状态 ──
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -199,7 +221,7 @@ ${evt.location ? `- 地理位置/范围：${evt.location}` : ''}
     ai.start([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
-    ])
+    ], undefined, { category: 'history.consult', projectId: project.id! })
   }
 
   // ── AI 关键词细节头脑风暴 ──
@@ -249,7 +271,7 @@ ${kw.location ? `- 地理位置/范围：${kw.location}` : ''}
     ai.start([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
-    ])
+    ], undefined, { category: 'history.keyword', projectId: project.id! })
   }
 
   const handleAcceptAI = (text: string) => {
@@ -671,11 +693,7 @@ ${kw.location ? `- 地理位置/范围：${kw.location}` : ''}
 
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (confirm('确定删除该历史事件？此操作不可恢复。')) {
-                                    deleteEvent(evt.id!)
-                                  }
-                                }}
+                                onClick={() => { void handleDeleteEvent(evt.id!) }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 text-red-400 hover:bg-red-500/10 text-xs rounded-lg transition-colors"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1005,11 +1023,7 @@ ${kw.location ? `- 地理位置/范围：${kw.location}` : ''}
 
                             <button
                               type="button"
-                              onClick={() => {
-                                if (confirm('确定删除该关键词？此操作不可恢复。')) {
-                                  deleteKeyword(kw.id!)
-                                }
-                              }}
+                              onClick={() => { void handleDeleteKeyword(kw.id!) }}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-red-400 hover:bg-red-500/10 text-xs rounded-lg transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

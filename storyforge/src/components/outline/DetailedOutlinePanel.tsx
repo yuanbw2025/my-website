@@ -13,6 +13,7 @@ import { nanoid } from '../../lib/utils/id'
 import { adopt } from '../../lib/registry/adopt'
 import { assembleContext } from '../../lib/registry/assemble-context'
 import type { Project, DetailedOutline, DetailedScene, ScenePace, EmotionArc } from '../../lib/types'
+import { useToast } from '../shared/Toast'
 
 interface Props {
   project: Project
@@ -46,6 +47,7 @@ export function filterExistingIds(ids: number[], validIds: Set<number>): number[
 
 /** v3 §2.1 — 创作区.细纲（场景拆分 + AI） */
 export default function DetailedOutlinePanel({ project }: Props) {
+  const toast = useToast()
   const { nodes, loadAll: loadOutline } = useOutlineStore()
   const { detailedOutlines, loadAll: loadDetailed, getOrCreate, save } = useDetailedOutlineStore()
   const { characters, loadAll: loadCharacters } = useCharacterStore()
@@ -185,13 +187,13 @@ export default function DetailedOutlinePanel({ project }: Props) {
       prevSummary, nextSummary,
       worldCtx, charCtx, foreshadowCtx,
     )
-    enhanceAI.start(messages)
+    enhanceAI.start(messages, undefined, { category: 'detail.enhance', projectId: project.id! })
   }
 
   const handleAcceptEnhanced = async (text: string) => {
     const parsed = await parseEnhancedDetailSmart(text, aiConfig)
     if (!parsed) {
-      alert('解析增强细纲失败，请重试')
+      toast.error('解析增强细纲失败，请重试')
       return
     }
     if (!currentChapter?.id) return

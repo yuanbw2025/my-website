@@ -100,7 +100,7 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 | P0-1 | `deleteGroup` 事务声明 9 表，实际访问 13 表 → Dexie 抛错，"已补"的级联删除**无效** | `src/stores/world-group.ts:88` |
 | P0-2 | `migrateToMultiWorld` 事务声明 7 表，实际访问 `codexEntries` → Dexie 抛错 | `src/stores/world-group.ts:225` |
 | P0-3 | `REQUIRED_TABLES` 仅 22 张（实际 45），`ensureSchema` 缺表会 `Dexie.delete(dbName)` → **整库删除** | `src/main.tsx:25` / `src/lib/db/ensure-schema.ts:34` |
-| P0-4 | `BUG-EXPORT-WG`：导出 `worldGroups` 用 index，其它表用原始 id，导入 remap 键值错位 → 多世界归属丢失 | `src/lib/export/json-export.ts:154/304/595/694` |
+| P0-4 | `BUG-EXPORT-WG` 已修：导出/导入统一使用 export-index 协议重映射 `worldGroupId`，并覆盖 `portalsJSON` 引用 | `src/lib/export/json-export.ts` / `src/lib/utils/world-portals.ts` |
 | P0-5 | `importProjectJSON` 非事务 + FK 缺失 fallback `0` → 半导入 / 坏引用 | `src/lib/export/json-export.ts:351/413/461/472` |
 | P0-6 | `deleteProject` 漏 `importLogs`/`importFiles`/`importJobs` 与 master blob → 孤儿数据/blob 泄漏 | `src/stores/project.ts:64` |
 | P0-7 | `deleteNode` 绕过 `deleteChapter` → `emotionBeatCards` 残留 | `src/stores/outline.ts:47` |
@@ -118,7 +118,7 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 | P1-6 | `batch-detail-runner` 章节正文版本只有单一 `worldContext`，无逐章 resolver → 多世界串台 | `src/lib/ai/batch-detail-runner.ts:173` |
 | P1-7 | 角色合并/删除不 remap `detailedOutlines.appearingCharacterIds` / `scenes.characterIds` 等 JSON 数组引用 | `src/stores/character.ts:53` 等 |
 | P1-8 | `chunk-writer` 导入只收 `projectId` 不接 `worldGroupId` → 多世界导入串台 | `src/lib/import/chunk-writer.ts:32` |
-| P1-9 | `autoTrimToFit` 只用于 UI 显示，发送的 messages 不真裁 → 超模型窗口报错 | `src/lib/ai/context-budget.ts:190` |
+| P1-9 | `autoTrimToFit` 旧问题已修：请求侧 `chat()` / `streamChat()` 发送前真裁剪，并尊重 `contextWindow`；后续仅剩更细粒度 segment 裁剪优化 | `src/lib/ai/context-budget.ts` / `src/lib/ai/client.ts` |
 | P1-10 | 非流式 `chat()` 不接 AbortSignal，`chatWithAbort` 用 `Promise.race` → 假取消，token 继续烧 | `src/lib/ai/client.ts:190` |
 | P1-11 | `SceneVerify` 的 `historyContext`/`worldRulesContext` 仍按项目全局，与 `worldContext` 不一致 | `src/components/scene/SceneVerifyPanel.tsx:68` |
 | P1-12 | StoryCorePanel 不传 `activeWorldGroupId`，store 多世界下取 `wvList[0]`（不稳定主世界）| `src/components/worldview/StoryCorePanel.tsx:44` |
@@ -126,7 +126,7 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 | P1-14 | `worldNodes.portalsJSON` 多处 `JSON.parse` 无 safe 包装；删节点不清反向 portal 引用 | `src/stores/world-node.ts:104/141` |
 | P1-15 | 旧 `geography.locations` JSON 删除只删一层，孙层残留孤儿 | `src/components/geography/GeographyPanel.tsx:89` |
 | P1-16 | HTML 导出原样拼 `chapter.content`；EPUB 转换不移除 `on*`/`javascript:` → 导出文件可携带恶意脚本 | `src/lib/export/html-builder.ts:140` / `src/lib/export/epub-export.ts:210` |
-| P1-17 | `handleExtractState` 用全量 `buildStateContext()` 而非已有的 `buildSelectiveStateContext` → 后期 100+ 角色场景 token 爆炸 | `src/components/editor/ChapterEditor.tsx:332/388` |
+| P1-17 | 已修：`handleExtractState` 与自动状态提取均使用 `buildSelectiveStateContext()` 按章节正文筛选状态卡 | `src/components/editor/ChapterEditor.tsx` / `tests/regression/R-16-selective-state-extraction.test.ts` |
 
 #### 🟡 P2（体验/质量）
 
@@ -135,7 +135,7 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 | P2-1 | AI 调用 39/59 处未传 `category` meta，UsageStats 不能保证全覆盖 |
 | P2-2 | GitHub PAT 默认持久化 `localStorage` |
 | P2-3 | `AI-FUNCTIONS-MANUAL.md` 21 处 prompt key 错（详见 §6） |
-| P2-4 | 主包 ~1.93MB（已懒加载 pdf/docx，剩余应用代码） |
+| P2-4 | 主包体积已通过 workspace 面板 lazy loading 降至约 534KB；后续只需继续关注首屏体验与 chunk 数量 |
 | P2-5 | 三层记忆 `semantic` 预算偏紧（2000 字塞补全后世界观可能截断伏笔） |
 | P2-6 | `filterActiveCharacters` 用 chapter `id` 而非 `order`（休眠隐患） |
 
@@ -634,21 +634,18 @@ AI：35 个 PromptModuleKey + 59 处实际 ai.start/chat 调用（39 处未传 m
 
 ---
 
-#### 2.7 修复 handleExtractState 改用按需召回
+#### 2.7 修复 handleExtractState 改用按需召回（已完成）
 
-**位置**：`src/components/editor/ChapterEditor.tsx:332` 和 `:388`
+**位置**：`src/components/editor/ChapterEditor.tsx` / `tests/regression/R-16-selective-state-extraction.test.ts`
 **前置**：无（独立修复）
 
 **💥 灾难场景还原**：
 > 项目里已有的状态卡系统本来就实现了「按需召回」机制 (`buildSelectiveStateContext`)，根据当前章节相关文本智能筛选只相关的状态卡。但状态提取(`handleExtractState`)和自动状态提取(`handleAutoPostGenerate`)**写死了用全量 `buildStateContext()`**。前期没问题，等用户写到 50 章、累积 100+ 角色卡 + 物品 + 地点状态后，每次提取状态就把全部 100+ 张卡塞进 prompt：① token 账单暴涨 5–10 倍；② 上下文塞满导致 AI 出现严重幻觉，提取出来的 diff 全是乱编。
 
-**改法**：
-1. 把第 332 行 `const stateCtx = buildStateContext()` 改为：
-   ```
-   const stateCtx = buildSelectiveStateContext(plainText, extraStateIds).text
-   ```
-2. 第 388 行（handleAutoPostGenerate 中）同样改为按需召回，召回的 reference 文本用刚生成的正文 `text`
-3. 同步 §8 已有的 `selectiveState` 计算逻辑（185 行），保持一致
+**已落地**：
+1. 手动状态提取使用 `buildSelectiveStateContext(plainText, extraStateIds).text`
+2. 自动状态提取使用 `buildSelectiveStateContext(text, extraStateIds).text`
+3. `R-16-selective-state-extraction.test.ts` 锁定两条调用链，防止回退到全量召回
 
 **验证**：
 - 构造场景：项目内 50+ 状态卡 → 触发状态提取 → 断言 prompt 实际发送的卡数远少于 50
@@ -1857,7 +1854,7 @@ jobs:
 | WorkflowRunner 无输入 + 不注入项目 | ✅ 抓到 | ✅ 复核 | — |
 | AI Manual 21 处 key 错 | ❌ 漏 | ✅ 抓到 | ✅ 独立确认（"虚假宣发"） |
 | AIFieldCard 不传 currentValue | ❌ 漏 | ✅ 抓到 | — |
-| autoTrimToFit 只算不真裁 | ✅ 自承 | ✅ 复核 | — |
+| autoTrimToFit 只算不真裁 | ✅ 自承 | ✅ 复核 | 已修：请求侧真裁剪 |
 | chat 不接 AbortSignal | ❌ 漏 | ✅ 抓到 | — |
 | HTML/EPUB 不 sanitize | ❌ 漏 | ✅ 抓到 | — |
 
@@ -1883,7 +1880,7 @@ jobs:
 
 | 类别 | 位置 | 已纳入 |
 |---|---|---|
-| BUG-EXPORT-WG 多世界归属丢失 | `json-export.ts:154/304/595/694` | §4.0.4 |
+| BUG-EXPORT-WG 多世界归属丢失 | 已修：`json-export.ts` 统一 export-index remap；`world-portals.ts` 覆盖 portal 引用 | §4.0.4 |
 | importProjectJSON 非事务 + FK 写 0 | `json-export.ts:351/413/461/472` | §4.0.5 |
 | deleteGroup 事务作用域不全 | `world-group.ts:88` | §4.0.1 |
 | migrateToMultiWorld 事务作用域不全 | `world-group.ts:225` | §4.0.2 |
@@ -1893,14 +1890,14 @@ jobs:
 | chapter.content 模板声明 worldRulesContext 但 adapter 不接 | `chapter-adapter.ts:10` | §4.2.2 |
 | 工作流步骤无用户输入 + 不注入项目上下文 | `WorkflowRunner.tsx:172` | §4.1.2 / §4.2 |
 | AIFieldCard 不传 currentValue | `AIFieldCard.tsx:72` | §4.2.3 |
-| autoTrimToFit 只算不真裁 | `context-budget.ts:190` | §4.1.3 |
+| autoTrimToFit 只算不真裁 | 已修：请求侧发送前真裁剪，并尊重 `contextWindow` | §4.1.3 / `fb8-context-window.test.ts` |
 | 非流式 chat 不接 AbortSignal | `client.ts:190` | §4.3.4 |
 | HTML/EPUB 导出不 sanitize | `html-builder.ts:140` / `epub-export.ts:210` | §4.3.4 |
 | AI 说明书 21 处 key 错 | `docs/AI-FUNCTIONS-MANUAL.md` | §4.3.1 / §6 |
 | ensureSchema 删库风险 | `main.tsx:25` / `ensure-schema.ts:34` | §4.0.3 |
 | AI 调用 meta 覆盖率低（39/59） | 各面板 | §4.3.1 配套 |
 | **migrateToMultiWorld 漏盖章 outlineNodes**（Gemini 独立发现） | `world-group.ts:225` | §4.0.8 |
-| **handleExtractState 用全量召回**（Gemini 独立发现） | `ChapterEditor.tsx:332/388` | §4.2.7 |
+| **handleExtractState 用全量召回**（Gemini 独立发现） | 已修：手动/自动状态提取均走 `buildSelectiveStateContext`；R-16 回归覆盖 | §4.2.7 |
 
 ### 13.2 已确认无效的"修复"
 

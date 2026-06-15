@@ -15,6 +15,7 @@ import { saveFolderHandle, loadFolderHandle, clearFolderHandle, projFolderKey, L
 import { useBackupStore } from '../../stores/backup'
 import CloudBackupCard from './CloudBackupCard'
 import { useToast } from '../shared/Toast'
+import { useDialog } from '../shared/Dialog'
 import type { Project, Snapshot } from '../../lib/types'
 
 type Tab = 'export' | 'backup' | 'ai-import'
@@ -31,14 +32,14 @@ export default function DataManagementPanel({ project, onImported }: Props) {
   const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'export',    label: '导出 / 导入', icon: FileJson },
     { id: 'backup',    label: '版本历史',    icon: History },
-    { id: 'ai-import', label: 'AI 解析导入', icon: Brain },
+    { id: 'ai-import', label: '文档导入入口', icon: Brain },
   ]
 
   return (
     <div className="max-w-2xl space-y-4">
       <div>
         <h2 className="text-xl font-bold text-text-primary mb-1">数据管理</h2>
-        <p className="text-sm text-text-muted">备份、恢复、导出正文，以及 AI 辅助解析导入设定文档。</p>
+        <p className="text-sm text-text-muted">备份、恢复、导出正文，以及跳转到 AI 辅助解析导入流程的入口说明。</p>
       </div>
 
       {/* Tab 切换 */}
@@ -284,6 +285,7 @@ function ExportTab({ project, onImported }: Props) {
 function BackupTab({ project }: Props) {
   const { snapshots, loading, loadSnapshots, createSnapshot, deleteSnapshot, restoreSnapshot } = useBackupStore()
   const toast = useToast()
+  const dialog = useDialog()
   const [creating, setCreating] = useState(false)
   const [restoring, setRestoring] = useState<number | null>(null)
   const [label, setLabel] = useState('')
@@ -303,7 +305,12 @@ function BackupTab({ project }: Props) {
   }
 
   const handleRestore = async (snap: Snapshot) => {
-    if (!confirm(`确定从快照「${snap.label}」恢复？\n将创建一个新项目（不覆盖当前项目）`)) return
+    const ok = await dialog.confirm({
+      title: `恢复快照「${snap.label}」？`,
+      message: '将创建一个新项目，不会覆盖当前项目。',
+      confirmText: '恢复为新项目',
+    })
+    if (!ok) return
     setRestoring(snap.id!)
     try {
       await restoreSnapshot(snap.id!)
@@ -400,9 +407,9 @@ function AIImportTab({ project: _project }: { project: Project }) {
           <Brain className="w-8 h-8 text-accent" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-text-primary mb-2">AI 解析导入</h3>
+          <h3 className="text-base font-semibold text-text-primary mb-2">AI 解析导入已迁移到独立面板</h3>
           <p className="text-sm text-text-muted max-w-sm mx-auto">
-            将你已有的角色设定文档、世界观文档粘贴或上传，AI 自动解析并填入对应模块字段。
+            请从左侧侧栏打开「文档导入」。那里支持上传或粘贴设定文档，并按解析结果预览后写入项目。
           </p>
         </div>
         <div className="flex flex-col gap-2 items-center text-sm text-text-muted/80">
@@ -421,7 +428,7 @@ function AIImportTab({ project: _project }: { project: Project }) {
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/5 border border-accent/20 rounded-full text-sm text-accent/70">
           <Sparkles className="w-3.5 h-3.5" />
-          此功能正在开发中，即将推出
+          使用左侧「文档导入」进入当前可用流程
         </div>
       </div>
     </div>

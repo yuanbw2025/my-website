@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db } from '../../src/lib/db/schema'
 import { adopt } from '../../src/lib/registry/adopt'
+import { getTopLevelVolumes, isTopLevelVolumeNode } from '../../src/lib/outline/selectors'
 
 async function createProject(): Promise<number> {
   const now = Date.now()
@@ -51,6 +52,18 @@ describe('R-FB10 · 卷级大纲采纳写入', () => {
     // 根因坐实:adopt 旧实现丢弃 parentId:null → 存成 undefined → UI `parentId === null` 严格过滤把卷藏起
     expect(vol.parentId).toBe(null)
     expect(vol.parentId === null).toBe(true)
+  })
+
+  it('左侧卷列表 selector 兼容历史坏数据 parentId 缺失,避免已写入卷被隐藏', () => {
+    const rows = [
+      { projectId: 1, parentId: null, type: 'volume', title: '第一卷', summary: '', order: 1, createdAt: 1, updatedAt: 1 },
+      { projectId: 1, type: 'volume', title: '旧数据卷', summary: '', order: 0, createdAt: 1, updatedAt: 1 },
+      { projectId: 1, parentId: 1, type: 'chapter', title: '第一章', summary: '', order: 0, createdAt: 1, updatedAt: 1 },
+    ] as any[]
+
+    expect(isTopLevelVolumeNode(rows[0])).toBe(true)
+    expect(isTopLevelVolumeNode(rows[1])).toBe(true)
+    expect(getTopLevelVolumes(rows).map(v => v.title)).toEqual(['旧数据卷', '第一卷'])
   })
 
   it('同名卷再采纳:被 skip 且 written 为空、带可反馈的原因(不静默)', async () => {

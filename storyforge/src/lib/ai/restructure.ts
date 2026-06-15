@@ -49,7 +49,7 @@ ${schemaInstruction}
     { role: 'user', content: rawText },
   ]
   try {
-    const out = await chat(messages, config)
+    const out = await chat(messages, config, { category: 'ai.restructure' })
     return extractJson<T>(out)
   } catch {
     return null

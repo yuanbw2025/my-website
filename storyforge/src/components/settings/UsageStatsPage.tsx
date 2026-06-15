@@ -9,6 +9,7 @@ import { Trash2, RefreshCw, Coins } from 'lucide-react'
 import { useAIUsageStore } from '../../stores/ai-usage'
 import { categoryMeta, getUsdCnyRate, setUsdCnyRate } from '../../lib/ai/usage-log'
 import type { Project } from '../../lib/types'
+import { useDialog } from '../shared/Dialog'
 
 interface Props {
   project?: Project
@@ -28,6 +29,7 @@ function fmtCny(n: number): string {
 }
 
 export default function UsageStatsPage({ project }: Props) {
+  const dialog = useDialog()
   const { entries, loading, loadAll, clearAll } = useAIUsageStore()
   const [rate, setRate] = useState(getUsdCnyRate())
   const [scopeProject, setScopeProject] = useState(true)  // 仅当前项目 / 全部
@@ -52,6 +54,16 @@ export default function UsageStatsPage({ project }: Props) {
   const handleRateChange = (v: string) => {
     const n = Number(v)
     if (n > 0) { setRate(n); setUsdCnyRate(n) }
+  }
+
+  const handleClear = async () => {
+    const ok = await dialog.confirm({
+      title: '清空消耗记录？',
+      message: '此操作不可撤销。',
+      confirmText: '清空',
+      tone: 'danger',
+    })
+    if (ok) clearAll(scopeProject ? (project?.id ?? null) : null)
   }
 
   return (
@@ -81,7 +93,7 @@ export default function UsageStatsPage({ project }: Props) {
             <RefreshCw className="w-3.5 h-3.5" /> 刷新
           </button>
           <button
-            onClick={() => { if (confirm('确定清空消耗记录？此操作不可撤销。')) clearAll(scopeProject ? (project?.id ?? null) : null) }}
+            onClick={() => { void handleClear() }}
             className="text-xs text-red-400 hover:text-red-300 inline-flex items-center gap-1"
           >
             <Trash2 className="w-3.5 h-3.5" /> 清空

@@ -56,7 +56,7 @@ export default function ForeshadowPanel({ project }: Props) {
     setAdopting(true)
     setAdoptMsg(null)
     try {
-      const raw = await chat(buildForeshadowStructurePrompt(text), config)
+      const raw = await chat(buildForeshadowStructurePrompt(text), config, { category: 'foreshadow.structure', projectId: project.id! })
       const items = parseForeshadowStructured(raw)
       if (items.length === 0) {
         setAdoptMsg('未能解析出伏笔条目，请重试或手动添加')
@@ -155,7 +155,7 @@ export default function ForeshadowPanel({ project }: Props) {
       } : undefined,
     }
     const messages = buildForeshadowSuggestPrompt(project.name, project.genre, worldCtx, charCtx, existingForeshadows, opts)
-    ai.start(messages)
+    ai.start(messages, undefined, { category: 'foreshadow.suggest', projectId: project.id! })
   }
 
   return (

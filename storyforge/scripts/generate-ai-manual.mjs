@@ -80,32 +80,94 @@ function extractContextSources() {
 function extractFields() {
   const src = read('src/lib/registry/field-registry.ts')
   const byTarget = {}
-  // 形如 text('worldviews', 'worldOrigin', ['summary']) 或 longtext(...) 等
-  for (const m of src.matchAll(/\b(?:text|longtext|num|bool|json|arr|enumField|field)\(\s*'([a-zA-Z]+)'\s*,\s*'([a-zA-Z]+)'/g)) {
+  // 形如 text('worldviews', 'worldOrigin', ['summary'])、enumeration(...) 等。
+  // 注意:字段说明书必须跟 FIELD_REGISTRY 的 helper 命名同步;此前漏扫 enumeration() 会丢枚举字段。
+  for (const m of src.matchAll(/\b(?:text|longtext|num|bool|json|arr|enumeration|enumField|field)\(\s*'([a-zA-Z0-9_]+)'\s*,\s*'([a-zA-Z0-9_]+)'/g)) {
     const [, target, field] = m
-    ;(byTarget[target] ??= []).push(field)
+    ;(byTarget[target] ??= new Set()).add(field)
+  }
+  for (const target of Object.keys(byTarget)) {
+    byTarget[target] = [...byTarget[target]].sort()
   }
   return byTarget
 }
 
 // ── ⑤ AI 调用点 category ──
+const AI_META_FORWARDERS = new Set([
+  'src/hooks/useAIStream.ts',
+  'src/lib/import/chat-with-abort.ts',
+  'src/lib/reference-analysis/pipeline.ts',
+])
+
+function findCallRanges(src, callee) {
+  const ranges = []
+  const re = new RegExp(`\\b${callee.replace('.', '\\.')}\\s*\\(`, 'g')
+  let m
+  while ((m = re.exec(src))) {
+    const prefix = src.slice(Math.max(0, m.index - 24), m.index)
+    if (/\bfunction\s*$/.test(prefix) || /\bexport\s+async\s+function\s*$/.test(prefix)) continue
+    let depth = 0
+    let quote = null
+    let escaped = false
+    for (let i = m.index + callee.length; i < src.length; i++) {
+      const ch = src[i]
+      if (quote) {
+        if (escaped) escaped = false
+        else if (ch === '\\') escaped = true
+        else if (ch === quote) quote = null
+        continue
+      }
+      if (ch === '"' || ch === "'" || ch === '`') quote = ch
+      else if (ch === '(') depth++
+      else if (ch === ')') {
+        depth--
+        if (depth === 0) {
+          ranges.push({ start: m.index, end: i + 1, text: src.slice(m.index, i + 1) })
+          break
+        }
+      }
+    }
+  }
+  return ranges
+}
+
 function extractAiCalls() {
   const out = {}
-  const dirs = ['src/components', 'src/lib']
+  const uncategorized = []
+  const dynamic = []
+  const dirs = ['src/components', 'src/hooks', 'src/lib']
   const walk = (dir) => {
     for (const ent of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
       const rel = path.join(dir, ent.name)
       if (ent.isDirectory()) walk(rel)
       else if (/\.(ts|tsx)$/.test(ent.name)) {
         const src = read(rel)
-        for (const m of src.matchAll(/category:\s*'([a-zA-Z0-9._-]+)'/g)) {
-          ;(out[m[1]] ??= new Set()).add(rel)
+        for (const callee of ['ai.start', 'chat', 'streamChat']) {
+          for (const call of findCallRanges(src, callee)) {
+            const lineStart = src.lastIndexOf('\n', call.start) + 1
+            const lineEnd = src.indexOf('\n', call.start)
+            const lineText = src.slice(lineStart, lineEnd < 0 ? src.length : lineEnd).trim()
+            if (lineText.startsWith('//') || lineText.startsWith('*')) continue
+            if (AI_META_FORWARDERS.has(rel) && /\bmeta\b/.test(call.text)) continue
+            if (rel === 'src/lib/ai/client.ts') continue
+            const line = src.slice(0, call.start).split('\n').length
+            const literal = call.text.match(/category:\s*'([a-zA-Z0-9._-]+)'/)
+            if (literal) {
+              ;(out[literal[1]] ??= new Set()).add(`${rel}:${line}`)
+              continue
+            }
+            if (/\bcategory\s*:/.test(call.text)) {
+              dynamic.push(`${rel}:${line} · ${callee}`)
+            } else {
+              uncategorized.push(`${rel}:${line} · ${callee}`)
+            }
+          }
         }
       }
     }
   }
   dirs.forEach(walk)
-  return out
+  return { byCategory: out, uncategorized, dynamic }
 }
 
 function buildMarkdown() {
@@ -113,7 +175,8 @@ function buildMarkdown() {
   const seeds = extractSeeds()
   const sources = extractContextSources()
   const fields = extractFields()
-  const aiCalls = extractAiCalls()
+  const aiCallScan = extractAiCalls()
+  const aiCalls = aiCallScan.byCategory
   const seedByKey = Object.fromEntries(seeds.map(s => [s.key, s]))
 
   const lines = []
@@ -170,12 +233,25 @@ function buildMarkdown() {
   lines.push('## 四、AI 调用点（消耗统计 category · 在哪触发)')
   lines.push('')
   lines.push(`共 ${Object.keys(aiCalls).length} 个 category。`)
+  lines.push(`未分类调用: ${aiCallScan.uncategorized.length} 个。动态 category 调用: ${aiCallScan.dynamic.length} 个。`)
   lines.push('')
   lines.push('| category | 触发文件 |')
   lines.push('|---|---|')
   for (const cat of Object.keys(aiCalls).sort()) {
     const files = [...aiCalls[cat]].sort().map(f => `\`${f}\``).join('<br/>')
     lines.push(`| \`${cat}\` | ${files} |`)
+  }
+  if (aiCallScan.dynamic.length) {
+    lines.push('')
+    lines.push('### 动态 category 调用')
+    lines.push('')
+    for (const item of aiCallScan.dynamic.sort()) lines.push(`- \`${item}\``)
+  }
+  if (aiCallScan.uncategorized.length) {
+    lines.push('')
+    lines.push('### 未分类调用（必须修复）')
+    lines.push('')
+    for (const item of aiCallScan.uncategorized.sort()) lines.push(`- \`${item}\``)
   }
   lines.push('')
 

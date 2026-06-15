@@ -5,6 +5,8 @@ import {
 } from 'lucide-react'
 import { useBackupStore } from '../../stores/backup'
 import type { Project } from '../../lib/types'
+import { useDialog } from '../shared/Dialog'
+import { useToast } from '../shared/Toast'
 
 interface Props {
   project: Project
@@ -13,6 +15,8 @@ interface Props {
 /** v3 §2.1 — 设置区.版本历史（基于 snapshots 表） */
 export default function VersionHistoryPanel({ project }: Props) {
   const navigate = useNavigate()
+  const dialog = useDialog()
+  const toast = useToast()
   const { snapshots, loading, loadSnapshots, createSnapshot, deleteSnapshot, restoreSnapshot } = useBackupStore()
   const [newLabel, setNewLabel] = useState('')
   const [creating, setCreating] = useState(false)
@@ -31,20 +35,31 @@ export default function VersionHistoryPanel({ project }: Props) {
   }
 
   const handleRestore = async (id: number, label: string) => {
-    if (!confirm(`从快照「${label}」恢复将创建一个新项目（不会覆盖当前项目）。继续？`)) return
+    const ok = await dialog.confirm({
+      title: `从快照「${label}」恢复？`,
+      message: '将创建一个新项目，不会覆盖当前项目。',
+      confirmText: '恢复为新项目',
+    })
+    if (!ok) return
     setRestoring(id)
     try {
       const newProjectId = await restoreSnapshot(id)
       navigate(`/workspace/${newProjectId}`)
     } catch (e) {
-      alert(`恢复失败：${e instanceof Error ? e.message : String(e)}`)
+      toast.error(`恢复失败：${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setRestoring(null)
     }
   }
 
   const handleDelete = async (id: number, label: string) => {
-    if (!confirm(`删除快照「${label}」？此操作不可恢复。`)) return
+    const ok = await dialog.confirm({
+      title: `删除快照「${label}」？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     await deleteSnapshot(id)
   }
 

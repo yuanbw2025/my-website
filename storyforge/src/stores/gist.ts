@@ -2,7 +2,8 @@
  * Gist 云备份 store（FB-11 数据持久 · A）
  *
  * 把项目数据备份到 GitHub 私密 Gist —— 数据离开浏览器存到 GitHub 云端,
- * 清浏览器 / 换设备都不丢,可一键拉回。配置存 localStorage,不动 DB schema。
+ * 清浏览器 / 换设备都不丢,可一键拉回。PAT 默认只存 sessionStorage,
+ * 用户显式选择记住本机时才落 localStorage。
  */
 import { create } from 'zustand'
 import {
@@ -25,15 +26,49 @@ function writeProj(projectId: number, v: ProjBackup) {
   localStorage.setItem(projKey(projectId), JSON.stringify(v))
 }
 
+function readSavedAuth(): { pat: string | null; username: string | null; rememberPat: boolean } {
+  const sessionPat = sessionStorage.getItem(PAT_KEY)
+  if (sessionPat) {
+    return {
+      pat: sessionPat,
+      username: sessionStorage.getItem(USER_KEY),
+      rememberPat: false,
+    }
+  }
+  const localPat = localStorage.getItem(PAT_KEY)
+  return {
+    pat: localPat,
+    username: localStorage.getItem(USER_KEY),
+    rememberPat: !!localPat,
+  }
+}
+
+function writeAuth(pat: string, username: string, rememberPat: boolean): void {
+  const target = rememberPat ? localStorage : sessionStorage
+  const other = rememberPat ? sessionStorage : localStorage
+  target.setItem(PAT_KEY, pat)
+  target.setItem(USER_KEY, username)
+  other.removeItem(PAT_KEY)
+  other.removeItem(USER_KEY)
+}
+
+function clearAuth(): void {
+  localStorage.removeItem(PAT_KEY)
+  localStorage.removeItem(USER_KEY)
+  sessionStorage.removeItem(PAT_KEY)
+  sessionStorage.removeItem(USER_KEY)
+}
+
 interface GistState {
   pat: string | null
   username: string | null
+  rememberPat: boolean
   autoBackup: boolean
   busy: boolean
   error: string | null
 
   /** 连接 GitHub:验证 PAT 并保存 */
-  connect: (pat: string) => Promise<boolean>
+  connect: (pat: string, rememberPat?: boolean) => Promise<boolean>
   disconnect: () => void
   setAutoBackup: (on: boolean) => void
   /** 备份指定项目到云端(创建/更新该项目的 Gist) */
@@ -48,20 +83,22 @@ interface GistState {
   projBackup: (projectId: number) => ProjBackup | null
 }
 
+const initialAuth = readSavedAuth()
+
 export const useGistStore = create<GistState>((set, get) => ({
-  pat: localStorage.getItem(PAT_KEY),
-  username: localStorage.getItem(USER_KEY),
+  pat: initialAuth.pat,
+  username: initialAuth.username,
+  rememberPat: initialAuth.rememberPat,
   autoBackup: localStorage.getItem(AUTO_KEY) === '1',
   busy: false,
   error: null,
 
-  connect: async (pat) => {
+  connect: async (pat, rememberPat = false) => {
     set({ busy: true, error: null })
     try {
       const login = await validateGitHubPAT(pat.trim())
-      localStorage.setItem(PAT_KEY, pat.trim())
-      localStorage.setItem(USER_KEY, login)
-      set({ pat: pat.trim(), username: login, busy: false })
+      writeAuth(pat.trim(), login, rememberPat)
+      set({ pat: pat.trim(), username: login, rememberPat, busy: false })
       return true
     } catch (e) {
       set({ busy: false, error: e instanceof Error ? e.message : '连接失败' })
@@ -70,10 +107,9 @@ export const useGistStore = create<GistState>((set, get) => ({
   },
 
   disconnect: () => {
-    localStorage.removeItem(PAT_KEY)
-    localStorage.removeItem(USER_KEY)
+    clearAuth()
     localStorage.removeItem(AUTO_KEY)
-    set({ pat: null, username: null, autoBackup: false })
+    set({ pat: null, username: null, rememberPat: false, autoBackup: false })
   },
 
   setAutoBackup: (on) => {

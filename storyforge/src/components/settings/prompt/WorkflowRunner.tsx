@@ -19,6 +19,7 @@ import type { PromptWorkflow, PromptWorkflowStep, SaveTarget } from '../../../li
 import type { Project } from '../../../lib/types'
 import type { TokenUsage } from '../../../lib/ai/logger'
 import { targetLabel, assembleWorkflowStepVars } from './workflow-helpers'
+import { useToast } from '../../shared/Toast'
 
 interface RunnerProps {
   workflow: PromptWorkflow
@@ -53,6 +54,7 @@ async function findExistingOutlineNode(
  * 从 PromptWorkflowsPanel.tsx 抽出。
  */
 export default function WorkflowRunner({ workflow, project, onClose }: RunnerProps) {
+  const toast = useToast()
   const ai = useAIStream()
   const { loadAll: loadWorldview } = useWorldviewStore()
   const { loadAll: loadCreativeRules } = useCreativeRulesStore()
@@ -90,7 +92,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
   /** 写入对应模块 */
   const handleSaveTarget = async (stepId: string, output: string, target: SaveTarget) => {
     if (!project?.id) {
-      alert('未关联项目，无法自动保存。请进入某个项目后再运行。')
+      toast.error('未关联项目，无法自动保存。请进入某个项目后再运行。')
       return
     }
     const projectId = project.id
@@ -124,7 +126,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
         if (!Array.isArray(parsed)) throw new Error('AI 输出不是 JSON 数组')
         const result = await adopt({ projectId, target: 'characters', mode: 'add-many', data: parsed as Record<string, unknown>[] })
         await loadCharacters(projectId)
-        alert(`已写入 ${result.written.length} 个角色${result.skipped.length ? `，跳过 ${result.skipped.length} 个` : ''}`)
+        toast.success(`已写入 ${result.written.length} 个角色${result.skipped.length ? `，跳过 ${result.skipped.length} 个` : ''}`)
       } else if (target.type === 'create-outline-nodes') {
         const parsed = extractJSON(output) as unknown[]
         if (!Array.isArray(parsed)) throw new Error('AI 输出不是 JSON 数组')
@@ -159,7 +161,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
           if (typeof x === 'object' && x) await writeNode(x as Record<string, unknown>, null)
         }
         await loadOutline(projectId)
-        alert(`已写入 ${n} 个大纲节点`)
+        toast.success(`已写入 ${n} 个大纲节点`)
       } else if (target.type === 'create-foreshadows') {
         const parsed = extractJSON(output) as unknown[]
         if (!Array.isArray(parsed)) throw new Error('AI 输出不是 JSON 数组')
@@ -176,11 +178,11 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
           }))
         const result = await adopt({ projectId, target: 'foreshadows', mode: 'add-many', data: normalized })
         await loadForeshadows(projectId)
-        alert(`已写入 ${result.written.length} 个伏笔${result.skipped.length ? `，跳过 ${result.skipped.length} 个` : ''}`)
+        toast.success(`已写入 ${result.written.length} 个伏笔${result.skipped.length ? `，跳过 ${result.skipped.length} 个` : ''}`)
       }
       setSavedSteps(prev => new Set(prev).add(stepId))
     } catch (e) {
-      alert(`保存失败：${e instanceof Error ? e.message : String(e)}\n\n（角色/大纲/伏笔类目标需 AI 输出 JSON。可用「import.parse-*」类提示词预先调好。）`)
+      toast.error(`保存失败：${e instanceof Error ? e.message : String(e)}。角色/大纲/伏笔类目标需 AI 输出 JSON。可用 import.parse-* 类提示词预先调好。`)
     }
   }
 

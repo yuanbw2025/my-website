@@ -6,6 +6,17 @@ import { nanoid } from '../lib/utils/id'
 
 const STORAGE_KEY = 'storyforge-ai-config'
 const PRESETS_KEY = 'storyforge-ai-presets'
+const SESSION_API_KEY = 'storyforge-ai-api-key-session'
+const REMEMBER_API_KEY = 'storyforge-ai-api-key-remember'
+
+const DEFAULT_CONFIG: AIConfig = {
+  provider: 'deepseek',
+  apiKey: '',
+  model: 'deepseek-chat',
+  baseUrl: 'https://api.deepseek.com/v1',
+  temperature: 0.7,
+  maxTokens: 0,
+}
 
 /** 从 localStorage 加载预设列表 */
 function loadPresets(): AIConfigPreset[] {
@@ -73,19 +84,43 @@ function getChineseExplanation(status: number, msg: string): string {
 }
 
 /** 从 localStorage 加载配置 */
-function loadConfig(): AIConfig {
+function loadInitialConfig(): { config: AIConfig; rememberApiKey: boolean } {
+  let savedConfig: Partial<AIConfig> = {}
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) return JSON.parse(saved)
+    if (saved) savedConfig = JSON.parse(saved)
   } catch { /* ignore */ }
+
+  const rememberRaw = localStorage.getItem(REMEMBER_API_KEY)
+  const legacyHasLocalKey = typeof savedConfig.apiKey === 'string' && savedConfig.apiKey.length > 0
+  const rememberApiKey = rememberRaw == null ? legacyHasLocalKey : rememberRaw === 'true'
+  const sessionKey = sessionStorage.getItem(SESSION_API_KEY) || ''
+
   return {
-    provider: 'deepseek',
-    apiKey: '',
-    model: 'deepseek-chat',
-    baseUrl: 'https://api.deepseek.com/v1',
-    temperature: 0.7,
-    maxTokens: 0,
+    config: {
+      ...DEFAULT_CONFIG,
+      ...savedConfig,
+      apiKey: rememberApiKey ? (savedConfig.apiKey || '') : sessionKey,
+    },
+    rememberApiKey,
   }
+}
+
+function persistConfig(config: AIConfig, rememberApiKey: boolean): void {
+  const persisted: AIConfig = rememberApiKey ? config : { ...config, apiKey: '' }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted))
+  localStorage.setItem(REMEMBER_API_KEY, String(rememberApiKey))
+  if (rememberApiKey) {
+    sessionStorage.removeItem(SESSION_API_KEY)
+  } else if (config.apiKey) {
+    sessionStorage.setItem(SESSION_API_KEY, config.apiKey)
+  } else {
+    sessionStorage.removeItem(SESSION_API_KEY)
+  }
+}
+
+function presetConfig(config: AIConfig, rememberApiKey: boolean): AIConfig {
+  return rememberApiKey ? { ...config } : { ...config, apiKey: '' }
 }
 
 export interface TestResult {
@@ -97,10 +132,12 @@ export interface TestResult {
 
 interface AIConfigStore {
   config: AIConfig
+  rememberApiKey: boolean
   presets: AIConfigPreset[]
   /** 当前生效的预设 id（null = 未对应任何预设/已改动） */
   activePresetId: string | null
   setConfig: (config: Partial<AIConfig>) => void
+  setRememberApiKey: (remember: boolean) => void
   switchProvider: (provider: AIProvider) => void
   testConnection: () => Promise<TestResult>
   // ── 预设管理 ──
@@ -111,21 +148,33 @@ interface AIConfigStore {
   deletePreset: (id: string) => void
 }
 
+const initial = loadInitialConfig()
+
 export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
-  config: loadConfig(),
+  config: initial.config,
+  rememberApiKey: initial.rememberApiKey,
   presets: loadPresets(),
   activePresetId: null,
 
   setConfig: (partial: Partial<AIConfig>) => {
     const newConfig = { ...get().config, ...partial }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig))
+    persistConfig(newConfig, get().rememberApiKey)
     // 手动改动配置后，与已选预设脱钩（除非改动等于该预设）
     set({ config: newConfig, activePresetId: null })
   },
 
+  setRememberApiKey: (remember: boolean) => {
+    persistConfig(get().config, remember)
+    set({ rememberApiKey: remember })
+  },
+
   saveAsPreset: (name: string) => {
     const id = nanoid()
-    const preset: AIConfigPreset = { id, name: name.trim() || '未命名配置', config: { ...get().config } }
+    const preset: AIConfigPreset = {
+      id,
+      name: name.trim() || '未命名配置',
+      config: presetConfig(get().config, get().rememberApiKey),
+    }
     const presets = [...get().presets, preset]
     savePresets(presets)
     set({ presets, activePresetId: id })
@@ -135,13 +184,16 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
   applyPreset: (id: string) => {
     const preset = get().presets.find(p => p.id === id)
     if (!preset) return
-    const newConfig = { ...preset.config }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig))
+    const newConfig = { ...preset.config, apiKey: preset.config.apiKey || get().config.apiKey }
+    persistConfig(newConfig, get().rememberApiKey)
     set({ config: newConfig, activePresetId: id })
   },
 
   updatePresetFromCurrent: (id: string) => {
-    const presets = get().presets.map(p => p.id === id ? { ...p, config: { ...get().config } } : p)
+    const presets = get().presets.map(p => p.id === id ? {
+      ...p,
+      config: presetConfig(get().config, get().rememberApiKey),
+    } : p)
     savePresets(presets)
     set({ presets, activePresetId: id })
   },
@@ -166,7 +218,7 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
       ...preset,
       apiKey: provider === get().config.provider ? get().config.apiKey : (preset.apiKey || ''),
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig))
+    persistConfig(newConfig, get().rememberApiKey)
     set({ config: newConfig, activePresetId: null })
   },
 

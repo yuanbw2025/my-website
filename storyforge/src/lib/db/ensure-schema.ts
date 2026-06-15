@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 
-export const REQUIRED_TABLES_V26 = [
+export const REQUIRED_TABLES = [
   'aiUsageLog',
   'chapters',
   'characterRelations',

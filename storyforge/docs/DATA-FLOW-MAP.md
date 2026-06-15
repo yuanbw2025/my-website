@@ -215,7 +215,7 @@
 | **导出漏表（丢数据）** | JSON 导出/导入（项目备份）**完全没有** `importantLocations`（重要地点）/ `worldRulesProfiles`（真实与幻想）/ `codexCategories`+`codexEntries`（设定词条）→ **备份再恢复会丢掉这三类用户内容** | 🔴 严重 | 已补全导出 + 导入（含树 parentId / 词条 categoryId / worldGroupId 重映射）。gist 导出复用同一格式，一并修复 |
 | **J 死代码清扫** | `WorldviewPanel`（侧栏不可达）+ `buildExistingWorldview`（读 v2，仅它用）+ `'worldview'` 路由/类型 | 清理 | 已删除 |
 | **H 批量多世界** | 批量大纲/批量细纲在多世界下用单一上下文 | 中 | 批量 runner 加 `worldContextResolver`，逐卷/逐章按所属世界（`buildNodeWritingContext`） |
-| ⚠️ 顺带发现 | 多世界 export/import 的 `worldGroupId` 重映射键值错位（`remap` 用 export-index 表查 raw 旧 id）；单世界无影响，多世界备份恢复会丢世界归属 | 待修 | 已列入 ROADMAP「BUG-EXPORT-WG」（含问题机制 + 方案 A/B），独立于本次数据丢失修复 |
+| ⚠️ 顺带发现 | 多世界 export/import 的 `worldGroupId` 重映射键值错位（`remap` 用 export-index 表查 raw 旧 id）；单世界无影响，多世界备份恢复会丢世界归属 | 已修 | 导出/导入统一 export-index remap 协议，并补充 `portalsJSON` 引用重映射；回归覆盖多世界往返 |
 
 ### 第五批：导出格式 / 上下文快照 / 单例工厂 / 全代码扫（2026-06-04）
 
@@ -282,7 +282,7 @@
 
 | 功能 | 问题 | 处置 |
 |------|------|------|
-| **上下文预算自动裁剪** `autoTrimToFit` | 实现了但**只用于显示**（ContextBudgetBar 算"会裁哪些层"给用户看），实际发送的上下文从不真裁 → 超出模型窗口时直接 API 报错而非优雅降级（多数被三层记忆预算兜住，但 L3 引用/洞察可叠加超限） | 记入 ROADMAP（需 token-aware 组装才能真裁，非小改） |
+| **上下文预算自动裁剪** `autoTrimToFit` | 旧审计结论：预算条只显示会裁剪什么，实际请求不裁剪。 | 已修：`chat()` / `streamChat()` 发送前调用 `trimMessagesToFit()` 真裁剪，并尊重用户配置的 `contextWindow`；见 `tests/registry/fb8-context-window.test.ts`。 |
 | **三层记忆 semantic 预算** | write 模式 semantic 仅 2000 字，要塞 世界观+角色+伏笔；补全世界观字段后 worldContext 可达 3000 → 截断，伏笔排其后易被挤掉 | 调优项：复核预算或调整层内顺序（角色另有独立 prompt 槽，伏笔仅此一处需留量） |
 
 ### ✅ 核对无误
@@ -322,7 +322,7 @@
 - 状态表 `applyDiffs` 新聚合逻辑：existing 更新 + 新建分支均正确。
 - `buildNodeWritingContext` 单世界路径：wv/sc/ps 三者均加载、用共享函数。
 - `client.ts` 流式 `JSON.parse` 确在 try/catch（「JSON.parse 均受保护」属实）。
-- **BUG-EXPORT-WG 分析复核为真**：export 的 worldGroupId 是 `...rest` 原始 id（未转 index），import `remap` 用 export-index 表查 → 键不匹配确会丢世界归属。记录准确。
+- **BUG-EXPORT-WG 分析复核为真，现已修复**：原问题是 export 的 worldGroupId 为原始 id、import `remap` 用 export-index 表查，键不匹配会丢世界归属；现已统一 export-index remap，并由导出/导入 roundtrip 回归锁定。
 
 > 复核结论：已修项均真实在位且正确；安全项抽查属实；订正 1 处表述（codex 双轨）；**复核过程本身又揪出 2 个之前漏掉的多世界数据完整性 bug（deleteGroup 孤儿、migrate 漏盖章 codex）并已修**。
 

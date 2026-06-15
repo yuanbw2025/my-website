@@ -250,6 +250,7 @@ async function runChunk(
 
     try {
       const result = await parseChunkOnce({
+        projectId,
         chunkIndex,
         totalChunks: session.totalChunks,
         knownContext: session.rollingContext || '（尚无已识别上下文）',
@@ -326,6 +327,7 @@ async function runChunk(
 
 /** 调一次 AI 解析一个 chunk */
 async function parseChunkOnce(args: {
+  projectId: number
   chunkIndex: number
   totalChunks: number
   knownContext: string
@@ -344,7 +346,7 @@ async function parseChunkOnce(args: {
   const config: AIConfig = { ...baseConfig, maxTokens: overrideMax }
   if (!config.apiKey) throw new Error('未配置 AI API Key')
 
-  const output = await chatWithAbort(messages, config, args.signal)
+  const output = await chatWithAbort(messages, config, args.signal, { category: 'import.parse-chunk', projectId: args.projectId })
   const obj = extractJSON(output) as UnifiedParseResult
   return normalizeUnified(obj)
 }

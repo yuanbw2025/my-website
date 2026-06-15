@@ -11,7 +11,7 @@
  *   · 状态写回 Reference 的 analysisStatus / analysisProgress。
  */
 import { db } from '../db/schema'
-import { chat } from '../ai/client'
+import { chat, type AICallMeta } from '../ai/client'
 import { useAIConfigStore } from '../../stores/ai-config'
 import { chunkDocument, quickHash, type ChunkPlan } from '../import/chunker'
 import { extractJSON } from '../ai/adapters/import-adapter'
@@ -405,7 +405,7 @@ ${depthGuide}
   const baseConfig = useAIConfigStore.getState().config
   const config: AIConfig = { ...baseConfig, maxTokens: args.maxTokens }
   if (!config.apiKey) throw new Error('未配置 AI API Key（请先到「系统设置 → AI 配置」填写）')
-  const output = await chatWithAbort(messages, config, args.signal)
+  const output = await chatWithAbort(messages, config, args.signal, { category: 'reference.analysis', projectId: args.ref.projectId })
   const obj = extractJSON(output) as RawAnalysis
   return obj || {}
 }
@@ -416,11 +416,12 @@ async function chatWithAbort(
   messages: ChatMessage[],
   config: AIConfig,
   signal?: AbortSignal,
+  meta?: AICallMeta,
 ): Promise<string> {
   if (signal?.aborted) {
     const e = new Error('aborted'); e.name = 'AbortError'; throw e
   }
-  return await chat(messages, config, undefined, signal)
+  return await chat(messages, config, meta, signal)
 }
 
 function buildRollingContext(prev: string, row: ReferenceChunkAnalysis): string {

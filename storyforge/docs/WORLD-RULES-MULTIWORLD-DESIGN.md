@@ -103,7 +103,7 @@ interface WorldRulesProfile {
 
 - `worldRulesProfiles` 已纳入导出（数据丢失修复批次）。新增 `worldGroupId` 后：
   - 导入端 section 27「worldGroupId 重映射」**补一段** worldRulesProfiles 的 remap（与 worldviews 等一致）。
-  - ⚠️ 受 ROADMAP `BUG-EXPORT-WG`（worldGroupId 重映射键值错位）影响：本功能的 worldGroupId 正确性**依赖该 bug 修复**。实现时与之合并处理。
+  - ✅ ROADMAP `BUG-EXPORT-WG`（worldGroupId 重映射键值错位）已修复：导出/导入统一 export-index remap，本功能的 worldGroupId 往返不再受该历史 bug 阻断。
 
 ---
 
@@ -117,7 +117,7 @@ interface WorldRulesProfile {
 | D | 漏某个 AI 调用点 → 该面用错世界规则 | 9 个调用点逐一定死来源（§2.3 表）；新增调用点必须在本表登记 |
 | E | 开启多世界后主世界规则丢失/变空 | 迁移 `stamp` 补 worldRulesProfiles（§2.4） |
 | F | 删世界后留孤儿 profile | `deleteGroup` 级联删除（§2.5） |
-| G | 导出/导入后世界归属错乱 | section 27 remap 补 worldRulesProfiles + 依赖 BUG-EXPORT-WG 修复（§2.6） |
+| G | 导出/导入后世界归属错乱 | section 27 remap 补 worldRulesProfiles；BUG-EXPORT-WG 依赖已解除（§2.6） |
 | H | 单世界行为被改变 | worldGroupId=null 路径与现状完全一致；多世界相关分支仅在 `enableMultiWorld` 下生效 |
 | I | 切换世界标签时把 A 世界的编辑写进 B 世界 | 切标签先 `_persist` 当前 profile 再 load 目标（仿 HistoryPanel 的世界标签提交时序） |
 
@@ -131,5 +131,5 @@ interface WorldRulesProfile {
 4. `buildWorldRulesContext(projectId, worldGroupId?)` + 默认世界解析；更新全部 9 个调用点（按 §2.3 表传值）。
 5. `migrateToMultiWorld`：stamp 补 worldRulesProfiles。
 6. `deleteGroup`：级联删 worldRulesProfiles。
-7. 导出 section 27 remap 补 worldRulesProfiles（合并 BUG-EXPORT-WG 一起修）。
+7. 导出 section 27 remap 补 worldRulesProfiles（BUG-EXPORT-WG 已修，沿用统一 remap 协议）。
 8. 验证：`tsc` + `build` + 单世界回归（行为不变）+ 多世界往返（建多世界、各世界填不同规则、AI 生成读对世界、导出导入保持）。

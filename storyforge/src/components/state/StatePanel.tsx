@@ -10,6 +10,7 @@ import { useStateCardStore } from '../../stores/state-card'
 import EventTimeline from './EventTimeline'
 import type { Project, StateCard, StateCategory, StateField } from '../../lib/types'
 import { STATE_CATEGORY_LABELS, parseFields, stringifyFields } from '../../lib/types/state-card'
+import { useDialog } from '../shared/Dialog'
 
 interface Props {
   project: Project
@@ -28,6 +29,7 @@ const CATEGORY_COLORS: Record<StateCategory, string> = {
 type ViewMode = 'cards' | 'timeline'
 
 export default function StatePanel({ project }: Props) {
+  const dialog = useDialog()
   const { cards, loading, loadAll, addCard, updateCard, deleteCard, buildStateContext } = useStateCardStore()
   const [filter, setFilter] = useState<StateCategory | 'all'>('all')
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -170,12 +172,17 @@ export default function StatePanel({ project }: Props) {
                 }
               }}
               onDelete={async () => {
-                if (confirm(`确定删除「${card.entityName}」的状态卡？`)) {
-                  try {
-                    await deleteCard(card.id!)
-                  } catch (err) {
-                    console.error('[StatePanel] 删除失败:', err)
-                  }
+                const ok = await dialog.confirm({
+                  title: `删除「${card.entityName}」的状态卡？`,
+                  message: '此操作不可恢复。',
+                  confirmText: '删除',
+                  tone: 'danger',
+                })
+                if (!ok) return
+                try {
+                  await deleteCard(card.id!)
+                } catch (err) {
+                  console.error('[StatePanel] 删除失败:', err)
                 }
               }}
             />

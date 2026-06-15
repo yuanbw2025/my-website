@@ -8,6 +8,8 @@ import type { PromptWorkflowStep } from '../../../lib/types/workflow'
 import type { Project } from '../../../lib/types'
 import WorkflowEditor from './WorkflowEditor'
 import WorkflowRunner from './WorkflowRunner'
+import { useDialog } from '../../shared/Dialog'
+import { useToast } from '../../shared/Toast'
 
 interface Props {
   project?: Project
@@ -15,6 +17,8 @@ interface Props {
 
 /** 工作流面板：列表 + Runner / Editor（同一面板切换视图） */
 export default function PromptWorkflowsPanel({ project }: Props = {}) {
+  const dialog = useDialog()
+  const toast = useToast()
   const workflows = useWorkflowStore(s => s.workflows)
   const cloneWorkflow = useWorkflowStore(s => s.clone)
   const removeWorkflow = useWorkflowStore(s => s.remove)
@@ -66,9 +70,9 @@ export default function PromptWorkflowsPanel({ project }: Props = {}) {
         count++
       }
       await reloadWorkflows()
-      alert(`成功导入 ${count} 个工作流`)
+      toast.success(`成功导入 ${count} 个工作流`)
     } catch (err) {
-      alert(`导入失败：${err instanceof Error ? err.message : String(err)}`)
+      toast.error(`导入失败：${err instanceof Error ? err.message : String(err)}`)
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -86,6 +90,16 @@ export default function PromptWorkflowsPanel({ project }: Props = {}) {
       updatedAt: now,
     })
     setEditingId(id)
+  }
+
+  const handleRemove = async (id: number, name: string) => {
+    const ok = await dialog.confirm({
+      title: `删除工作流「${name}」？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (ok) removeWorkflow(id)
   }
 
   if (runningId !== null) {
@@ -188,9 +202,7 @@ export default function PromptWorkflowsPanel({ project }: Props = {}) {
                   </button>
                   {w.scope === 'user' && (
                     <button
-                      onClick={() => {
-                        if (confirm(`删除工作流「${w.name}」？`)) removeWorkflow(w.id!)
-                      }}
+                      onClick={() => { void handleRemove(w.id!, w.name) }}
                       className="p-1.5 text-text-muted hover:text-error"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

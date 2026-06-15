@@ -9,6 +9,9 @@
  *   ② components/hooks 里不得直接 db.xxx.add/update/delete(必须走 adopt/store)
  *   ③ components/hooks 里不得手挑 buildWorldContext/buildCharacterContext(必须走 assembleContext)
  *   ④ 消耗统计:ai.start/chat 调用应带 category meta(允许豁免列表)
+ *   ⑤ PROJECT_TABLES exportable 表必须接入 JSON 导出/导入
+ *   ⑥ components/hooks/pages 不得使用浏览器原生 alert/confirm/prompt
+ *   ⑦ 正式 UI 不得出现"正在开发/即将推出/敬请期待"式死入口文案
  *
  * 用法:node scripts/check-architecture.mjs
  */
@@ -70,6 +73,122 @@ for (const dir of UI_DIRS) {
         violations.push(`[③手挑上下文] ${file}: \`${fn}(\` —— 应走 assembleContext({ sourceKeys })`)
       }
     }
+  }
+}
+
+// ── ④ AI 调用必须带 category meta ──
+const AI_META_FORWARDERS = new Set([
+  'src/hooks/useAIStream.ts',
+  'src/lib/import/chat-with-abort.ts',
+  'src/lib/reference-analysis/pipeline.ts',
+])
+
+function findCallRanges(src, callee) {
+  const ranges = []
+  const re = new RegExp(`\\b${callee.replace('.', '\\.')}\\s*\\(`, 'g')
+  let m
+  while ((m = re.exec(src))) {
+    const prefix = src.slice(Math.max(0, m.index - 24), m.index)
+    if (/\bfunction\s*$/.test(prefix) || /\bexport\s+async\s+function\s*$/.test(prefix)) continue
+    let depth = 0
+    let quote = null
+    let escaped = false
+    for (let i = m.index + callee.length; i < src.length; i++) {
+      const ch = src[i]
+      if (quote) {
+        if (escaped) escaped = false
+        else if (ch === '\\') escaped = true
+        else if (ch === quote) quote = null
+        continue
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        quote = ch
+      } else if (ch === '(') {
+        depth++
+      } else if (ch === ')') {
+        depth--
+        if (depth === 0) {
+          ranges.push({ start: m.index, end: i + 1, text: src.slice(m.index, i + 1) })
+          break
+        }
+      }
+    }
+  }
+  return ranges
+}
+
+for (const dir of ['src/components', 'src/hooks', 'src/lib']) {
+  for (const file of walk(dir)) {
+    const src = read(file)
+    for (const callee of ['ai.start', 'chat', 'streamChat']) {
+      for (const call of findCallRanges(src, callee)) {
+        const lineStart = src.lastIndexOf('\n', call.start) + 1
+        const lineEnd = src.indexOf('\n', call.start)
+        const lineText = src.slice(lineStart, lineEnd < 0 ? src.length : lineEnd).trim()
+        if (lineText.startsWith('//') || lineText.startsWith('*')) continue
+        if (AI_META_FORWARDERS.has(file) && /\bmeta\b/.test(call.text)) continue
+        if (file === 'src/lib/ai/client.ts') continue
+        if (!/\bcategory\s*:/.test(call.text)) {
+          const line = src.slice(0, call.start).split('\n').length
+          violations.push(`[④AI分类] ${file}:${line}: \`${callee}(...)\` 缺少 category meta,消耗统计与 AI manual 会漏记`)
+        }
+      }
+    }
+  }
+}
+
+// ── ⑤ exportable 表必须接入 JSON 导出/导入 ──
+const registrySrc = read('src/lib/registry/project-tables.ts')
+const jsonExportSrc = read('src/lib/export/json-export.ts')
+const specChunks = registrySrc
+  .split(/\n\s*\n/)
+  .filter(chunk => chunk.includes('table: db.') && chunk.includes('name:'))
+
+for (const chunk of specChunks) {
+  if (!/\bexportable:\s*true\b/.test(chunk)) continue
+  const name = chunk.match(/\bname:\s*'([^']+)'/)?.[1]
+  if (!name || name === 'projects') continue
+
+  const interfaceRe = new RegExp(`\\n\\s*${name}\\??\\s*:`)
+  const outputRe = new RegExp(`\\n\\s*${name}\\s*:`)
+  const importRe = new RegExp(`\\bdata\\.${name}\\b`)
+
+  if (!interfaceRe.test(jsonExportSrc)) {
+    violations.push(`[⑤导出覆盖] src/lib/export/json-export.ts: ProjectExportData 缺少 exportable 表 \`${name}\``)
+  }
+  if (!outputRe.test(jsonExportSrc)) {
+    violations.push(`[⑤导出覆盖] src/lib/export/json-export.ts: exportProjectJSON 返回对象缺少 \`${name}\``)
+  }
+  if (!importRe.test(jsonExportSrc)) {
+    violations.push(`[⑤导出覆盖] src/lib/export/json-export.ts: importProjectJSON 未读取 \`data.${name}\``)
+  }
+}
+
+// ── ⑥ UI 层禁止浏览器原生弹窗 ──
+for (const dir of UI_DIRS) {
+  for (const file of walk(dir)) {
+    const src = read(file)
+    const re = /(?:^|[^\w.])(?:window\.)?(alert|confirm|prompt)\s*\(/g
+    for (const m of src.matchAll(re)) {
+      const lineStart = src.lastIndexOf('\n', m.index) + 1
+      const lineEnd = src.indexOf('\n', m.index)
+      const lineText = src.slice(lineStart, lineEnd < 0 ? src.length : lineEnd).trim()
+      if (lineText.startsWith('//') || lineText.startsWith('*')) continue
+      const line = src.slice(0, m.index).split('\n').length
+      violations.push(`[⑥原生弹窗] ${file}:${line}: UI 层不得使用 alert/confirm/prompt,应走 DialogProvider 或 ToastProvider`)
+    }
+  }
+}
+
+// ── ⑦ 正式 UI 禁止半成品承诺文案 ──
+const WIP_TEXT_RE = /正在开发|开发中|即将推出|敬请期待|Coming soon/i
+for (const dir of UI_DIRS) {
+  for (const file of walk(dir)) {
+    const src = read(file)
+    const m = WIP_TEXT_RE.exec(src)
+    if (!m) continue
+    const line = src.slice(0, m.index).split('\n').length
+    violations.push(`[⑦半成品文案] ${file}:${line}: 正式 UI 不得出现"${m[0]}"式死入口承诺;请隐藏入口、标记 Labs 禁用态,或指向已上线流程`)
   }
 }
 

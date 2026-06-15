@@ -7,6 +7,7 @@ import { GENRE_PACKS } from '../../../lib/ai/prompt-seeds-genre-packs'
 import PromptTemplateList from './PromptTemplateList'
 import PromptTemplateEditor from './PromptTemplateEditor'
 import PromptWorkflowsPanel from './PromptWorkflowsPanel'
+import { useToast } from '../../shared/Toast'
 
 type ScopeFilter = 'all' | 'system' | 'user'
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function PromptManagerPanel({ project }: Props = {}) {
+  const toast = useToast()
   const templates = usePromptStore(s => s.templates)
   const saveTemplate = usePromptStore(s => s.saveTemplate)
   const setActive = usePromptStore(s => s.setActive)
@@ -119,9 +121,9 @@ export default function PromptManagerPanel({ project }: Props = {}) {
         }
       }
       await reload()
-      alert(`成功导入 ${count} 条模板`)
+      toast.success(`成功导入 ${count} 条模板`)
     } catch (err) {
-      alert(`导入失败：${err instanceof Error ? err.message : String(err)}`)
+      toast.error(`导入失败：${err instanceof Error ? err.message : String(err)}`)
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''
     }

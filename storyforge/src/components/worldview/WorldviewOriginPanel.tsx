@@ -262,7 +262,7 @@ function TextFieldEditor({
     const messages = buildWorldviewPrompt(
       field.label, project.name, project.genre || '', fullContext, hint, opts, value, mode,
     )
-    ai.start(messages)
+    ai.start(messages, undefined, { category: 'worldview.dimension', projectId: project.id! })
   }
 
   return (
@@ -357,7 +357,7 @@ function DivineFieldEditor({
       ].filter(Boolean).join('\n'),
       mode,
     )
-    ai.start(messages)
+    ai.start(messages, undefined, { category: 'worldview.divine', projectId: project.id! })
   }
 
   const [splitting, setSplitting] = useState(false)
@@ -381,7 +381,7 @@ function DivineFieldEditor({
       ]
       const config = useAIConfigStore.getState().config
       let accumulated = ''
-      const stream = streamChat(splitMessages, config, new AbortController().signal, {})
+      const stream = streamChat(splitMessages, config, new AbortController().signal, {}, { category: 'worldview.divine.split', projectId: project.id! })
       for await (const chunk of stream) {
         accumulated += chunk
       }

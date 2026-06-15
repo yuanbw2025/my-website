@@ -3,10 +3,11 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import ErrorBoundary from './components/shared/ErrorBoundary'
+import { DialogProvider } from './components/shared/Dialog'
 import { ToastProvider } from './components/shared/Toast'
 import { usePromptStore } from './stores/prompt'
 import { useWorkflowStore } from './stores/workflow'
-import { ensureSchema, REQUIRED_TABLES_V26 } from './lib/db/ensure-schema'
+import { ensureSchema, REQUIRED_TABLES } from './lib/db/ensure-schema'
 import { validateRegistry } from './lib/registry/validate'
 import './index.css'
 
@@ -55,7 +56,7 @@ async function bootstrap() {
 
   // 1. Schema 健康自检：开发环境可自动 reset，生产环境绝不自动删库。
   try {
-    await ensureSchema(REQUIRED_TABLES_V26, { allowReset: import.meta.env.DEV })
+    await ensureSchema(REQUIRED_TABLES, { allowReset: import.meta.env.DEV })
   } catch (e) {
     console.error('[bootstrap] schema check failed:', e)
   }
@@ -79,7 +80,9 @@ async function bootstrap() {
       <ErrorBoundary>
         <BrowserRouter basename="/storyforge">
           <ToastProvider>
-            <App />
+            <DialogProvider>
+              <App />
+            </DialogProvider>
           </ToastProvider>
         </BrowserRouter>
       </ErrorBoundary>

@@ -16,7 +16,7 @@ const missing = schemaTables.filter(name => !requiredTables.includes(name))
 const extra = requiredTables.filter(name => !schemaTables.includes(name))
 
 if (missing.length > 0 || extra.length > 0) {
-  console.error('[required-tables] REQUIRED_TABLES_V26 does not match schema.ts')
+  console.error('[required-tables] REQUIRED_TABLES does not match schema.ts')
   if (missing.length > 0) console.error(`Missing: ${missing.join(', ')}`)
   if (extra.length > 0) console.error(`Extra: ${extra.join(', ')}`)
   process.exit(1)
@@ -48,9 +48,9 @@ function extractSchemaTables(source) {
 }
 
 function extractRequiredTables(source) {
-  const match = source.match(/export const REQUIRED_TABLES_V26 = \[([\s\S]*?)\] as const/)
+  const match = source.match(/export const REQUIRED_TABLES = \[([\s\S]*?)\] as const/)
   if (!match) {
-    console.error('[required-tables] REQUIRED_TABLES_V26 not found')
+    console.error('[required-tables] REQUIRED_TABLES not found')
     process.exit(1)
   }
   const names = []

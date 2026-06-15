@@ -171,6 +171,7 @@ export async function batchGenerateDetails(
 // ── 批量章节正文 ──────────────────────────────────────────────────
 
 export interface BatchChapterOptions {
+  projectId?: number | null
   /** 章节列表（带 content） */
   chapters: Array<{
     id: number
@@ -252,7 +253,7 @@ export async function batchGenerateChapters(
         prevEnding,
       )
 
-      const content = await chat(messages, config)
+      const content = await chat(messages, config, { category: 'chapter.content.batch', projectId: opts.projectId ?? null })
       if (signal?.aborted) {
         return { generated, skipped: chapters.length - todo.length, failed, cancelled: true, elapsed: Date.now() - start }
       }

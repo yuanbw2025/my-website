@@ -67,7 +67,7 @@ export default function WorldviewFieldEditor({
       value,
       mode,
     )
-    ai.start(messages)
+    ai.start(messages, undefined, { category: 'worldview.dimension', projectId: project.id! })
   }
 
   const handleAccept = (text: string) => {

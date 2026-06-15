@@ -94,7 +94,7 @@ export default function WorldGroupDetail({ group, onBack }: Props) {
       otherWorlds,
       storyCore: sc?.mainPlot || sc?.theme || '',
     })
-    const result = await ai.start(messages)
+    const result = await ai.start(messages, undefined, { category: 'world-group.expand', projectId: group.projectId })
     if (!result) return
     const parsed = parseWorldExpandOutput(result)
     if (!parsed) return

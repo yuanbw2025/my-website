@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db } from '../../src/lib/db/schema'
 import { exportProjectJSON, importProjectJSON } from '../../src/lib/export/json-export'
+import { parseWorldPortals } from '../../src/lib/utils/world-portals'
 
 const now = Date.now()
 
@@ -58,6 +59,18 @@ async function seedFullProject(): Promise<number> {
     chapterTitle: '第1章 觉醒', createdAt: now, updatedAt: now,
   } as any)
 
+  const rootWorldId = await db.worldNodes.add({
+    projectId, parentId: null, name: '主世界', description: '故事起点', sortOrder: 0,
+    icon: 'world', createdAt: now, updatedAt: now,
+  } as any) as number
+  const mirrorWorldId = await db.worldNodes.add({
+    projectId, parentId: rootWorldId, name: '镜界', description: '镜中位面', sortOrder: 1,
+    icon: 'mirror', createdAt: now, updatedAt: now,
+  } as any) as number
+  await db.worldNodes.update(rootWorldId, {
+    portalsJSON: JSON.stringify([{ name: '镜门', targetWorldId: mirrorWorldId, x: 10, y: 20 }]),
+  })
+
   return projectId
 }
 
@@ -102,6 +115,16 @@ describe('R-roundtrip · 全量内容导出→导入往返', () => {
 
     const item = await db.itemLedger.where('projectId').equals(newId).first()
     expect(item?.itemName).toBe('青锋剑')
+
+    const sourceWorldNodes = await db.worldNodes.where('projectId').equals(srcId).toArray()
+    const sourceMirror = sourceWorldNodes.find(n => n.name === '镜界')!
+    const importedWorldNodes = await db.worldNodes.where('projectId').equals(newId).toArray()
+    const importedRoot = importedWorldNodes.find(n => n.name === '主世界')!
+    const importedMirror = importedWorldNodes.find(n => n.name === '镜界')!
+    const portals = parseWorldPortals(importedRoot.portalsJSON)
+    expect(portals).toHaveLength(1)
+    expect(portals[0].targetWorldId).toBe(importedMirror.id)
+    expect(portals[0].targetWorldId).not.toBe(sourceMirror.id)
   })
 
   it('二次往返(导入后再导出再导入)仍完整(可反复导入)', async () => {

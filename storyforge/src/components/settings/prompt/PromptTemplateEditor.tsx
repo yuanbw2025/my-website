@@ -8,6 +8,8 @@ import { PREVIEW_VARS } from '../../../lib/ai/prompt-preview-vars'
 import type { PromptTemplate, PromptModuleKey, PromptParameter } from '../../../lib/types/prompt'
 import PromptParametersEditor from './PromptParametersEditor'
 import PromptExamplesEditor from './PromptExamplesEditor'
+import { useDialog } from '../../shared/Dialog'
+import { useToast } from '../../shared/Toast'
 
 const ALL_MODULE_KEYS: { value: PromptModuleKey; label: string }[] = [
   { value: 'worldview.dimension',         label: '世界观 · 维度生成' },
@@ -40,6 +42,8 @@ interface Props {
 }
 
 export default function PromptTemplateEditor({ template, onChanged, onDeleted }: Props) {
+  const dialog = useDialog()
+  const toast = useToast()
   const saveTemplate = usePromptStore(s => s.saveTemplate)
   const cloneTemplate = usePromptStore(s => s.cloneTemplate)
   const setActive = usePromptStore(s => s.setActive)
@@ -91,8 +95,7 @@ export default function PromptTemplateEditor({ template, onChanged, onDeleted }:
     if (!draft.id) return
     const newId = await cloneTemplate(draft.id)
     onChanged()
-    // 提醒用户已克隆 — 但选中保持原状，由用户去左侧点击新模板
-    alert(`已克隆为「我的」模板（id=${newId}），请在左侧列表中查看。`)
+    toast.success(`已克隆为「我的」模板（id=${newId}），请在左侧列表中查看。`)
   }
 
   const handleSetActive = async () => {
@@ -103,7 +106,13 @@ export default function PromptTemplateEditor({ template, onChanged, onDeleted }:
 
   const handleDelete = async () => {
     if (!draft.id) return
-    if (!confirm(`删除模板「${draft.name}」？此操作不可恢复。`)) return
+    const ok = await dialog.confirm({
+      title: `删除模板「${draft.name}」？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     await deleteTemplate(draft.id)  // Phase 3.3: 走 store action,不直接 db.delete
     onDeleted()
     onChanged()
@@ -122,8 +131,12 @@ export default function PromptTemplateEditor({ template, onChanged, onDeleted }:
   }
 
   /** 变量列表的增删 */
-  const addVariable = () => {
-    const name = prompt('变量名（仅字母数字下划线）：')?.trim()
+  const addVariable = async () => {
+    const name = (await dialog.prompt({
+      title: '新增变量',
+      message: '变量名仅支持字母、数字、下划线。',
+      placeholder: 'variable_name',
+    }))?.trim()
     if (!name || !/^[a-zA-Z0-9_]+$/.test(name)) return
     if (draft.variables.includes(name)) return
     update({ variables: [...draft.variables, name] })

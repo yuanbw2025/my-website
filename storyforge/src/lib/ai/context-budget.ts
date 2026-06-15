@@ -235,10 +235,15 @@ export function trimMessagesToFit(
   provider: AIProvider,
   model: string,
   maxOutput?: number,
+  contextWindowOverride?: number,
 ): TrimmedMessagesResult {
   const preset = getModelPreset(provider, model)
-  const safetyMargin = Math.round(preset.maxContext * 0.05)
-  const inputBudget = preset.maxContext - (maxOutput && maxOutput > 0 ? maxOutput : preset.maxOutput) - safetyMargin
+  const maxContext = (contextWindowOverride && contextWindowOverride > 0)
+    ? contextWindowOverride
+    : preset.maxContext
+  const outputBudget = maxOutput && maxOutput > 0 ? maxOutput : Math.min(preset.maxOutput, Math.floor(maxContext * 0.5))
+  const safetyMargin = Math.round(maxContext * 0.05)
+  const inputBudget = maxContext - outputBudget - safetyMargin
   const copy = messages.map(message => ({ ...message }))
   let total = copy.reduce((sum, message) => sum + estimateTokens(message.content), 0)
   let trimmed = false

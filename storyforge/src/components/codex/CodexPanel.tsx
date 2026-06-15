@@ -16,6 +16,7 @@ import {
   type CodexDomain, type CodexCategory, type CodexEntry, type CodexFieldDef,
 } from '../../lib/types/codex'
 import type { Project } from '../../lib/types'
+import { useDialog } from '../shared/Dialog'
 
 interface Props {
   project: Project
@@ -34,6 +35,7 @@ interface Props {
 const DOMAINS: CodexDomain[] = ['natural', 'humanity']
 
 export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, embedded }: Props) {
+  const dialog = useDialog()
   const projectId = project.id!
   const {
     categories, entries, loadAll,
@@ -107,7 +109,10 @@ export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, em
 
   // ── 分类操作 ──
   const handleAddCategory = async () => {
-    const name = window.prompt(`在「${CODEX_DOMAIN_LABELS[domain]}」下新增自定义分类，输入名称：`)?.trim()
+    const name = (await dialog.prompt({
+      title: `在「${CODEX_DOMAIN_LABELS[domain]}」下新增自定义分类`,
+      placeholder: '输入分类名称',
+    }))?.trim()
     if (!name) return
     const id = await addCategory({
       projectId, domain, parentId: null, name, icon: '📁',
@@ -120,7 +125,13 @@ export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, em
 
   const handleDeleteCategory = async (cat: CodexCategory) => {
     if (cat.builtInKey) return
-    if (!window.confirm(`删除自定义分类「${cat.name}」及其下所有词条？此操作不可撤销。`)) return
+    const ok = await dialog.confirm({
+      title: `删除自定义分类「${cat.name}」？`,
+      message: '其下所有词条也会被删除，此操作不可撤销。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     await deleteCategory(cat.id!)
   }
 
@@ -137,7 +148,13 @@ export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, em
   }
 
   const handleDeleteEntry = async (entry: CodexEntry) => {
-    if (!window.confirm(`删除词条「${entry.name}」？`)) return
+    const ok = await dialog.confirm({
+      title: `删除词条「${entry.name}」？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
     await deleteEntry(entry.id!)
     if (activeEntryId === entry.id) setActiveEntryId(null)
   }

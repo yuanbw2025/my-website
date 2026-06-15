@@ -102,7 +102,7 @@ export default function FloatingToolbar({
         break
     }
 
-    const output = await ai.start(messages)
+    const output = await ai.start(messages, undefined, { category: 'chapter.toolbar' })
     if (output) {
       setResult(output)
     }

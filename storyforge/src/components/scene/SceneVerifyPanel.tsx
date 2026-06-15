@@ -73,7 +73,7 @@ export default function SceneVerifyPanel({ project }: Props) {
         sceneEra: sceneEra || undefined,
         sceneLocation: sceneLocation || undefined,
       })
-      await ai.start(messages)
+      await ai.start(messages, undefined, { category: 'scene.verify', projectId: project.id! })
     } finally {
       setBuilding(false)
     }

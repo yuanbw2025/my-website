@@ -10,16 +10,7 @@
 import { create } from 'zustand'
 import { db } from '../lib/db/schema'
 import type { WorldNode, WorldPortal } from '../lib/types'
-
-function parsePortals(json?: string): WorldPortal[] {
-  if (!json) return []
-  try {
-    const parsed = JSON.parse(json)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
+import { parseWorldPortals, stringifyWorldPortals } from '../lib/utils/world-portals'
 
 /** 树形节点（带 children） */
 export interface WorldTreeNode extends WorldNode {
@@ -136,11 +127,11 @@ export const useWorldNodeStore = create<WorldNodeStore>((set, get) => ({
       const deleteIds = [...toDelete]
       const remaining = allNodes.filter(n => n.id != null && !toDelete.has(n.id))
       for (const n of remaining) {
-        const portals = parsePortals(n.portalsJSON)
+        const portals = parseWorldPortals(n.portalsJSON)
         const filtered = portals.filter(p => !toDelete.has(p.targetWorldId))
         if (filtered.length !== portals.length && n.id != null) {
           await db.worldNodes.update(n.id, {
-            portalsJSON: filtered.length ? JSON.stringify(filtered) : undefined,
+            portalsJSON: stringifyWorldPortals(filtered),
             updatedAt: Date.now(),
           })
         }
@@ -162,10 +153,10 @@ export const useWorldNodeStore = create<WorldNodeStore>((set, get) => ({
   addPortal: async (worldId, portal) => {
     const node = await db.worldNodes.get(worldId)
     if (!node) return
-    const portals = parsePortals(node.portalsJSON)
+    const portals = parseWorldPortals(node.portalsJSON)
     portals.push(portal)
     await db.worldNodes.update(worldId, {
-      portalsJSON: JSON.stringify(portals),
+      portalsJSON: stringifyWorldPortals(portals),
       updatedAt: Date.now(),
     })
     await get().loadNodes(node.projectId, get().activeWorldGroupId)
@@ -174,10 +165,10 @@ export const useWorldNodeStore = create<WorldNodeStore>((set, get) => ({
   removePortal: async (worldId, targetWorldId) => {
     const node = await db.worldNodes.get(worldId)
     if (!node) return
-    const portals = parsePortals(node.portalsJSON)
+    const portals = parseWorldPortals(node.portalsJSON)
     const filtered = portals.filter(p => p.targetWorldId !== targetWorldId)
     await db.worldNodes.update(worldId, {
-      portalsJSON: JSON.stringify(filtered),
+      portalsJSON: stringifyWorldPortals(filtered),
       updatedAt: Date.now(),
     })
     await get().loadNodes(node.projectId, get().activeWorldGroupId)

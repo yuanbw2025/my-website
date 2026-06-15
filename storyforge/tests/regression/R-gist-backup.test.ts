@@ -20,6 +20,61 @@ async function seedProject(): Promise<number> {
   return pid
 }
 
+function resetGistState() {
+  localStorage.clear()
+  sessionStorage.clear()
+  useGistStore.setState({
+    pat: null,
+    username: null,
+    rememberPat: false,
+    autoBackup: false,
+    busy: false,
+    error: null,
+  })
+}
+
+function mockValidatePAT(login = 'tester') {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (String(url).endsWith('/user')) {
+      return { ok: true, json: async () => ({ login }) }
+    }
+    return { ok: false, status: 404, json: async () => ({ message: 'not found' }) }
+  }))
+}
+
+describe('R-GIST · PAT 存储策略', () => {
+  beforeEach(() => resetGistState())
+  afterEach(() => { vi.unstubAllGlobals(); resetGistState() })
+
+  it('默认只存 sessionStorage,不落 localStorage', async () => {
+    mockValidatePAT('session-user')
+    const ok = await useGistStore.getState().connect(PAT)
+    expect(ok).toBe(true)
+    expect(sessionStorage.getItem('sf-gist-pat')).toBe(PAT)
+    expect(localStorage.getItem('sf-gist-pat')).toBeNull()
+    expect(useGistStore.getState().rememberPat).toBe(false)
+  })
+
+  it('显式记住本机时才写 localStorage', async () => {
+    mockValidatePAT('local-user')
+    const ok = await useGistStore.getState().connect(PAT, true)
+    expect(ok).toBe(true)
+    expect(localStorage.getItem('sf-gist-pat')).toBe(PAT)
+    expect(sessionStorage.getItem('sf-gist-pat')).toBeNull()
+    expect(useGistStore.getState().rememberPat).toBe(true)
+  })
+
+  it('兼容旧 localStorage token:初始化为已记住状态', async () => {
+    localStorage.setItem('sf-gist-pat', PAT)
+    localStorage.setItem('sf-gist-user', 'legacy-user')
+    vi.resetModules()
+    const fresh = await import('../../src/stores/gist')
+    expect(fresh.useGistStore.getState().pat).toBe(PAT)
+    expect(fresh.useGistStore.getState().username).toBe('legacy-user')
+    expect(fresh.useGistStore.getState().rememberPat).toBe(true)
+  })
+})
+
 describe('R-GIST · 云备份往返', () => {
   let cloudStore: Record<string, string> = {}  // 模拟 GitHub 上的 gist 内容
 

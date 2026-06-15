@@ -24,6 +24,7 @@ import { chat } from '../../lib/ai/client'
 import { useAIConfigStore } from '../../stores/ai-config'
 import { useReferenceStore } from '../../stores/reference'
 import { extractJSON } from '../../lib/ai/adapters/import-adapter'
+import { useToast } from '../shared/Toast'
 
 const DIM_COLORS: Partial<Record<AnalysisDimension, string>> = {
   narrativeStyle:     'text-blue-400',
@@ -53,6 +54,7 @@ interface Props {
 }
 
 export default function AnalysisReportViewer({ reference, chunks, isHistorical }: Props) {
+  const toast = useToast()
   const [view, setView] = useState<'merged' | 'chunks'>('merged')
   const [activeDim, setActiveDim] = useState<string | null>(null)
   const [generatingSummary, setGeneratingSummary] = useState(false)
@@ -107,6 +109,7 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
       const output = await chat(
         [{ role: 'system', content: system }, { role: 'user', content: user }],
         { ...config, maxTokens: 4096 },
+        { category: 'reference.summary', projectId: reference.projectId },
       )
       const json = extractJSON(output)
       if (json) {
@@ -114,7 +117,7 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
         await updateReference(reference.id, { analysisSummary: summaryStr })
       }
     } catch (err) {
-      alert(`生成总结失败：${err instanceof Error ? err.message : String(err)}`)
+      toast.error(`生成总结失败：${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setGeneratingSummary(false)
     }
@@ -135,12 +138,13 @@ export default function AnalysisReportViewer({ reference, chunks, isHistorical }
       const output = await chat(
         [{ role: 'system', content: system }, { role: 'user', content: user }],
         { ...config, maxTokens: 4096 },
+        { category: 'reference.characters', projectId: reference.projectId },
       )
       const characters = parseCharacterMergeOutput(output)
       if (characters.length === 0) throw new Error('AI 未能解析出角色，请重试')
       await updateReference(reference.id, { mergedCharacters: JSON.stringify(characters) })
     } catch (err) {
-      alert(`整理角色卡失败：${err instanceof Error ? err.message : String(err)}`)
+      toast.error(`整理角色卡失败：${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setAggregatingChars(false)
     }

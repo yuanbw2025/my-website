@@ -27,6 +27,7 @@ import {
 import type { Project } from '../../lib/types'
 import type { HistoricalTimelineEvent, HistoricalKeyword } from '../../lib/types/history'
 import { db } from '../../lib/db/schema'
+import { useDialog } from '../shared/Dialog'
 
 interface Props {
   project: Project
@@ -59,6 +60,7 @@ function getL2Nodes(
 // ── 主面板 ─────────────────────────────────────────────────────────
 
 export default function WorldRulesPanel({ project }: Props) {
+  const dialog = useDialog()
   const {
     profile, loading, loadProfile,
     updateEntry, deleteEntry,
@@ -230,6 +232,28 @@ export default function WorldRulesPanel({ project }: Props) {
     if (!selectedNode) return
     await updateEntry(selectedNode, field, value)
   }, [selectedNode, updateEntry])
+
+  const handleDeleteCustomNode = useCallback(async (nodeId: string, label: string) => {
+    const ok = await dialog.confirm({
+      title: `删除「${label}」及其设定？`,
+      message: '此操作不可恢复。',
+      confirmText: '删除',
+      tone: 'danger',
+    })
+    if (!ok) return
+    deleteCustomNode(nodeId)
+    if (selectedNode === nodeId) setSelectedNode(null)
+  }, [deleteCustomNode, dialog, selectedNode])
+
+  const handleClearEntry = useCallback(async (nodeId: string) => {
+    const ok = await dialog.confirm({
+      title: '清空此节点的所有设定？',
+      message: '此操作不可恢复。',
+      confirmText: '清空',
+      tone: 'danger',
+    })
+    if (ok) deleteEntry(nodeId)
+  }, [deleteEntry, dialog])
 
   // 预览清单
   const handleTogglePreview = useCallback(async () => {
@@ -419,10 +443,7 @@ export default function WorldRulesPanel({ project }: Props) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (confirm(`确定删除「${l2.label}」及其设定？`)) {
-                        deleteCustomNode(l2.id)
-                        if (selectedNode === l2.id) setSelectedNode(null)
-                      }
+                      void handleDeleteCustomNode(l2.id, l2.label)
                     }}
                     className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity"
                   >
@@ -466,12 +487,7 @@ export default function WorldRulesPanel({ project }: Props) {
                 <div className="flex items-center gap-2">
                   {isCustomNode(selectedNode) && (
                     <button
-                      onClick={() => {
-                        if (confirm('确定删除这个自定义节点？')) {
-                          deleteCustomNode(selectedNode)
-                          setSelectedNode(null)
-                        }
-                      }}
+                      onClick={() => { void handleDeleteCustomNode(selectedNode, currentLabel) }}
                       className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
                     >
                       <Trash2 className="w-3 h-3" /> 删除节点
@@ -479,9 +495,7 @@ export default function WorldRulesPanel({ project }: Props) {
                   )}
                   {!isEntryEmpty(currentEntry) && (
                     <button
-                      onClick={() => {
-                        if (confirm('确定清空此节点的所有设定？')) deleteEntry(selectedNode)
-                      }}
+                      onClick={() => { void handleClearEntry(selectedNode) }}
                       className="text-xs text-text-muted hover:text-red-400 flex items-center gap-1"
                     >
                       <Trash2 className="w-3 h-3" /> 清空
