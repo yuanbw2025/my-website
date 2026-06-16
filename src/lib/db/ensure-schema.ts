@@ -106,8 +106,8 @@ function notifySchemaMismatch(missing: string[]) {
   try {
     if (typeof window === 'undefined' || typeof window.alert !== 'function') return
     window.alert(
-      'StoryForge 检测到本地数据库结构不完整,为保护你的小说数据,系统不会自动清空数据库。\\n\\n' +
-      `缺失表:${missing.join(', ')}\\n\\n` +
+      'StoryForge 检测到本地数据库结构不完整,为保护你的小说数据,系统不会自动清空数据库。\n\n' +
+      `缺失表:${missing.join(', ')}\n\n` +
       '请先导出备份,然后刷新页面或联系维护者处理。',
     )
   } catch {

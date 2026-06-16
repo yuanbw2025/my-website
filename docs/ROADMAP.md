@@ -228,10 +228,11 @@
 - **改法**：派生引擎已统一架构，后续可让 `refs` 中 `kind: 'array' | 'json'` 且指向 exportable 表的引用也纳入导出/导入重映射（开启后 `R-export-fullcoverage` 里被锁的 `appearingCharacterIds` 断言可恢复为「重映射到新 id」）。
 - **优先级**：🟢 低（次要元数据，且已有架构支撑，增量小）。
 
-### 🟠 AUDIT-2（P1-3 续 · 部分完成）— 原生 alert/confirm/prompt 全面替换为 Dialog
-- **位置**：`src/components/shared/Dialog.tsx` 已建；但仍有 **约 23 个文件**用原生 `alert/confirm/prompt`（`OutlinePanel`、`ImportDocPanel`、`AIConfigPanel`、`CodexPanel`、`require-backup-before.ts` 等）。
-- **改法**：先处理**数据破坏性 / 导入导出 / 设置**相关路径，统一走 `Dialog`（确认对话框 + Toast + 危险操作影响范围说明）。
-- **验收**：高风险操作不再用原生 `confirm`；失败提示带下一步建议。可分批，每批一 PR。
+### ✅ AUDIT-2（已完成 2026-06-16 · 核实收尾）— 原生 alert/confirm/prompt 全面替换为 Dialog
+- **现状核实（2026-06-16）**：UI 层（`src/components` / `hooks` / `pages`）原生弹窗**已全部替换**——`Dialog` 组件已被 **22 个文件**使用，`check:architecture` ⑥号守卫（禁 UI 层 `alert/confirm/prompt`）持续绿。审查报告时的"约 23 文件"已在商业审查 P0/P1 批次及后续逐步替换完毕。
+- **唯一保留**：`src/lib/db/ensure-schema.ts` 的 `window.alert`（DB schema 损坏时的紧急数据保护警告）**有意保留为原生**——它可能在 React 挂载前 / DB 初始化失败时触发，必须脱离任何 React 状态可靠弹出，已有 `typeof window.alert` 安全检查。改 Dialog 反而不可靠。
+- **顺带修复**：该警告文案的换行被写成字面 `\n`（双反斜杠 bug）→ 改为真正换行。
+- **验收达成**：高风险操作走 Dialog；UI 层守卫绿；唯一原生 alert 是合理的底层数据保护路径。
 
 ### ✅ AUDIT-3（决策③ · 已完成 2026-06-16）— 引入 ESLint（先 warning 不 fail）
 - **做法**（§11.5 决策③）：装 ESLint 9 + typescript-eslint 8 + eslint-plugin-react-hooks 7 + eslint-plugin-import；扁平配置 `eslint.config.mjs`。**观察期策略**：默认全 warning（噪音大的 `no-explicit-any` 等降 warn/off）、仅 `react-hooks/rules-of-hooks` 设 error；`package.json` 加 `lint`/`lint:fix`；**`lint` 不进 `ci` 脚本**（CI 暂不因 lint fail）。
@@ -594,7 +595,9 @@
 
 **方案**：①死代码扫描工具(如 knip/ts-prune)跑一遍,移除确认无用的;②i18n 按 `docs/refactor/I18N-GUIDE.md` 逐面板渐进迁移(优先 common/nav/设置/导出);③包体积继续拆(章节编辑器懒加载,目标主包 gzip <300KB)。**排期**：低优先,穿插在其它任务间。
 
-## 🟠 HEALTH-6（P1 · 即时 · 写文档）— 立"完成定义(DoD)"防再出半成品
+## ✅ HEALTH-6（已完成 2026-06-16 · 写文档）— 立"完成定义(DoD)"防再出半成品
+
+> **已落地**：`CLAUDE.md` 新增「✅ 完成定义（Definition of Done · 交付前必逐条勾选）」章节，5 条铁律——① 可用（端到端走通）② 无重复 / 旧入口已下线 ③ 数据读写走注册表 ④ 半成品必须标 Labs 且对用户不可见 ⑤ 有验证证据。位置在「改动前检查清单」与「立刻停下信号」之间，与三注册表（数据防线）、ESLint（代码防线）互补成「流程防线」。
 
 **问题**：词条化跑偏的**根因**是"加功能不收口、半成品单列出来留着不管"。若不立规矩,以后还会再犯(屎山的另一种形态)。
 
