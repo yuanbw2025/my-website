@@ -1,5 +1,6 @@
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
+import { migrateLegacyTablesToCodex } from '../../src/lib/migrations/legacy-to-codex-upgrade'
 
 const opened: Dexie[] = []
 const dbNames: string[] = []
@@ -90,6 +91,40 @@ class UpgradedV32MasterDB extends Dexie {
   }
 }
 
+// v28 老库:还带旧 factions / itemSystems 表(多世界化已发生,但词条化收尾未做)
+class OldV28LegacyDB extends Dexie {
+  constructor(name: string) {
+    super(name)
+    this.version(28).stores({
+      worldviews: '++id, projectId',
+      factions: '++id, projectId, name',
+      itemSystems: '++id, projectId',
+      codexCategories: '++id, projectId, builtInKey, parentId, worldGroupId, order',
+      codexEntries: '++id, projectId, categoryId, worldGroupId, order',
+    })
+  }
+}
+
+// v29 升级:跑真实迁移函数把旧表并入词条，再删旧表
+class UpgradedV29CodexDB extends Dexie {
+  constructor(name: string) {
+    super(name)
+    this.version(28).stores({
+      worldviews: '++id, projectId',
+      factions: '++id, projectId, name',
+      itemSystems: '++id, projectId',
+      codexCategories: '++id, projectId, builtInKey, parentId, worldGroupId, order',
+      codexEntries: '++id, projectId, categoryId, worldGroupId, order',
+    })
+    this.version(29).stores({
+      factions: null,
+      itemSystems: null,
+    }).upgrade(async (tx) => {
+      await migrateLegacyTablesToCodex(tx)
+    })
+  }
+}
+
 describe('DB upgrade fixtures · real Dexie version transitions', () => {
   it('v30→v31 clears old reference analysis but preserves import session blobs', async () => {
     const name = nextName('upgrade-v31')
@@ -154,6 +189,58 @@ describe('DB upgrade fixtures · real Dexie version transitions', () => {
     expect(stores).not.toContain('masterChapterBeats')
     expect(stores).not.toContain('masterStyleMetrics')
     expect(stores).not.toContain('masterInsights')
+  })
+
+  it('v28→v29 真实迁移:factions/itemSystems 并入词条 + 体系总述并入世界观 + 删旧表（零丢失）', async () => {
+    const name = nextName('upgrade-v29')
+    const oldDb = track(new OldV28LegacyDB(name))
+    await oldDb.open()
+    await oldDb.table('worldviews').add({ projectId: 1, itemDesign: '原有道具设定' })
+    await oldDb.table('factions').add({
+      projectId: 1, name: '青云门', description: '正道魁首',
+      leader: '云掌门', mapRegion: '东域', color: '#0066ff',
+    })
+    await oldDb.table('factions').add({ projectId: 1, name: '万魔殿', description: '魔道势力' })
+    await oldDb.table('itemSystems').add({
+      projectId: 1, overview: '上古法宝体系总述',
+      items: JSON.stringify([{ name: '轩辕剑', type: 'weapon', description: '斩妖神剑', abilities: '斩妖除魔' }]),
+    })
+    oldDb.close()
+
+    const upgradedDb = track(new UpgradedV29CodexDB(name))
+    await upgradedDb.open()
+
+    // 内置分类已建
+    const cats = await upgradedDb.table('codexCategories').toArray()
+    const factionCat = cats.find((c: any) => c.builtInKey === 'faction')
+    const artifactCat = cats.find((c: any) => c.builtInKey === 'artifact')
+    expect(factionCat, 'faction 分类应被创建').toBeTruthy()
+    expect(artifactCat, 'artifact 分类应被创建').toBeTruthy()
+
+    // 势力 → 词条（含地图字段保留）
+    const entries = await upgradedDb.table('codexEntries').toArray()
+    const factionNames = entries.filter((e: any) => e.categoryId === factionCat.id).map((e: any) => e.name)
+    expect(factionNames).toContain('青云门')
+    expect(factionNames).toContain('万魔殿')
+    const qingyun = entries.find((e: any) => e.name === '青云门')
+    expect(JSON.parse(qingyun.fields).mapRegion).toBe('东域')
+    expect(JSON.parse(qingyun.fields).color).toBe('#0066ff')
+
+    // 道具 → 人工器物词条
+    const artifactNames = entries.filter((e: any) => e.categoryId === artifactCat.id).map((e: any) => e.name)
+    expect(artifactNames).toContain('轩辕剑')
+
+    // 体系总述并入 worldview.itemDesign，原有内容不丢
+    const wv = (await upgradedDb.table('worldviews').toArray())[0]
+    expect(wv.itemDesign).toContain('上古法宝体系总述')
+    expect(wv.itemDesign).toContain('原有道具设定')
+    upgradedDb.close()
+
+    // 旧表已删，词条表保留
+    const stores = await readNativeStoreNames(name)
+    expect(stores).not.toContain('factions')
+    expect(stores).not.toContain('itemSystems')
+    expect(stores).toContain('codexEntries')
   })
 })
 

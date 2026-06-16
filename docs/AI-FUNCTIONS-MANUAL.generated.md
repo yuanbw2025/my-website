@@ -137,7 +137,7 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 | `style.learn` | `src/components/style/StyleLearningPanel.tsx:76` |
 | `world-group.expand` | `src/components/world-group/WorldGroupDetail.tsx:97` |
 | `world-group.suggest` | `src/components/world-group/WorldGroupOverview.tsx:50` |
-| `worldview.dimension` | `src/components/worldview/WorldviewFieldEditor.tsx:70`<br/>`src/components/worldview/WorldviewHumanityPanel.tsx:242`<br/>`src/components/worldview/WorldviewNaturalPanel.tsx:261`<br/>`src/components/worldview/WorldviewOriginPanel.tsx:265` |
+| `worldview.dimension` | `src/components/worldview/WorldviewHumanityPanel.tsx:242`<br/>`src/components/worldview/WorldviewNaturalPanel.tsx:261`<br/>`src/components/worldview/WorldviewOriginPanel.tsx:265` |
 | `worldview.divine` | `src/components/worldview/WorldviewOriginPanel.tsx:360` |
 | `worldview.divine.split` | `src/components/worldview/WorldviewOriginPanel.tsx:384` |
 
@@ -147,4 +147,4 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 
 ---
 
-生成时间基准:commit `e02ab95`
+生成时间基准:commit `9d248c9`
