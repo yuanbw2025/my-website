@@ -7,7 +7,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { trimMessagesToFit } from '../../src/lib/ai/context-budget'
 import { chat } from '../../src/lib/ai/client'
-import { sanitizeExportHtml } from '../../src/lib/export/sanitize-html'
 import { sanitizeSvg } from '../../src/lib/utils/sanitize-svg'
 import { removeLocationSubtree } from '../../src/components/geography/GeographyPanel'
 import { filterExistingIds } from '../../src/components/outline/DetailedOutlinePanel'
@@ -55,14 +54,8 @@ describe('R-18: request trimming and abort signal', () => {
 })
 
 describe('R-18: export sanitization', () => {
-  it('removes script tags, event handlers, and javascript urls', () => {
-    const clean = sanitizeExportHtml('<p onclick="x()">正文</p><a href="javascript:alert(1)">x</a><script>alert(1)</script>')
-    expect(clean).toContain('<p>正文</p>')
-    expect(clean).not.toContain('onclick')
-    expect(clean).not.toContain('javascript:')
-    expect(clean).not.toContain('<script')
-  })
-
+  // 注:sanitizeExportHtml(HTML 导出清洗)已随 HTML/EPUB 导出功能下线而删除。
+  // SVG 清洗的完整 XSS 回归见 R-svg-xss.test.ts。
   it('removes active SVG payloads before dangerous innerHTML rendering', () => {
     const dirty = `<svg onload="steal()" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
       <foreignObject><div xmlns="http://www.w3.org/1999/xhtml" onload="x()">bad</div></foreignObject>
