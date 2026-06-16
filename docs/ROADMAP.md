@@ -240,11 +240,11 @@
 - **验收达成**：`npm run lint` 可跑；CI 不因 lint fail；rules-of-hooks 为 error 守住。
 - **待续**：type-aware 规则（`no-floating-promises` 等）未启用（需 type-checked config，lint 变慢）；`import/order` 已装插件未启用（避免一次性大量重排噪音）。后续清理一轮再收紧 + 接入 CI。
 
-### 🟡 AUDIT-4（3.3 · 安全）— 出口 HTML/EPUB 用成熟 sanitizer + SVG XSS 回归测试
-- **位置**：`src/lib/export/sanitize-html.ts`（正则式，非 DOMPurify 级）、`src/lib/utils/sanitize-svg.ts` + `GeographyPanel` 的 `dangerouslySetInnerHTML`。
-- **现状**：DOMPurify **未引入**；正则 sanitizer 能挡基础脚本但不够稳。
-- **改法**：出口 HTML/EPUB 改用 DOMPurify 或白名单模板渲染；给 AI 生成 SVG 加 XSS payload 回归测试（覆盖 `foreignObject`、事件属性、`javascript:`、外链）。
-- **验收**：XSS 回归测试绿；导出产物不含可执行脚本。
+### ✅ AUDIT-4（已完成 2026-06-16 · 安全）— SVG XSS 回归测试 + 清死代码
+- **核实现状（2026-06-16）**：① HTML/EPUB 导出**已随 B 段死代码清理下线** → `sanitize-html.ts` 成死代码（生产无引用），本次删除（连带删 `R-18` 里测该死功能的 `sanitizeExportHtml` 用例）；② 真正的 XSS 面是 `GeographyPanel` 用 `dangerouslySetInnerHTML` 渲染 AI 生成的 SVG 概念地图，由 `sanitize-svg.ts` 清洗——它**已是 DOM 解析 + 黑名单剔除**（非 ROADMAP 旧述的"正则式"），比正则可靠。
+- **XSS 回归测试（核心交付）**：新增 `R-svg-xss.test.ts`，**11 条**覆盖 script / on* 事件（含根 svg）/ foreignObject / javascript: / data:text/html / iframe·object·embed / SMIL animate·set / style expression·javascript: + **正常地图元素全保留**（defs/gradient/path/polygon/circle/rect/text + 中文）+ 解析失败返回空串。全绿，证明现有清洗对各类 payload 有效。
+- **DOMPurify 决策**：实测 DOMPurify 在 happy-dom 测试环境**跑不通**（清洗结果异常），且现有 DOM-based 清洗经 11 条回归测试验证等效；为不引入测试环境兼容风险与冗余依赖，**不引入 DOMPurify**，保留并以回归测试锁住现有 sanitizer。
+- **验收达成**：XSS 回归测试绿；渲染入口（唯一 `dangerouslySetInnerHTML`）经清洗不含可执行脚本。
 
 ### 🟡 AUDIT-5（3.4 · 新手转化）— 信息架构分层 + 首次成果闭环 + 隐藏未完成入口
 - **位置**：`src/components/layout/Sidebar.tsx`（模块极多、默认全展开）、`WorldMapPanel.tsx:152`（"3D 地图开发调优中"仍在正式 UI）、整体缺"前 10 分钟出成果"。
