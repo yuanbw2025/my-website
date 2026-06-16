@@ -613,3 +613,10 @@ npm run dev
 想深入了解 StoryForge 的每一项功能、设计理念与使用细节？请查阅：
 
 👉 [**项目完整功能指南 — FEATURE-GUIDE.md**](docs/FEATURE-GUIDE.md)
+
+
+## Star History
+
+<a href="https://star-history.com/#yuanbw2025/storyforge&Date">
+  <img src="https://api.star-history.com/svg?repos=yuanbw2025/storyforge&type=Date" width="380" alt="Star History Chart" />
+</a>
