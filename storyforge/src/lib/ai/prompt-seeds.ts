@@ -339,8 +339,7 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
 {{/if}}
 **【铁律·必须严格遵守】**
 1. 只展开【本卷】：所有章节必须严格围绕上面的「卷情节摘要」推进，本卷结束时的剧情进度应恰好停在该摘要描述的终点。绝不能把后续卷的情节提前写出来，更不能在这一卷里就把整本书的故事讲完。
-2. 每一章都要落在「卷情节摘要」的范围之内、与摘要内容相符；把本卷情节均匀拆分到各章，每章只推进一小步，保持合理节奏，不要几章就把本卷讲完。
-2.5. 多线并行：若世界观/故事核心/卷摘要里出现了多条线索（主线 + 支线 / 复线 / 多个角色的任务），必须把支线合理穿插进相关章节中与主线同步推进，**不能只写主线一条道到底**——支线也是本卷内容，丢掉支线等于漏写。章节越多，越要给支线留出独立的推进章节。{{#if usesChaptersPerVolume}}
+2. 每一章都要落在「卷情节摘要」的范围之内、与摘要内容相符；把本卷情节均匀拆分到各章，每章只推进一小步，保持合理节奏，不要几章就把本卷讲完。{{#if usesChaptersPerVolume}}
 3. 章节数量：必须输出恰好 {{chaptersPerVolume}} 章，不多不少。若卷情节摘要中提到的章节数与此处不一致，一律以此处设定的 {{chaptersPerVolume}} 章为准。{{/if}}{{#if notUsesChaptersPerVolume}}
 3. 章节数量：约 15-25 章。{{/if}}
 
@@ -355,9 +354,12 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
     parameters: [
       { key: 'pace', label: '节奏', type: 'select',
         options: ['慢', '中', '快', '极快'], default: '中', optional: true },
+      { key: 'wordsPerChapter', label: '每章字数', type: 'number',
+        min: 200, step: 100, default: 3000,
+        description: '按你的更新习惯填（用于估算本卷章节数 = 卷字数 ÷ 每章字数）', optional: true },
       { key: 'chaptersPerVolume', label: '本卷章节数', type: 'slider',
-        min: 5, max: 200, step: 1, default: 20,
-        description: '默认按「项目目标字数 ÷ 卷数 ÷ 每章约 3000 字」自动估算；可手动调（短篇 5-10，长卷网文可拉到 200）', optional: true },
+        min: 1, max: 1000, step: 1, default: 20,
+        description: '默认按「卷字数 ÷ 每章字数」自动估算；可随意拖滑块，或在右侧数字框手填任意值（不限上限）', optional: true },
     ],
     isActive: true,
   },

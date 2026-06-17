@@ -248,14 +248,21 @@ function ParamControl({
             min={param.min}
             max={sliderMax}
             step={param.step ?? 1}
-            value={Number(shown)}
+            value={Math.min(Number(shown), Number(sliderMax))}
             onChange={e => onChange(Number(e.target.value))}
             disabled={!enabled}
             className="flex-1 accent-accent disabled:opacity-50"
           />
-          <span className={`w-12 text-right ${enabled ? 'text-text-primary' : 'text-text-muted'}`}>
-            {String(shown)}
-          </span>
+          {/* 可编辑数字框：能手填任意值（含超过滑块上限），滑块只作快速拖拽 */}
+          <input
+            type="number"
+            min={param.min}
+            step={param.step ?? 1}
+            value={Number(shown)}
+            onChange={e => onChange(Number(e.target.value))}
+            disabled={!enabled}
+            className={`w-16 px-1 py-0.5 text-right bg-bg-base border border-border rounded disabled:opacity-50 focus:outline-none focus:border-accent ${enabled ? 'text-text-primary' : 'text-text-muted'}`}
+          />
         </>
       )}
       {param.type === 'number' && (
