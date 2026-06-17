@@ -1,32 +1,32 @@
 /**
- * R-chapter-count-estimate · 章节数按卷字数自动估算（社区反馈：长卷被压成 ~20 章）
+ * R-chapter-count-estimate · 章节数智能默认（社区反馈：长卷被压成 ~20 章）
  *
- * 根因:章节数控制是可选项、默认不开 → 走 prompt 兜底「约 15-25 章」→ 200 万字大纲被压成
- * 一条主线 20 章。修复:选中卷展开章节时按「项目目标字数 ÷ 卷数 ÷ 每章 3000 字」自动估算。
+ * 设计要点（作者拍板）：
+ *  - 每章字数由用户自定义（默认 3000，可改）；
+ *  - 章节数 = 卷字数 ÷ 每章字数，作为「用户没手动设时」的智能默认；
+ *  - 不限制用户：上限放开（只兜下限 1），用户可随意滑 / 手填覆盖。
  */
 import { describe, it, expect } from 'vitest'
-import { estimateChaptersPerVolume, WORDS_PER_CHAPTER } from '../../src/lib/outline/selectors'
+import { estimateChaptersPerVolume, DEFAULT_WORDS_PER_CHAPTER } from '../../src/lib/outline/selectors'
 
-describe('R-chapter-count-estimate · 章节数按卷字数估算', () => {
-  it('200 万字 / 5 卷 → 每卷约 133 章（不再是 20）', () => {
-    // 200万 / 5卷 = 40万/卷 ÷ 3000 ≈ 133
-    expect(estimateChaptersPerVolume(2_000_000, 5)).toBe(Math.round(400_000 / WORDS_PER_CHAPTER))
-    expect(estimateChaptersPerVolume(2_000_000, 5)).toBeGreaterThan(100)
+describe('R-chapter-count-estimate · 章节数智能默认', () => {
+  it('默认每章 3000 字：200 万 / 5 卷 → 133（不再是 20）', () => {
+    expect(DEFAULT_WORDS_PER_CHAPTER).toBe(3000)
+    expect(estimateChaptersPerVolume(2_000_000, 5)).toBe(Math.round(400_000 / 3000)) // 133
   })
 
-  it('短篇 3 万字 / 1 卷 → clamp 到下限 5（不会出 0/负）', () => {
-    // 3万 / 3000 = 10
-    expect(estimateChaptersPerVolume(30_000, 1)).toBe(10)
-    // 极短 → clamp 到 5
-    expect(estimateChaptersPerVolume(6_000, 1)).toBe(5)
+  it('每章字数可自定义：同样 200 万 / 5 卷，每章 2000 → 200、每章 5000 → 80', () => {
+    expect(estimateChaptersPerVolume(2_000_000, 5, 2000)).toBe(200)
+    expect(estimateChaptersPerVolume(2_000_000, 5, 5000)).toBe(80)
   })
 
-  it('超长 1000 万字 / 2 卷 → clamp 到上限 200', () => {
-    expect(estimateChaptersPerVolume(10_000_000, 2)).toBe(200)
+  it('上限放开：1000 万 / 2 卷 → 1667（不再 clamp 到 200）', () => {
+    expect(estimateChaptersPerVolume(10_000_000, 2)).toBe(Math.round(5_000_000 / 3000)) // 1667
   })
 
-  it('字数缺失 / 卷数为 0 时有合理兜底，不抛错', () => {
-    expect(estimateChaptersPerVolume(0, 0)).toBeGreaterThanOrEqual(5)
-    expect(estimateChaptersPerVolume(0, 0)).toBeLessThanOrEqual(200)
+  it('下限兜底 1，不出 0/负；每章字数填 0 时回落默认 3000', () => {
+    expect(estimateChaptersPerVolume(100, 1)).toBe(1)        // 100/3000≈0 → 兜 1
+    expect(estimateChaptersPerVolume(0, 0)).toBeGreaterThanOrEqual(1)
+    expect(estimateChaptersPerVolume(2_000_000, 5, 0)).toBe(133) // 每章 0 → 回落 3000
   })
 })

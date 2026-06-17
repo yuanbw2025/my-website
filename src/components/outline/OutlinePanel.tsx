@@ -14,7 +14,7 @@ import {
 import { useAIConfigStore } from '../../stores/ai-config'
 import { runBatchOutlineGeneration, type BatchOutlineProgress } from '../../lib/ai/batch-outline-runner'
 import { adopt } from '../../lib/registry/adopt'
-import { getTopLevelVolumes, estimateChaptersPerVolume } from '../../lib/outline/selectors'
+import { getTopLevelVolumes, estimateChaptersPerVolume, DEFAULT_WORDS_PER_CHAPTER } from '../../lib/outline/selectors'
 import type { AssembleContextResult } from '../../lib/registry/types'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
@@ -81,18 +81,25 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
   const volumes = getTopLevelVolumes(nodes)
   const selectedVol = volumes.find(v => v.id === selectedVolId) || null
 
-  // 修复「长卷被压成 ~20 章」：选中卷准备展开章节时，按「项目目标字数 ÷ 卷数 ÷ 每章约 3000 字」
-  // 自动估算合理章节数并注入「本卷章节数」参数（用户没手动设过才注入）。这样默认就走估算值，
-  // 不再落到 prompt 兜底的「约 15-25 章」——200 万字大纲不会再被压成一条主线 20 章。
+  // 修复「长卷被压成 ~20 章」：选中卷 / 改「每章字数」时，按「卷字数 ÷ 每章字数」自动估算
+  // 「本卷章节数」的智能默认值。用 ref 记住上次的估算值以区分：
+  //  · 当前章节数 == 上次估算值（用户没手动改）→ 用新估算覆盖（改每章字数能联动重算）；
+  //  · 当前章节数 ≠ 上次估算值（用户手动滑/填过）→ 保留用户值，绝不覆盖。
+  // 这样既有智能默认避坑，又完全尊重用户自定义。
+  const lastChapterEstimateRef = useRef<number | null>(null)
   useEffect(() => {
     if (!selectedVol) return
+    const wpc = Number(parameterValues.wordsPerChapter) || DEFAULT_WORDS_PER_CHAPTER
+    const est = estimateChaptersPerVolume(project.targetWordCount, volumes.length, wpc)
     setParameterValues(prev => {
       const cur = prev.chaptersPerVolume
-      if (cur != null && cur !== '') return prev
-      return { ...prev, chaptersPerVolume: estimateChaptersPerVolume(project.targetWordCount, volumes.length) }
+      const untouched = cur == null || cur === '' || cur === lastChapterEstimateRef.current
+      if (!untouched) return prev
+      lastChapterEstimateRef.current = est
+      return { ...prev, chaptersPerVolume: est }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVolId])
+  }, [selectedVolId, parameterValues.wordsPerChapter])
 
   // 故事块和章节层级
   const selectedVolBlocks = useMemo(() => {
