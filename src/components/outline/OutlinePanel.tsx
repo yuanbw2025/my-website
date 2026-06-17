@@ -14,7 +14,7 @@ import {
 import { useAIConfigStore } from '../../stores/ai-config'
 import { runBatchOutlineGeneration, type BatchOutlineProgress } from '../../lib/ai/batch-outline-runner'
 import { adopt } from '../../lib/registry/adopt'
-import { getTopLevelVolumes } from '../../lib/outline/selectors'
+import { getTopLevelVolumes, estimateChaptersPerVolume } from '../../lib/outline/selectors'
 import type { AssembleContextResult } from '../../lib/registry/types'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
@@ -80,6 +80,19 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
 
   const volumes = getTopLevelVolumes(nodes)
   const selectedVol = volumes.find(v => v.id === selectedVolId) || null
+
+  // 修复「长卷被压成 ~20 章」：选中卷准备展开章节时，按「项目目标字数 ÷ 卷数 ÷ 每章约 3000 字」
+  // 自动估算合理章节数并注入「本卷章节数」参数（用户没手动设过才注入）。这样默认就走估算值，
+  // 不再落到 prompt 兜底的「约 15-25 章」——200 万字大纲不会再被压成一条主线 20 章。
+  useEffect(() => {
+    if (!selectedVol) return
+    setParameterValues(prev => {
+      const cur = prev.chaptersPerVolume
+      if (cur != null && cur !== '') return prev
+      return { ...prev, chaptersPerVolume: estimateChaptersPerVolume(project.targetWordCount, volumes.length) }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVolId])
 
   // 故事块和章节层级
   const selectedVolBlocks = useMemo(() => {

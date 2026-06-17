@@ -356,7 +356,7 @@ export const SYSTEM_PROMPT_SEEDS: PromptSeed[] = [
         options: ['慢', '中', '快', '极快'], default: '中', optional: true },
       { key: 'chaptersPerVolume', label: '本卷章节数', type: 'slider',
         min: 5, max: 200, step: 1, default: 20,
-        description: '默认每卷 15-25 章；短篇模式可设 5-10；长卷网文可拉高', optional: true },
+        description: '默认按「项目目标字数 ÷ 卷数 ÷ 每章约 3000 字」自动估算；可手动调（短篇 5-10，长卷网文可拉到 200）', optional: true },
     ],
     isActive: true,
   },
