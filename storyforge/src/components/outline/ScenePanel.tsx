@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Trash2, Sparkles, ChevronDown, ChevronRight } from 'lucide-react'
 import { useDetailedOutlineStore } from '../../stores/detailed-outline'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildDetailSceneGeneratePrompt } from '../../lib/ai/adapters/detail-scene-adapter'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import { nanoid } from '../../lib/utils/id'
@@ -37,7 +38,7 @@ interface Props {
 
 export default function ScenePanel({ projectId, outlineNodeId, chapterTitle, chapterSummary }: Props) {
   const { detailedOutlines, loadAll, getOrCreate, save } = useDetailedOutlineStore()
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(projectId, 'detail.scene', outlineNodeId))
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => { loadAll(projectId) }, [projectId, loadAll])

@@ -19,6 +19,10 @@ export async function adopt(input: AdoptInput): Promise<AdoptResult> {
   const tableSpec = REGISTRY_BY_NAME.get(input.target)
   if (!tableSpec) throw new Error(`[adopt] target ${input.target} 不在 PROJECT_TABLES`)
 
+  if (input.recordId != null) {
+    return adoptCollectionRecord(input, fieldSpecs, tableSpec, result)
+  }
+
   const isCollection = input.mode === 'add' || input.mode === 'add-many' || input.mode === 'merge-diffs'
   if (isCollection) return adoptCollection(input, fieldSpecs, tableSpec, result)
   return adoptSingleton(input, fieldSpecs, tableSpec, result)
@@ -26,6 +30,44 @@ export async function adopt(input: AdoptInput): Promise<AdoptResult> {
 
 function emptyResult(): AdoptResult {
   return { written: [], aliasMapped: [], unknown: [], typeErrors: [], fkErrors: [], skipped: [] }
+}
+
+async function adoptCollectionRecord(
+  input: AdoptInput,
+  fieldSpecs: FieldSpec[],
+  tableSpec: TableSpec,
+  result: AdoptResult,
+): Promise<AdoptResult> {
+  if (!ADOPTION_BY_TARGET.has(input.target)) {
+    result.skipped.push({ reason: `target ${input.target} 不是已登记的集合写回目标`, data: input.data })
+    return result
+  }
+  if (Array.isArray(input.data)) {
+    result.skipped.push({ reason: 'recordId 定点更新只接受单条 data', data: input.data })
+    return result
+  }
+  const target = await tableSpec.table.get(input.recordId!)
+  if (!target || target.projectId !== input.projectId) {
+    result.skipped.push({ reason: `record ${input.recordId} 不存在或不属于当前项目`, data: input.data })
+    return result
+  }
+  const patch = normalizeAndValidate(input.data, fieldSpecs, result)
+  if (!patch || Object.keys(patch).length === 0) return result
+
+  if (input.mode === 'append') {
+    for (const [field, val] of Object.entries(patch)) {
+      const spec = fieldSpecs.find(f => f.field === field)
+      if (spec?.type === 'longtext') {
+        const existing = target[field]
+        patch[field] = existing ? `${String(existing)}\n\n${String(val)}` : val
+      }
+    }
+  }
+
+  patch.updatedAt = Date.now()
+  await tableSpec.table.update(input.recordId!, patch as any)
+  result.written.push({ id: input.recordId!, fields: Object.keys(patch) })
+  return result
 }
 
 async function adoptSingleton(
@@ -199,6 +241,21 @@ function validateAndCoerce(spec: FieldSpec, value: unknown, result: AdoptResult)
       }
     }
     return JSON.stringify(raw)
+  }
+  if (spec.type === 'object') {
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
+      } catch {
+        // fall through
+      }
+      result.typeErrors.push({ field: spec.field, expected: 'object', got: 'string' })
+      return undefined
+    }
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw
+    result.typeErrors.push({ field: spec.field, expected: 'object', got: typeof value })
+    return undefined
   }
   return undefined
 }

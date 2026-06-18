@@ -133,6 +133,20 @@ async function readChapterOutline(projectId: number, outlineNodeId?: number | nu
   return `【当前章节大纲】\n${node.title}${node.summary ? `\n${node.summary}` : ''}`
 }
 
+async function readExistingVolumeOutlines(projectId: number): Promise<string> {
+  const rows = await db.outlineNodes.where('projectId').equals(projectId).toArray()
+  const volumes = rows
+    .filter(node => node.type === 'volume' && node.parentId == null)
+    .sort((a, b) => a.order - b.order)
+  if (!volumes.length) return ''
+  return [
+    '【已有卷大纲（必须接续，禁止重复）】',
+    ...volumes.map((volume, index) => (
+      `${index + 1}. ${volume.title}${volume.summary ? `\n   ${volume.summary}` : '\n   （尚未填写卷纲）'}`
+    )),
+  ].join('\n')
+}
+
 /**
  * FB-9 修复:读取本章「场景细纲」(detailedOutlines)。
  * 细纲此前只是 DB 表(写得进、删得掉),但从未登记成上下文源 → AI 生成读不到它。
@@ -177,6 +191,14 @@ export const CONTEXT_SOURCES: ContextSource[] = [
     budgetTokens: 800,
     requiresOutlineNodeId: true,
     read: input => readChapterOutline(input.projectId, input.outlineNodeId, input.chapterId),
+  },
+  {
+    key: 'existingVolumeOutlines',
+    label: '已有卷大纲',
+    scope: 'project',
+    layer: 'L1',
+    budgetTokens: 2400,
+    read: input => readExistingVolumeOutlines(input.projectId),
   },
   {
     key: 'detailedOutline',

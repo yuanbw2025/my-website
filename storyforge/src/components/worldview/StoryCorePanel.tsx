@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildStoryGeneratePrompt } from '../../lib/ai/adapters/story-adapter'
 import AIStreamOutput from '../shared/AIStreamOutput'
 import PromptRunPanel from '../shared/PromptRunPanel'
@@ -96,7 +97,7 @@ export default function StoryCorePanel({ project }: Props) {
   return (
     <div className="flex gap-4 max-w-5xl">
       {/* ── 左侧导航 ── */}
-      <div className="w-40 shrink-0 space-y-0.5 pt-1">
+      <div className="w-fit min-w-32 max-w-40 shrink-0 space-y-0.5 pt-1">
         {FIELDS.map(f => {
           const active = activeKey === f.key
           const hasContent = !!values[f.key]
@@ -143,6 +144,7 @@ export default function StoryCorePanel({ project }: Props) {
               }}
               project={project}
               worldCtx={worldCtx}
+              sessionEntity={`${activeGroupId ?? 'global'}:${f.key}`}
               onStreamingChange={streaming => handleStreamingChange(f.key, streaming)}
             />
           </div>
@@ -155,13 +157,14 @@ export default function StoryCorePanel({ project }: Props) {
 // ── 单字段编辑器（各自独立的 AI 流） ──────────────────────────
 
 function FieldEditor({
-  field, value, onChange, project, worldCtx, onStreamingChange,
+  field, value, onChange, project, worldCtx, sessionEntity, onStreamingChange,
 }: {
   field: FieldDef
   value: string
   onChange: (v: string) => void
   project: Project
   worldCtx: () => string
+  sessionEntity: string
   onStreamingChange: (streaming: boolean) => void
 }) {
   const [hint, setHint] = useState('')
@@ -169,7 +172,7 @@ function FieldEditor({
   const [systemOverride, setSystemOverride] = useState<string | null>(null)
   const [userOverride, setUserOverride] = useState<string | null>(null)
   const [mode, setMode] = useState<FieldGenerationMode>('expand')
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(project.id!, 'story.generate', sessionEntity))
 
   // 通知父组件 streaming 状态
   useEffect(() => {

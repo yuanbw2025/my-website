@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { Heart, Sparkles, ChevronUp, Trash2, Edit3, Save, Plus, X, RotateCcw } from 'lucide-react'
 import { useEmotionBeatStore } from '../../stores/emotion-beat'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildEmotionBeatPrompt, parseEmotionBeats } from '../../lib/ai/adapters/emotion-beat-adapter'
 import type { EmotionBeat } from '../../lib/types'
 import { useDialog } from '../shared/Dialog'
@@ -50,7 +51,7 @@ export default function EmotionBeatCard({
   const [editing, setEditing] = useState(false)
   const [editBeats, setEditBeats] = useState<EmotionBeat[]>([])
   const [editArc, setEditArc] = useState('')
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(projectId, 'emotion-beat.generate', chapterId))
 
   useEffect(() => { loadAll(projectId) }, [projectId, loadAll])
 

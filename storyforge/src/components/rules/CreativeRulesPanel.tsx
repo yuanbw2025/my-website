@@ -5,6 +5,7 @@ import { useCreativeRulesStore } from '../../stores/project-singletons'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useReferenceStore } from '../../stores/reference'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildRulesGeneratePrompt } from '../../lib/ai/adapters/rules-adapter'
 import { adopt } from '../../lib/registry/adopt'
 import AIStreamOutput from '../shared/AIStreamOutput'
@@ -34,7 +35,8 @@ export default function CreativeRulesPanel({ project }: Props) {
   const [referenceWorks, setReferenceWorks] = useState<string[]>([])
   const [citedRefIds, setCitedRefIds] = useState<number[]>([])
   const [aiTarget, setAiTarget] = useState<'writingStyle' | 'toneAndMood' | 'specialRequirements' | null>(null)
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(project.id!, 'rules.generate'))
+  const currentAITarget = (ai.operation as typeof aiTarget) ?? aiTarget
 
   useEffect(() => {
     loadAll(project.id!)
@@ -67,6 +69,7 @@ export default function CreativeRulesPanel({ project }: Props) {
       specialRequirements: '特殊创作要求',
     }
     setAiTarget(target)
+    ai.setOperation(target)
     const messages = buildRulesGeneratePrompt(
       dimensionMap[target],
       project.name,
@@ -78,15 +81,15 @@ export default function CreativeRulesPanel({ project }: Props) {
   }
 
   const acceptAi = async (text: string) => {
-    if (!aiTarget) return
-    if (aiTarget === 'writingStyle') setWritingStyle(text)
-    else if (aiTarget === 'toneAndMood') setToneAndMood(text)
-    else if (aiTarget === 'specialRequirements') setSpecialRequirements(text)
+    if (!currentAITarget) return
+    if (currentAITarget === 'writingStyle') setWritingStyle(text)
+    else if (currentAITarget === 'toneAndMood') setToneAndMood(text)
+    else if (currentAITarget === 'specialRequirements') setSpecialRequirements(text)
     await adopt({
       projectId: project.id!,
       target: 'creativeRules',
       mode: 'replace',
-      data: { [aiTarget]: text },
+      data: { [currentAITarget]: text },
     })
     await loadAll(project.id!)
     ai.reset()
@@ -203,7 +206,7 @@ export default function CreativeRulesPanel({ project }: Props) {
           placeholder="描述期望的写作风格，如：简洁凌厉、文笔华丽、幽默诙谐、冷峻写实..."
           className="w-full h-24 p-3 bg-bg-surface border border-border rounded-lg text-text-primary text-sm resize-y focus:outline-none focus:border-accent"
         />
-        {aiTarget === 'writingStyle' && (ai.output || ai.isStreaming || ai.error) && (
+        {currentAITarget === 'writingStyle' && (ai.output || ai.isStreaming || ai.error) && (
           <div className="mt-2">
             <AIStreamOutput
               output={ai.output} isStreaming={ai.isStreaming} error={ai.error} tokenUsage={ai.tokenUsage}
@@ -257,7 +260,7 @@ export default function CreativeRulesPanel({ project }: Props) {
           placeholder="描述作品的整体基调和氛围，如：黑暗压抑、热血激昂、温馨治愈..."
           className="w-full h-20 p-3 bg-bg-surface border border-border rounded-lg text-text-primary text-sm resize-y focus:outline-none focus:border-accent"
         />
-        {aiTarget === 'toneAndMood' && (ai.output || ai.isStreaming || ai.error) && (
+        {currentAITarget === 'toneAndMood' && (ai.output || ai.isStreaming || ai.error) && (
           <div className="mt-2">
             <AIStreamOutput
               output={ai.output} isStreaming={ai.isStreaming} error={ai.error} tokenUsage={ai.tokenUsage}
@@ -358,7 +361,7 @@ export default function CreativeRulesPanel({ project }: Props) {
           placeholder="其他需要 AI 遵守的特殊创作要求..."
           className="w-full h-24 p-3 bg-bg-surface border border-border rounded-lg text-text-primary text-sm resize-y focus:outline-none focus:border-accent"
         />
-        {aiTarget === 'specialRequirements' && (ai.output || ai.isStreaming || ai.error) && (
+        {currentAITarget === 'specialRequirements' && (ai.output || ai.isStreaming || ai.error) && (
           <div className="mt-2">
             <AIStreamOutput
               output={ai.output} isStreaming={ai.isStreaming} error={ai.error} tokenUsage={ai.tokenUsage}

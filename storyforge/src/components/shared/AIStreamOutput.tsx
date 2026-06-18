@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Square, Check, RotateCcw, Loader2, ThumbsUp, ThumbsDown, Braces, ChevronDown, ChevronRight } from 'lucide-react'
+import { Square, Check, RotateCcw, Loader2, ThumbsUp, ThumbsDown, Braces, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { usePromptStore } from '../../stores/prompt'
 import type { PromptModuleKey, PromptExample } from '../../lib/types/prompt'
 import type { TokenUsage } from '../../lib/ai/logger'
@@ -19,6 +19,8 @@ interface AIStreamOutputProps {
   onAccept: (text: string) => void
   /** 重试 */
   onRetry: () => void
+  /** 关闭/弃用本次结果（不写回正文）。传入则显示「关闭」按钮 */
+  onDismiss?: () => void
   /** 占位提示 */
   placeholder?: string
   /** P15：传入则显示「⭐ 好示例 / 💩 坏示例」标记按钮，写入对应模板的 examples */
@@ -36,6 +38,7 @@ export default function AIStreamOutput({
   onStop,
   onAccept,
   onRetry,
+  onDismiss,
   placeholder = '点击生成按钮，让 AI 为你创作...',
   moduleKey,
   tokenUsage,
@@ -210,6 +213,17 @@ export default function AIStreamOutput({
                 >
                   <Check className="w-3 h-3" />
                   采纳
+                </button>
+              )}
+              {/* G2：关闭/弃用——不满意可直接关掉，保留原文不写回 */}
+              {onDismiss && (hasOutput || error) && (
+                <button
+                  onClick={onDismiss}
+                  title="关闭，保留原文不采纳"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-hover text-text-muted rounded-md hover:text-text-primary transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  关闭
                 </button>
               )}
             </>

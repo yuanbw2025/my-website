@@ -82,7 +82,7 @@ function extractFields() {
   const byTarget = {}
   // 形如 text('worldviews', 'worldOrigin', ['summary'])、enumeration(...) 等。
   // 注意:字段说明书必须跟 FIELD_REGISTRY 的 helper 命名同步;此前漏扫 enumeration() 会丢枚举字段。
-  for (const m of src.matchAll(/\b(?:text|longtext|num|bool|json|arr|enumeration|enumField|field)\(\s*'([a-zA-Z0-9_]+)'\s*,\s*'([a-zA-Z0-9_]+)'/g)) {
+  for (const m of src.matchAll(/\b(?:text|longtext|num|bool|json|object|arr|enumeration|enumField|field)\(\s*'([a-zA-Z0-9_]+)'\s*,\s*'([a-zA-Z0-9_]+)'/g)) {
     const [, target, field] = m
     ;(byTarget[target] ??= new Set()).add(field)
   }

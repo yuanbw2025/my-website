@@ -10,6 +10,7 @@ import { useWorldviewStore } from '../../stores/worldview'
 import { useWorldNodeStore } from '../../stores/world-node'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { db } from '../../lib/db/schema'
 import WorldGroupSwitcher from '../world-group/WorldGroupSwitcher'
 import {
@@ -35,7 +36,11 @@ export default function WorldMapPanel({ project }: Props) {
   const { worldview } = useWorldviewStore()
   const { nodes, activeWorldId, loadNodes, ensureRootWorld, updateNode } = useWorldNodeStore()
   const activeGroupId = useWorldGroupStore(s => s.activeGroupId)
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(
+    project.id!,
+    'geography.world-map',
+    activeWorldId ?? activeGroupId ?? 'root',
+  ))
 
   const [viewMode, setViewMode] = useState<ViewMode>('voronoi')
 

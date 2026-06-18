@@ -7,6 +7,7 @@ import { useCharacterStore } from '../../stores/character'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIConfigStore } from '../../stores/ai-config'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildCharacterPrompt } from '../../lib/ai/adapters/character-adapter'
 import { parseCharacterOutput } from '../../lib/ai/parse-character-output'
 import { adopt } from '../../lib/registry/adopt'
@@ -63,7 +64,11 @@ export default function CharacterPanel({ project }: Props) {
   const [userOverride, setUserOverride] = useState<string | null>(null)
   // 多世界：角色世界过滤器（'all' | 'cross' | 世界组 id）
   const [worldFilter, setWorldFilter] = useState<'all' | 'cross' | number>('all')
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(
+    project.id!,
+    'character.generate',
+    project.enableMultiWorld ? String(worldFilter) : 'project',
+  ))
 
   useEffect(() => { loadAll(project.id!) }, [project.id, loadAll])
 

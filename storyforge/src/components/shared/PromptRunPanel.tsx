@@ -21,6 +21,8 @@ interface Props {
   onUserOverrideChange: (next: string | null) => void
   /** 折叠状态可由外层控制（默认折叠） */
   defaultOpen?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 /**
@@ -35,6 +37,8 @@ export default function PromptRunPanel({
   systemOverride, onSystemOverrideChange,
   userOverride, onUserOverrideChange,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
 }: Props) {
   const dialog = useDialog()
   const toast = useToast()
@@ -47,8 +51,13 @@ export default function PromptRunPanel({
             ?? templates.find(t => t.moduleKey === moduleKey && t.scope === 'system' && t.isActive)
             ?? templates.find(t => t.moduleKey === moduleKey)
 
-  const [open, setOpen] = useState(defaultOpen)
+  const [internalOpen, setInternalOpen] = useState(defaultOpen)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
 
   if (!tpl) {
     return (
@@ -103,7 +112,7 @@ export default function PromptRunPanel({
     <div className="bg-bg-elevated border border-border rounded-lg text-xs">
       {/* 头部 */}
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-3 py-2 hover:bg-bg-hover transition-colors"
       >
         <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@ import {
   Download, Upload, FileJson, FileText, FileType,
   Loader2, CheckCircle, AlertCircle, FolderOpen, X,
   History, Plus, Trash2, RotateCcw, HardDrive,
-  Sparkles, Brain, ShieldAlert,
+  ShieldAlert,
 } from 'lucide-react'
 import { exportProjectJSON, downloadJSON, importProjectJSON, type ProjectExportData } from '../../lib/export/json-export'
 import { exportProjectMarkdown, exportProjectTXT, downloadTextFile } from '../../lib/export/text-export'
@@ -18,7 +18,7 @@ import { useToast } from '../shared/Toast'
 import { useDialog } from '../shared/Dialog'
 import type { Project, Snapshot } from '../../lib/types'
 
-type Tab = 'export' | 'backup' | 'ai-import'
+type Tab = 'export' | 'backup'
 type ExportStatus = 'idle' | 'loading' | 'success' | 'error'
 
 interface Props {
@@ -32,14 +32,13 @@ export default function DataManagementPanel({ project, onImported }: Props) {
   const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'export',    label: '导出 / 导入', icon: FileJson },
     { id: 'backup',    label: '版本历史',    icon: History },
-    { id: 'ai-import', label: '文档导入入口', icon: Brain },
   ]
 
   return (
     <div className="max-w-2xl space-y-4">
       <div>
         <h2 className="text-xl font-bold text-text-primary mb-1">数据管理</h2>
-        <p className="text-sm text-text-muted">备份、恢复、导出正文，以及跳转到 AI 辅助解析导入流程的入口说明。</p>
+        <p className="text-sm text-text-muted">备份、恢复、导出正文。（AI 解析导入请用左侧「文档导入」面板。）</p>
       </div>
 
       {/* Tab 切换 */}
@@ -65,7 +64,6 @@ export default function DataManagementPanel({ project, onImported }: Props) {
 
       {activeTab === 'export'    && <ExportTab    project={project} onImported={onImported} />}
       {activeTab === 'backup'    && <BackupTab    project={project} onImported={onImported} />}
-      {activeTab === 'ai-import' && <AIImportTab  project={project} />}
     </div>
   )
 }
@@ -393,43 +391,6 @@ function BackupTab({ project }: Props) {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  )
-}
-
-// ── AI 解析导入 Tab ──────────────────────────────────────────
-function AIImportTab({ project: _project }: { project: Project }) {
-  return (
-    <div className="space-y-4">
-      <div className="bg-bg-surface border border-border rounded-lg p-6 text-center space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto">
-          <Brain className="w-8 h-8 text-accent" />
-        </div>
-        <div>
-          <h3 className="text-base font-semibold text-text-primary mb-2">AI 解析导入已迁移到独立面板</h3>
-          <p className="text-sm text-text-muted max-w-sm mx-auto">
-            请从左侧侧栏打开「文档导入」。那里支持上传或粘贴设定文档，并按解析结果预览后写入项目。
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 items-center text-sm text-text-muted/80">
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center font-bold">1</span>
-            选择目标模块（角色 / 世界观 / 大纲）
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center font-bold">2</span>
-            粘贴文本或上传 .txt / .md 文件
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center font-bold">3</span>
-            AI 解析结果预览，确认后一键写入
-          </div>
-        </div>
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/5 border border-accent/20 rounded-full text-sm text-accent/70">
-          <Sparkles className="w-3.5 h-3.5" />
-          使用左侧「文档导入」进入当前可用流程
-        </div>
       </div>
     </div>
   )
