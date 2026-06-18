@@ -180,7 +180,12 @@ export default function WorldviewNaturalPanel({ project }: Props) {
                 <div className="mt-6">
                   <h3 className="text-sm font-semibold text-text-primary mb-1">📚 {f.label} · 具体词条</h3>
                   <p className="text-xs text-text-muted mb-3">在上面写完整体「全貌」后，这里把「{f.label}」逐条细化登记，可自定义字段、打重要度星级，并进入 AI 生成上下文。</p>
-                  <CodexPanel project={project} fixedCategoryKeys={NATURAL_CODEX_KEYS[f.key]} embedded />
+                  <CodexPanel
+                    project={project}
+                    fixedCategoryKeys={NATURAL_CODEX_KEYS[f.key]}
+                    extractionSourceText={values[f.key] || ''}
+                    embedded
+                  />
                 </div>
               )}
             </div>
@@ -202,7 +207,18 @@ export default function WorldviewNaturalPanel({ project }: Props) {
             <div>
               <h3 className="text-sm font-semibold text-text-primary mb-1">📚 自然物产 · 具体词条</h3>
               <p className="text-xs text-text-muted mb-2">矿物灵材 / 灵植草药 / 灵兽异兽——逐条登记,可自定义字段、互相关联、打星,并进入 AI 生成上下文。</p>
-              <CodexPanel project={project} fixedCategoryKeys={['mineral', 'herb', 'beast']} embedded />
+              <CodexPanel
+                project={project}
+                fixedCategoryKeys={['mineral', 'herb', 'beast']}
+                extractionSourceText={[
+                  values.naturalResourceOverview,
+                  naturalResources.minerals,
+                  naturalResources.herbs,
+                  naturalResources.rareCreatures,
+                  naturalResources.others,
+                ].filter(Boolean).join('\n\n')}
+                embedded
+              />
             </div>
             {/* 旧版自然资源(纯文本)——保留兼容 */}
             <details className="border-t border-border/60 pt-3">

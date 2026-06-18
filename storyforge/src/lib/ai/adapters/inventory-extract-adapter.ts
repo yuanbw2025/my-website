@@ -13,15 +13,17 @@ export interface ExtractedItemEvent {
   note: string
 }
 
-/** 构建提取 prompt（单章） */
-export function buildInventoryExtractPrompt(chapterTitle: string, chapterText: string, maxChars = 6000): ChatMessage[] {
-  const text = chapterText.length > maxChars
-    ? chapterText.slice(0, maxChars) + '\n…（后文省略）'
-    : chapterText
+/** 构建提取 prompt（调用方负责分块，禁止静默截断长章） */
+export function buildInventoryExtractPrompt(
+  chapterTitle: string,
+  chapterText: string,
+  knownItemNames: string[] = [],
+): ChatMessage[] {
   const tpl = usePromptStore.getState().getActive('inventory.extract')
   const { messages } = renderPrompt(tpl, {
     chapterTitle,
-    chapterText: text,
+    chapterText,
+    knownItemNames: knownItemNames.join('、') || '无',
   })
   return messages
 }

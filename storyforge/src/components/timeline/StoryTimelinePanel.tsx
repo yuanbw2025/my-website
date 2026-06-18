@@ -5,18 +5,24 @@
  * 与「历史年表（世界背景）」「故事线（结构）」严格区分。
  */
 import { useState, useEffect, useMemo } from 'react'
-import { CalendarClock, Sparkles, Loader2, Trash2, Plus } from 'lucide-react'
+import { CalendarClock, Sparkles, Loader2, Trash2, Plus, BookOpen, Flag } from 'lucide-react'
 import { useStoryTimelineStore } from '../../stores/story-timeline'
 import { useChapterStore } from '../../stores/chapter'
 import { useAIConfigStore } from '../../stores/ai-config'
 import { chat } from '../../lib/ai/client'
-import { buildStoryTimelinePrompt, parseStoryEvents } from '../../lib/ai/adapters/story-timeline-adapter'
+import {
+  buildStoryTimelinePrompt, parseStoryEvents, type ExtractedStoryEvent,
+} from '../../lib/ai/adapters/story-timeline-adapter'
 import { htmlToPlainText } from '../../lib/utils/html'
 import { STORY_IMPORTANCE_LABELS } from '../../lib/types/story-timeline'
 import type { Project } from '../../lib/types'
+import { splitExtractionText, uniqueBy } from '../../lib/ai/structured-extraction'
+import { adopt } from '../../lib/registry/adopt'
+import { assembleContext } from '../../lib/registry/assemble-context'
 
 interface Props {
   project: Project
+  onOpenChapter?: (chapterId: number) => void
 }
 
 const IMPORTANCE_STYLE: Record<number, string> = {
@@ -25,8 +31,8 @@ const IMPORTANCE_STYLE: Record<number, string> = {
   3: 'bg-amber-500/15 text-amber-400',
 }
 
-export default function StoryTimelinePanel({ project }: Props) {
-  const { events, loading, loadAll, addEvent, addEvents, updateEvent, deleteEvent, deleteByChapter } = useStoryTimelineStore()
+export default function StoryTimelinePanel({ project, onOpenChapter }: Props) {
+  const { events, loading, loadAll, addEvent, updateEvent, deleteEvent, deleteByChapter } = useStoryTimelineStore()
   const { chapters, loadAll: loadChapters } = useChapterStore()
   const aiConfig = useAIConfigStore(s => s.config)
 
@@ -66,21 +72,38 @@ export default function StoryTimelinePanel({ project }: Props) {
       for (let i = 0; i < writtenChapters.length; i++) {
         const ch = writtenChapters[i]
         try {
-          const messages = buildStoryTimelinePrompt(ch.title, htmlToPlainText(ch.content))
-          const raw = await chat(messages, aiConfig, { category: 'story.timeline', projectId: project.id! })
-          const parsed = parseStoryEvents(raw)
+          const found: ExtractedStoryEvent[] = []
+          const chapterSource = await assembleContext({
+            projectId: project.id!,
+            chapterId: ch.id,
+            sourceKeys: ['chapterContent'],
+          })
+          for (const chunk of splitExtractionText(chapterSource.text)) {
+            const messages = buildStoryTimelinePrompt(ch.title, chunk)
+            const raw = await chat(messages, aiConfig, { category: 'story.timeline', projectId: project.id! })
+            found.push(...parseStoryEvents(raw))
+          }
+          const parsed = uniqueBy(
+            found,
+            event => `${event.title.trim().toLocaleLowerCase()}\u0000${event.storyTime.trim()}`,
+          )
           if (ch.id != null) await deleteByChapter(project.id!, ch.id)
           if (parsed.length > 0) {
-            await addEvents(parsed.map((e, idx) => ({
+            await adopt({
               projectId: project.id!,
-              title: e.title,
-              storyTime: e.storyTime || undefined,
-              importance: e.importance,
-              description: e.description || undefined,
-              chapterId: ch.id ?? null,
-              chapterTitle: ch.title,
-              order: idx,
-            })))
+              target: 'storyTimelineEvents',
+              mode: 'add-many',
+              data: parsed.map((e, idx) => ({
+                title: e.title,
+                storyTime: e.storyTime || '',
+                importance: e.importance,
+                description: e.description || '',
+                chapterId: ch.id ?? null,
+                chapterTitle: ch.title,
+                order: idx,
+              })),
+            })
+            await loadAll(project.id!)
           }
         } catch (err) {
           console.error('[StoryTimeline] 章节提取失败:', ch.title, err)
@@ -164,7 +187,16 @@ export default function StoryTimelinePanel({ project }: Props) {
                   <span className={`text-[10px] px-1.5 py-0.5 rounded ${IMPORTANCE_STYLE[e.importance]}`}>
                     {STORY_IMPORTANCE_LABELS[e.importance]}
                   </span>
-                  {e.chapterTitle && <span className="text-[10px] text-text-muted">· {e.chapterTitle}</span>}
+                  {e.chapterTitle && (
+                    <button
+                      onClick={() => e.chapterId != null && onOpenChapter?.(e.chapterId)}
+                      disabled={e.chapterId == null || !onOpenChapter}
+                      className="inline-flex items-center gap-1 text-[10px] text-accent hover:underline disabled:text-text-muted disabled:no-underline"
+                      title="跳转到关联章节"
+                    >
+                      <BookOpen className="w-3 h-3" /> {e.chapterTitle}
+                    </button>
+                  )}
                   <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <select
                       value={e.importance}
@@ -180,11 +212,14 @@ export default function StoryTimelinePanel({ project }: Props) {
                     </button>
                   </div>
                 </div>
+                <div className="flex items-start gap-2">
+                  {e.importance === 3 && <Flag className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />}
                 <input
                   value={e.title}
                   onChange={ev => updateEvent(e.id!, { title: ev.target.value })}
                   className="w-full bg-transparent text-sm font-medium text-text-primary outline-none"
                 />
+                </div>
                 {e.description && <p className="text-xs text-text-muted mt-0.5">{e.description}</p>}
               </div>
             </div>

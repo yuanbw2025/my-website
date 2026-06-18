@@ -3,6 +3,7 @@ import { Save, FileText, Eye, ClipboardList, CheckSquare, Square, BookOpenCheck,
 import { useChapterStore } from '../../stores/chapter'
 import { useOutlineStore } from '../../stores/outline'
 import { useStateCardStore } from '../../stores/state-card'
+import { useCharacterStore } from '../../stores/character'
 import { useAIStream } from '../../hooks/useAIStream'
 import { createAISessionKey } from '../../stores/ai-generation-session'
 import { CInput } from '../shared/CompositionInput'
@@ -62,6 +63,7 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
   const { chapters, currentChapter, selectChapter, addChapter, updateChapter, loadAll: loadChapters } = useChapterStore()
   const { nodes } = useOutlineStore()
   const { cards: stateCards, loadAll: loadStateCards, buildStateContext, buildSelectiveStateContext, applyDiffs } = useStateCardStore()
+  const { characters, loadAll: loadCharacters } = useCharacterStore()
   const { creativeRules } = useCreativeRulesStore()
   const { loadAll: loadArcs } = useStoryArcStore()
   const { buildForeshadowContext, loadAll: loadForeshadows } = useForeshadowStore()
@@ -103,6 +105,7 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
 
   useEffect(() => { loadChapters(project.id!) }, [project.id, loadChapters])
   useEffect(() => { loadStateCards(project.id!) }, [project.id, loadStateCards])
+  useEffect(() => { loadCharacters(project.id!) }, [project.id, loadCharacters])
   useEffect(() => { loadArcs(project.id!) }, [project.id, loadArcs])
   useEffect(() => { loadForeshadows(project.id!) }, [project.id, loadForeshadows])
 
@@ -367,10 +370,11 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
     try {
       const stateCtx = buildSelectiveStateContext(plainText, extraStateIds).text
       const chapterTitle = outlineNode?.title || currentChapter.title || '未知章节'
-      const messages = buildStateExtractPrompt(stateCtx, chapterTitle, plainText)
+      const characterNames = characters.map(character => character.name)
+      const messages = buildStateExtractPrompt(stateCtx, chapterTitle, plainText, characterNames)
       console.log('[StateExtract] 开始提取，章节:', chapterTitle)
       const raw = await stateAI.start(messages, undefined, { category: 'state.extract', projectId: project.id! })
-      const { diffs, error } = parseStateDiffs(raw)
+      const { diffs, error } = parseStateDiffs(raw, characterNames)
       if (error) {
         console.error('[StateExtract] 解析失败:', error)
       }
@@ -423,10 +427,11 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
     try {
       const stateCtx = buildSelectiveStateContext(text, extraStateIds).text
       const chapterTitle = outlineNode?.title || currentChapter?.title || '未知章节'
-      const messages = buildStateExtractPrompt(stateCtx, chapterTitle, text)
+      const characterNames = characters.map(character => character.name)
+      const messages = buildStateExtractPrompt(stateCtx, chapterTitle, text, characterNames)
       console.log('[AutoPost] 自动提取状态:', chapterTitle)
       const raw = await stateAI.start(messages, undefined, { category: 'state.extract', projectId: project.id! })
-      const { diffs, error } = parseStateDiffs(raw)
+      const { diffs, error } = parseStateDiffs(raw, characterNames)
       if (error) {
         console.error('[AutoPost] 状态提取解析失败:', error)
       }

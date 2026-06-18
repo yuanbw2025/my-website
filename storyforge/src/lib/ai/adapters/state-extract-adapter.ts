@@ -16,19 +16,20 @@ export function buildStateExtractPrompt(
   stateContext: string,
   chapterTitle: string,
   chapterText: string,
+  characterNames: string[] = [],
   maxChars = 6000,
 ): ChatMessage[] {
   const trimmedText = chapterText.length > maxChars
     ? chapterText.slice(0, maxChars) + '\n…（后文省略）'
     : chapterText
 
-  const systemPrompt = `你是一个小说状态追踪器。你的任务是阅读章节内容，对比当前状态表，提取所有发生变化的实体状态。
+  const systemPrompt = `你是一个小说角色状态追踪器。你的任务是阅读章节内容，对比当前状态表，只提取已登记角色发生的状态变化。
 
 规则：
 1. 只提取本章中**明确发生变化**的状态，不要重复已有状态
-2. 如果出现**新实体**（新角色、新地点、新物品等），也要列出其初始状态
-3. category 必须是以下之一：character / location / item / faction / event
-4. field 用简短中文词汇，如：位置、状态、持有物、目标、关系、控制者、用途
+2. entityName 必须严格取自“已登记角色名单”；地点、物品、文件夹、组织、事件都不能作为角色
+3. category 必须固定为 character
+4. field 用简短中文词汇，如：位置、身体状态、境界、目标、所属势力、持有物、关系
 5. oldValue 填变化前的值（从状态表中读取），新实体填 null
 6. 如果本章没有任何状态变化，返回空数组 []
 
@@ -36,7 +37,10 @@ export function buildStateExtractPrompt(
 示例：
 [{"entityName":"李明远","category":"character","field":"位置","oldValue":"长安","newValue":"洛阳"},{"entityName":"残破令牌","category":"item","field":"持有者","oldValue":"李明远","newValue":"萧寒"}]`
 
-  const userPrompt = `${stateContext ? stateContext + '\n\n' : '（状态表为空，这是第一章）\n\n'}【章节标题】${chapterTitle}\n\n【章节内容】\n${trimmedText}\n\n请提取本章的状态变更：`
+  const userPrompt = `【已登记角色名单】
+${characterNames.join('、') || '无（返回空数组）'}
+
+${stateContext ? stateContext + '\n\n' : '（当前没有角色状态记录）\n\n'}【章节标题】${chapterTitle}\n\n【章节内容】\n${trimmedText}\n\n请只提取名单内角色的状态变更：`
 
   return [
     { role: 'system', content: systemPrompt },
@@ -48,7 +52,7 @@ export function buildStateExtractPrompt(
  * 从 AI 输出中解析 StateDiffItem[]
  * 容错处理：尝试多种格式
  */
-export function parseStateDiffs(raw: string): {
+export function parseStateDiffs(raw: string, allowedCharacterNames: string[] = []): {
   diffs: Array<{
     entityName: string
     category: string
@@ -85,14 +89,18 @@ export function parseStateDiffs(raw: string): {
     }
 
     // 验证每个 item 的必要字段
-    const validCategories = new Set(['character', 'location', 'item', 'faction', 'event'])
+    const allowed = new Set(allowedCharacterNames.map(name => name.trim().toLocaleLowerCase()).filter(Boolean))
     const valid = parsed.filter((item: Record<string, unknown>) => {
       if (!item.entityName || !item.category || !item.field || item.newValue === undefined) {
         console.warn('[StateExtract] 跳过不完整的 diff item:', item)
         return false
       }
-      if (!validCategories.has(item.category as string)) {
+      if (item.category !== 'character') {
         console.warn('[StateExtract] 无效的 category:', item.category)
+        return false
+      }
+      if (allowed.size > 0 && !allowed.has(String(item.entityName).trim().toLocaleLowerCase())) {
+        console.warn('[StateExtract] 跳过未登记角色:', item.entityName)
         return false
       }
       return true

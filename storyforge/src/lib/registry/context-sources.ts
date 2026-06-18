@@ -22,6 +22,7 @@ import { parseFields } from '../types/state-card'
 import { parseBeats } from '../types/emotion-beat'
 import type { Character, Foreshadow, PowerSystem, Worldview } from '../types'
 import type { ContextSource } from './types'
+import { htmlToPlainText } from '../utils/html'
 
 function hasExplicitWorldGroupId(input: { worldGroupId?: number | null }): boolean {
   return Object.prototype.hasOwnProperty.call(input, 'worldGroupId')
@@ -175,6 +176,27 @@ async function readDetailedOutline(projectId: number, outlineNodeId?: number | n
 }
 
 export const CONTEXT_SOURCES: ContextSource[] = [
+  {
+    key: 'manualText',
+    label: '用户指定内容',
+    scope: 'manual',
+    layer: 'L0',
+    budgetTokens: 100_000,
+    read: async input => input.manualSourceText || '',
+  },
+  {
+    key: 'chapterContent',
+    label: '章节正文',
+    scope: 'chapter',
+    layer: 'L0',
+    budgetTokens: 100_000,
+    requiresChapterId: true,
+    read: async input => {
+      const chapter = await db.chapters.get(input.chapterId!)
+      if (!chapter || chapter.projectId !== input.projectId) return ''
+      return htmlToPlainText(chapter.content || '')
+    },
+  },
   {
     key: 'contextMemo',
     label: '上下文快照',

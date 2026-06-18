@@ -235,7 +235,13 @@ export default function WorkspacePage() {
       case 'inventory':
         return <InventoryPanel project={project} />
       case 'story-timeline':
-        return <StoryTimelinePanel project={project} />
+        return <StoryTimelinePanel
+          project={project}
+          onOpenChapter={(chapterId) => {
+            const chapter = useChapterStore.getState().chapters.find(item => item.id === chapterId)
+            if (chapter) handleOpenChapter(chapter.outlineNodeId)
+          }}
+        />
       case 'scene-verify':
         return <SceneVerifyPanel project={project} />
 

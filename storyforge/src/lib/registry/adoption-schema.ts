@@ -77,6 +77,38 @@ export const ADOPTION_SCHEMAS: CollectionAdoptionSpec[] = [
     autoStamps: ['projectId', 'worldGroupId', 'createdAt', 'updatedAt'],
     fkChecks: [{ field: 'categoryId', target: 'codexCategories' }],
   },
+  {
+    target: 'importantLocations',
+    identity: 'name',
+    duplicatePolicy: 'merge',
+    required: ['name'],
+    autoStamps: ['projectId', 'createdAt', 'updatedAt'],
+    fkChecks: [{ field: 'parentId', target: 'importantLocations' }],
+  },
+  {
+    target: 'itemLedger',
+    identity: { kind: 'composite', fields: ['chapterId', 'itemName', 'action', 'note'] },
+    duplicatePolicy: 'skip',
+    required: ['itemName', 'action', 'quantity'],
+    autoStamps: ['projectId', 'createdAt'],
+    fkChecks: [{ field: 'chapterId', target: 'chapters' }],
+  },
+  {
+    target: 'storyTimelineEvents',
+    identity: { kind: 'composite', fields: ['chapterId', 'title'] },
+    duplicatePolicy: 'update',
+    required: ['title', 'importance'],
+    autoStamps: ['projectId', 'createdAt'],
+    fkChecks: [{ field: 'chapterId', target: 'chapters' }],
+  },
+  {
+    target: 'stateCards',
+    identity: { kind: 'composite', fields: ['category', 'entityName'] },
+    duplicatePolicy: 'merge',
+    required: ['category', 'entityName', 'fields'],
+    autoStamps: ['projectId', 'createdAt', 'updatedAt'],
+    fkChecks: [{ field: 'lastChapterId', target: 'chapters' }],
+  },
 ]
 
 export const ADOPTION_BY_TARGET: ReadonlyMap<string, CollectionAdoptionSpec> = new Map(

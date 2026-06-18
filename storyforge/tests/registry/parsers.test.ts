@@ -22,17 +22,17 @@ describe('Phase 3.2 · parseStateDiffs', () => {
   })
 
   it('剥离 markdown ```json 围栏', () => {
-    const raw = '```json\n[{"entityName":"王五","category":"item","field":"数量","oldValue":null,"newValue":"3"}]\n```'
-    const { diffs, error } = parseStateDiffs(raw)
+    const raw = '```json\n[{"entityName":"王五","category":"character","field":"持有物","oldValue":null,"newValue":"令牌×3"}]\n```'
+    const { diffs, error } = parseStateDiffs(raw, ['王五'])
     expect(error).toBeNull()
     expect(diffs[0].entityName).toBe('王五')
   })
 
   it('从夹带文字中截取 JSON 数组', () => {
-    const raw = '好的,这是分析结果:\n[{"entityName":"赵六","category":"location","field":"状态","oldValue":null,"newValue":"被毁"}]\n以上。'
-    const { diffs } = parseStateDiffs(raw)
+    const raw = '好的,这是分析结果:\n[{"entityName":"赵六","category":"character","field":"状态","oldValue":null,"newValue":"受伤"}]\n以上。'
+    const { diffs } = parseStateDiffs(raw, ['赵六'])
     expect(diffs).toHaveLength(1)
-    expect(diffs[0].newValue).toBe('被毁')
+    expect(diffs[0].newValue).toBe('受伤')
   })
 
   it('无 JSON 数组时返回错误而非崩溃', () => {

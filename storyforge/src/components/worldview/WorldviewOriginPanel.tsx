@@ -194,7 +194,12 @@ export default function WorldviewOriginPanel({ project }: Props) {
             <div className="mt-6">
               <h3 className="text-sm font-semibold text-text-primary mb-1">📚 力量层级 · 具体词条</h3>
               <p className="text-xs text-text-muted mb-3">在上面写完力量体系「全貌」后，这里把各等级/层级逐条登记，可自定义字段、打重要度星级，并进入 AI 生成上下文。</p>
-              <CodexPanel project={project} fixedCategoryKeys={['originPower']} embedded />
+              <CodexPanel
+                project={project}
+                fixedCategoryKeys={['originPower']}
+                extractionSourceText={powerHierarchy}
+                embedded
+              />
             </div>
           </div>
 
@@ -214,7 +219,16 @@ export default function WorldviewOriginPanel({ project }: Props) {
             <div className="mt-6">
               <h3 className="text-sm font-semibold text-text-primary mb-1">📚 神明信仰 · 具体词条</h3>
               <p className="text-xs text-text-muted mb-3">在上面写完信仰体系「全貌」后，这里把各神明/信仰逐条登记，可自定义字段、打重要度星级，并进入 AI 生成上下文。</p>
-              <CodexPanel project={project} fixedCategoryKeys={['originDeity']} embedded />
+              <CodexPanel
+                project={project}
+                fixedCategoryKeys={['originDeity']}
+                extractionSourceText={[
+                  divineDesign.divineNames,
+                  divineDesign.divineRank,
+                  divineDesign.divineRules,
+                ].filter(Boolean).join('\n\n')}
+                embedded
+              />
             </div>
           </div>
         </div>
