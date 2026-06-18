@@ -225,6 +225,8 @@ export interface AssembleContextInput {
   previousChapterEnding?: string
   stateReferenceText?: string
   extraStateIds?: number[]
+  /** 手动输入/当前字段内容，供“内容反推结构化设定”类动作走注册表。 */
+  manualSourceText?: string
 }
 
 export interface ContextSource {

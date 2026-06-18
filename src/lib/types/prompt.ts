@@ -50,6 +50,12 @@ export type PromptModuleKey =
   | 'world-group.expand'
   // —— Phase 25.5.2-b 物品栏 ——
   | 'inventory.extract'
+  // —— C-1/C-2 通用词条拆分 ——
+  | 'codex.extract'
+  // —— C-6 重要地点提取 ——
+  | 'location.extract'
+  | 'codex.extract'
+  | 'location.extract'
   // —— Phase 25.5.2-a 故事进程年表 ——
   | 'story-timeline.extract'
   // —— Phase 27.2a 场景考证 ——
@@ -178,6 +184,13 @@ export interface PromptVariableContext {
   imageStyle?: string
   // 通用
   dimension?: string
+  categoryName?: string
+  fieldSchema?: string
+  existingEntries?: string
+  supplementTags?: string
+  sourceText?: string
+  allowedTags?: string
+  knownItemNames?: string
   userHint?: string
   // 兜底（任意自定义键）
   [extra: string]: string | number | undefined

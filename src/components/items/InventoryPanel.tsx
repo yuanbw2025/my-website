@@ -10,17 +10,22 @@ import { useItemLedgerStore } from '../../stores/item-ledger'
 import { useChapterStore } from '../../stores/chapter'
 import { useAIConfigStore } from '../../stores/ai-config'
 import { chat } from '../../lib/ai/client'
-import { buildInventoryExtractPrompt, parseInventoryEvents } from '../../lib/ai/adapters/inventory-extract-adapter'
+import {
+  buildInventoryExtractPrompt, parseInventoryEvents, type ExtractedItemEvent,
+} from '../../lib/ai/adapters/inventory-extract-adapter'
 import { aggregateInventory, ITEM_LEDGER_ACTION_LABELS } from '../../lib/types/item-ledger'
 import { htmlToPlainText } from '../../lib/utils/html'
 import type { Project, ItemLedgerAction } from '../../lib/types'
+import { splitExtractionText, uniqueBy } from '../../lib/ai/structured-extraction'
+import { adopt } from '../../lib/registry/adopt'
+import { assembleContext } from '../../lib/registry/assemble-context'
 
 interface Props {
   project: Project
 }
 
 export default function InventoryPanel({ project }: Props) {
-  const { entries, loading, loadAll, addEntries, addEntry, updateEntry, deleteEntry, deleteByChapter } = useItemLedgerStore()
+  const { entries, loading, loadAll, addEntry, updateEntry, deleteEntry, deleteByChapter } = useItemLedgerStore()
   const { chapters, loadAll: loadChapters } = useChapterStore()
   const aiConfig = useAIConfigStore(s => s.config)
 
@@ -35,6 +40,11 @@ export default function InventoryPanel({ project }: Props) {
   }, [project.id, loadAll, loadChapters])
 
   const inventory = useMemo(() => aggregateInventory(entries), [entries])
+  const inventoryStats = useMemo(() => ({
+    activeKinds: inventory.filter(item => item.quantity > 0).length,
+    totalHeld: inventory.reduce((sum, item) => sum + Math.max(0, item.quantity), 0),
+    movements: entries.length,
+  }), [inventory, entries.length])
 
   // 已写正文的章节（有内容的）
   const writtenChapters = useMemo(
@@ -57,23 +67,44 @@ export default function InventoryPanel({ project }: Props) {
     try {
       for (let i = 0; i < writtenChapters.length; i++) {
         const ch = writtenChapters[i]
-        const text = htmlToPlainText(ch.content)
         try {
-          const messages = buildInventoryExtractPrompt(ch.title, text)
-          const raw = await chat(messages, aiConfig, { category: 'inventory.extract', projectId: project.id! })
-          const events = parseInventoryEvents(raw)
-          // 重新提取该章前先清理旧记录，避免重复累加
+          const found: ExtractedItemEvent[] = []
+          const knownNames = aggregateInventory(entries).map(item => item.itemName)
+          const chapterSource = await assembleContext({
+            projectId: project.id!,
+            chapterId: ch.id,
+            sourceKeys: ['chapterContent'],
+          })
+          for (const chunk of splitExtractionText(chapterSource.text)) {
+            const messages = buildInventoryExtractPrompt(
+              ch.title,
+              chunk,
+              [...knownNames, ...found.map(event => event.itemName)],
+            )
+            const raw = await chat(messages, aiConfig, { category: 'inventory.extract', projectId: project.id! })
+            found.push(...parseInventoryEvents(raw))
+          }
+          const events = uniqueBy(
+            found,
+            event => `${event.itemName.trim().toLocaleLowerCase()}\u0000${event.action}\u0000${event.quantity}\u0000${event.note.trim()}`,
+          )
+          // 全部分块成功后才替换该章旧记录，避免半提取清空用户数据
           if (ch.id != null) await deleteByChapter(project.id!, ch.id)
           if (events.length > 0) {
-            await addEntries(events.map(e => ({
+            await adopt({
               projectId: project.id!,
-              itemName: e.itemName,
-              action: e.action,
-              quantity: e.quantity,
-              chapterId: ch.id ?? null,
-              chapterTitle: ch.title,
-              note: e.note || undefined,
-            })))
+              target: 'itemLedger',
+              mode: 'add-many',
+              data: events.map(e => ({
+                itemName: e.itemName,
+                action: e.action,
+                quantity: e.quantity,
+                chapterId: ch.id ?? null,
+                chapterTitle: ch.title,
+                note: e.note || '',
+              })),
+            })
+            await loadAll(project.id!)
           }
         } catch (err) {
           console.error('[Inventory] 章节提取失败:', ch.title, err)
@@ -133,6 +164,21 @@ export default function InventoryPanel({ project }: Props) {
         <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">{extractError}</div>
       )}
 
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-border bg-bg-surface p-3">
+          <p className="text-[10px] uppercase tracking-wide text-text-muted">当前种类</p>
+          <p className="text-xl font-semibold text-text-primary mt-1">{inventoryStats.activeKinds}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-bg-surface p-3">
+          <p className="text-[10px] uppercase tracking-wide text-text-muted">持有总量</p>
+          <p className="text-xl font-semibold text-green-400 mt-1">{inventoryStats.totalHeld}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-bg-surface p-3">
+          <p className="text-[10px] uppercase tracking-wide text-text-muted">流水记录</p>
+          <p className="text-xl font-semibold text-accent mt-1">{inventoryStats.movements}</p>
+        </div>
+      </div>
+
       {extracting && progress && (
         <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
           <div className="flex items-center gap-2 text-sm text-accent mb-1.5">
@@ -155,18 +201,25 @@ export default function InventoryPanel({ project }: Props) {
           <p className="text-xs mt-1">写完一些章节后，点「从正文提取物品栏」让 AI 自动整理</p>
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="grid grid-cols-1 gap-2">
           {inventory.map(item => {
             const isOpen = expanded === item.itemName
+            const gained = item.entries.filter(entry => entry.action === 'gain').reduce((sum, entry) => sum + entry.quantity, 0)
+            const consumed = item.entries.filter(entry => entry.action === 'consume').reduce((sum, entry) => sum + entry.quantity, 0)
             return (
-              <div key={item.itemName} className="bg-bg-surface border border-border rounded-lg overflow-hidden">
+              <div key={item.itemName} className={`bg-bg-surface border rounded-xl overflow-hidden ${
+                item.quantity > 0 ? 'border-border' : 'border-border/60 opacity-80'
+              }`}>
                 {/* 物品头部 */}
                 <button
                   onClick={() => setExpanded(isOpen ? null : item.itemName)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-bg-hover/40 transition-colors"
                 >
                   {isOpen ? <ChevronDown className="w-4 h-4 text-text-muted shrink-0" /> : <ChevronRight className="w-4 h-4 text-text-muted shrink-0" />}
-                  <span className="text-sm font-medium text-text-primary flex-1 min-w-0 truncate">{item.itemName}</span>
+                  <span className="text-sm font-semibold text-text-primary min-w-0 truncate">{item.itemName}</span>
+                  <span className="text-[10px] text-text-muted flex-1">
+                    累计获得 {gained} · 消耗 {consumed}
+                  </span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-mono ${
                     item.quantity > 0 ? 'bg-green-500/10 text-green-400'
                       : item.quantity === 0 ? 'bg-bg-elevated text-text-muted'
@@ -174,14 +227,23 @@ export default function InventoryPanel({ project }: Props) {
                   }`}>
                     ×{item.quantity}
                   </span>
-                  <span className="text-[10px] text-text-muted shrink-0">{item.entries.length} 条记录</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
+                    item.quantity > 0 ? 'bg-green-500/10 text-green-400' : 'bg-bg-elevated text-text-muted'
+                  }`}>
+                    {item.quantity > 0 ? '持有中' : item.quantity === 0 ? '已耗尽' : '需核对'}
+                  </span>
                 </button>
 
                 {/* 流水历程 */}
                 {isOpen && (
-                  <div className="border-t border-border/50 divide-y divide-border/30">
+                  <div className="border-t border-border/50 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-text-muted mb-2">获得 / 消耗时间线</p>
+                    <div className="relative ml-1 border-l border-border/70">
                     {item.entries.map(e => (
-                      <div key={e.id} className="flex items-center gap-2 px-3 py-2 text-xs group">
+                      <div key={e.id} className="relative flex items-center gap-2 pl-4 py-2 text-xs group">
+                        <span className={`absolute -left-1.5 w-3 h-3 rounded-full border-2 bg-bg-surface ${
+                          e.action === 'gain' ? 'border-green-400' : 'border-red-400'
+                        }`} />
                         {e.action === 'gain'
                           ? <ArrowUpCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
                           : <ArrowDownCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />}
@@ -205,6 +267,7 @@ export default function InventoryPanel({ project }: Props) {
                         </div>
                       </div>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>

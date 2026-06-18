@@ -8,7 +8,7 @@
 
 ## 一、Prompt 模板清单（PromptModuleKey 事实源）
 
-共 35 个 moduleKey。
+共 39 个 moduleKey。
 
 | moduleKey | 名称 | 说明 | 读取变量 |
 |---|---|---|---|
@@ -41,7 +41,11 @@
 | `inspiration.reverse.multiworld` | 内置-多世界灵感反推 | 多世界题材：用户给出带有多个世界意图的灵感，AI 顺着思路反推故事主线 + 多个世界 + 角色。 | `projectName` `genres` `inspiration` `userHint` |
 | `world-group.suggest` | 内置-AI建议世界 | 诸天流/无限流等多世界题材，根据故事概念和已有世界建议新的世界组。 | `projectName` `genres` `concept` `existingWorlds` `userHint` |
 | `world-group.expand` | 内置-AI扩写世界 | 根据世界的草稿描述，扩展出完整的世界观设定。 | `worldName` `worldType` `draft` `otherWorlds` `storyCore` `userHint` |
-| `inventory.extract` | 内置-物品栏提取 | 从章节正文提取主角的物品获得/消耗事件，构建游戏包裹式物品栏。 | `chapterTitle` `chapterText` |
+| `inventory.extract` | 内置-物品栏提取 | 从章节正文提取主角的物品获得/消耗事件，构建游戏包裹式物品栏。 | `knownItemNames` `chapterTitle` `chapterText` |
+| `codex.extract` | 内置-词条拆分提取 | 把整段世界观内容拆成当前分类下可确认写入的结构化词条。 | `categoryName` `fieldSchema` `existingEntries` `supplementTags` `sourceText` |
+| `location.extract` | 内置-重要地点提取 | 从已写正文中提取反复出现或推动剧情的重要地点候选。 | `existingEntries` `allowedTags` `sourceText` |
+| `codex.extract` | 内置-词条拆分提取 | 把整段世界观内容拆成当前分类下可确认写入的结构化词条。 | `categoryName` `fieldSchema` `existingEntries` `supplementTags` `sourceText` |
+| `location.extract` | 内置-重要地点提取 | 从已写正文中提取反复出现或推动剧情的重要地点候选。 | `existingEntries` `allowedTags` `sourceText` |
 | `story-timeline.extract` | 内置-故事年表提取 | 从章节正文提取剧情大事，构建故事进程年表（区别于世界背景历史）。 | `chapterTitle` `chapterText` |
 | `scene.verify` | 内置-场景考证 | 用户描述当前场景，AI 结合世界观/历史年表/世界规则给出符合背景的细节、时代错乱警示与情节灵感。 | `worldContext` `historyContext` `worldRulesContext` `scene` `sceneEra` `sceneLocation` |
 | `history.consult` | 内置-历史考据 agent | 历史年表条目的考据 agent。挑剔但合作，绝不顺着作者的错误假设编造细节；尊重作者已声明的艺术改造/架空范围。 | `itemMeta` `finalText` `conceptNote` `consultPrompt` `worldContext` |
@@ -50,10 +54,12 @@
 
 ## 二、上下文源清单（CONTEXT_SOURCES · AI 读什么）
 
-共 20 个上下文源。assembleContext({ sourceKeys }) 按 key 装配。
+共 22 个上下文源。assembleContext({ sourceKeys }) 按 key 装配。
 
 | key | 标签 | 作用域 | 层级 | 预算(token) |
 |---|---|---|---|---|
+| `manualText` | 用户指定内容 | manual | L0 | 100 |
+| `chapterContent` | 章节正文 | chapter | L0 | 100 |
 | `contextMemo` | 上下文快照 | project | L3 | 1500 |
 | `chapterOutline` | 当前章节大纲 | node | L1 | 800 |
 | `existingVolumeOutlines` | 已有卷大纲 | project | L1 | 2400 |
@@ -86,32 +92,37 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 | `chapters` | `content` `notes` `order` `outlineNodeId` `status` `summary` `title` `wordCount` |
 | `characters` | `abilities` `activeChapterRange` `alignment` `appearance` `arc` `background` `ending` `exitChapterId` `firstAppearChapterId` `firstAppearance` `homeWorldGroupId` `isCrossWorld` `location` `motivation` `name` `personality` `relationships` `role` `shortDescription` `storyRole` |
 | `codexCategories` | `builtInKey` `domain` `fieldSchema` `hidden` `icon` `name` `order` `parentId` `worldGroupId` |
-| `codexEntries` | `categoryId` `description` `fields` `icon` `name` `order` `refs` `summary` `worldGroupId` |
+| `codexEntries` | `categoryId` `description` `fields` `icon` `importance` `name` `order` `refs` `summary` `tags` `worldGroupId` |
 | `creativeRules` | `atmosphere` `citedInsightIds` `citedReferenceIds` `consistencyRules` `narrativePOV` `prohibitions` `referenceWorksV2` `specialRequirements` `writingStyle` |
 | `detailedOutlines` | `appearingCharacterIds` `emotionArc` `endingCliffhanger` `foreshadowIds` `lastUsedSummary` `openingHook` `outlineNodeId` `sceneLocation` `scenes` |
 | `foreshadows` | `description` `echoChapterIds` `expectedResolveChapterId` `importance` `name` `notes` `plantChapterId` `resolveChapterId` `status` `timelinePosition` `type` `urgency` |
+| `importantLocations` | `description` `name` `parentId` `significance` `sortOrder` `tags` |
+| `itemLedger` | `action` `chapterId` `chapterTitle` `itemName` `note` `quantity` |
 | `outlineNodes` | `order` `parentId` `summary` `title` `type` `worldGroupId` |
+| `stateCards` | `category` `entityName` `fields` `lastChapterId` |
 | `storyArcs` | `description` `name` `stages` `type` |
 | `storyCores` | `centralConflict` `concept` `logline` `mainPlot` `plotPattern` `subPlots` `theme` |
+| `storyTimelineEvents` | `chapterId` `chapterTitle` `description` `importance` `order` `storyTime` `title` |
 | `worldviews` | `climateByRegion` `continentLayout` `culture` `divineDesign` `economy` `factionLayout` `geography` `history` `historyLine` `internalConflicts` `itemDesign` `mountainsRivers` `naturalResourceOverview` `naturalResources` `politicsEconomyCulture` `powerHierarchy` `races` `regionDimensions` `rules` `society` `worldDimensions` `worldEvents` `worldOrigin` `worldStructure` |
 
 ## 四、AI 调用点（消耗统计 category · 在哪触发)
 
-共 40 个 category。
+共 42 个 category。
 未分类调用: 0 个。动态 category 调用: 1 个。
 
 | category | 触发文件 |
 |---|---|
 | `ai.restructure` | `src/lib/ai/restructure.ts:52` |
-| `chapter.content` | `src/components/editor/ChapterEditor.tsx:299` |
+| `chapter.content` | `src/components/editor/ChapterEditor.tsx:302` |
 | `chapter.content.batch` | `src/lib/ai/batch-detail-runner.ts:256` |
-| `chapter.continue` | `src/components/editor/ChapterEditor.tsx:309` |
-| `chapter.deai` | `src/components/editor/ChapterEditor.tsx:345` |
-| `chapter.expand` | `src/components/editor/ChapterEditor.tsx:325` |
-| `chapter.polish` | `src/components/editor/ChapterEditor.tsx:317` |
+| `chapter.continue` | `src/components/editor/ChapterEditor.tsx:312` |
+| `chapter.deai` | `src/components/editor/ChapterEditor.tsx:348` |
+| `chapter.expand` | `src/components/editor/ChapterEditor.tsx:328` |
+| `chapter.polish` | `src/components/editor/ChapterEditor.tsx:320` |
 | `chapter.toolbar` | `src/components/editor/FloatingToolbar.tsx:105` |
 | `character.generate` | `src/components/character/CharacterPanel.tsx:137` |
 | `character.structure` | `src/lib/ai/parse-character-output.ts:92` |
+| `codex.extract` | `src/components/codex/CodexPanel.tsx:204` |
 | `detail.scene` | `src/components/outline/DetailedOutlinePanel.tsx:163`<br/>`src/components/outline/ScenePanel.tsx:111`<br/>`src/lib/ai/batch-detail-runner.ts:109` |
 | `emotion.beat` | `src/components/editor/EmotionBeatCard.tsx:66` |
 | `foreshadow.structure` | `src/components/foreshadow/ForeshadowPanel.tsx:60` |
@@ -119,7 +130,8 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 | `geography.concept-map` | `src/components/geography/GeographyPanel.tsx:127` |
 | `geography.world-map` | `src/components/geography/WorldMapPanel.tsx:103` |
 | `inspiration.reverse` | `src/components/project/InspirationPanel.tsx:111` |
-| `inventory.extract` | `src/components/items/InventoryPanel.tsx:63` |
+| `inventory.extract` | `src/components/items/InventoryPanel.tsx:84` |
+| `location.extract` | `src/components/location/LocationPanel.tsx:104` |
 | `outline.chapter` | `src/components/outline/OutlinePanel.tsx:376`<br/>`src/lib/ai/batch-outline-runner.ts:123` |
 | `outline.character-driven` | `src/components/outline/CharacterDrivenPlotPanel.tsx:116` |
 | `outline.volume` | `src/components/outline/OutlinePanel.tsx:328` |
@@ -130,18 +142,18 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 | `review.anti-ai` | `src/components/editor/ReviewPanel.tsx:66` |
 | `review.quality` | `src/components/editor/ReviewPanel.tsx:58` |
 | `review.readability` | `src/components/editor/ReviewPanel.tsx:75` |
-| `review.revise` | `src/components/editor/ChapterEditor.tsx:360` |
+| `review.revise` | `src/components/editor/ChapterEditor.tsx:363` |
 | `rules.generate` | `src/components/rules/CreativeRulesPanel.tsx:80` |
 | `scene.verify` | `src/components/scene/SceneVerifyPanel.tsx:81` |
 | `story-arc.generate` | `src/components/outline/StoryArcPanel.tsx:84` |
 | `story.generate` | `src/components/worldview/StoryCorePanel.tsx:193` |
-| `story.timeline` | `src/components/timeline/StoryTimelinePanel.tsx:70` |
+| `story.timeline` | `src/components/timeline/StoryTimelinePanel.tsx:83` |
 | `style.learn` | `src/components/style/StyleLearningPanel.tsx:76` |
 | `world-group.expand` | `src/components/world-group/WorldGroupDetail.tsx:98` |
 | `world-group.suggest` | `src/components/world-group/WorldGroupOverview.tsx:57` |
-| `worldview.dimension` | `src/components/worldview/WorldviewHumanityPanel.tsx:247`<br/>`src/components/worldview/WorldviewNaturalPanel.tsx:266`<br/>`src/components/worldview/WorldviewOriginPanel.tsx:273` |
-| `worldview.divine` | `src/components/worldview/WorldviewOriginPanel.tsx:372` |
-| `worldview.divine.split` | `src/components/worldview/WorldviewOriginPanel.tsx:396` |
+| `worldview.dimension` | `src/components/worldview/WorldviewHumanityPanel.tsx:252`<br/>`src/components/worldview/WorldviewNaturalPanel.tsx:282`<br/>`src/components/worldview/WorldviewOriginPanel.tsx:287` |
+| `worldview.divine` | `src/components/worldview/WorldviewOriginPanel.tsx:386` |
+| `worldview.divine.split` | `src/components/worldview/WorldviewOriginPanel.tsx:410` |
 
 ### 动态 category 调用
 
@@ -149,4 +161,4 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 
 ---
 
-生成时间基准:commit `6638c47`
+生成时间基准:commit `48111b1`

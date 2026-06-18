@@ -13,12 +13,9 @@ export interface ExtractedStoryEvent {
   description: string
 }
 
-export function buildStoryTimelinePrompt(chapterTitle: string, chapterText: string, maxChars = 6000): ChatMessage[] {
-  const text = chapterText.length > maxChars
-    ? chapterText.slice(0, maxChars) + '\n…（后文省略）'
-    : chapterText
+export function buildStoryTimelinePrompt(chapterTitle: string, chapterText: string): ChatMessage[] {
   const tpl = usePromptStore.getState().getActive('story-timeline.extract')
-  const { messages } = renderPrompt(tpl, { chapterTitle, chapterText: text })
+  const { messages } = renderPrompt(tpl, { chapterTitle, chapterText })
   return messages
 }
 

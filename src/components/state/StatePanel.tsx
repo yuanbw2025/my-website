@@ -1,346 +1,287 @@
-import { CInput } from '../shared/CompositionInput'
 /**
- * 状态表面板 — 查看/编辑/管理所有实体状态卡
- * 支持：手动增删改、按分类筛选、AI 提取变更、导出状态表
- * Phase A4: 新增事件时间线视图
+ * C-4 角色状态卡聚合视图。
+ *
+ * 不改 DB schema：以 characters 为主卡，聚合 stateCards、章节、物品流水、
+ * 角色基础地点与势力词条。旧的非角色状态卡保留在库中，但不再作为正式 UI 展示。
  */
-import { useState, useEffect } from 'react'
-import { Plus, Trash2, Edit3, Download, Filter, Save, X, Clock } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  BookOpenCheck, Download, Edit3, MapPin, Package, Save, Shield, Sparkles, UserRound, X,
+} from 'lucide-react'
+import type { Character, Project, StateCard, StateField } from '../../lib/types'
+import { parseFields, stringifyFields } from '../../lib/types/state-card'
 import { useStateCardStore } from '../../stores/state-card'
-import EventTimeline from './EventTimeline'
-import type { Project, StateCard, StateCategory, StateField } from '../../lib/types'
-import { STATE_CATEGORY_LABELS, parseFields, stringifyFields } from '../../lib/types/state-card'
-import { useDialog } from '../shared/Dialog'
+import { useCharacterStore } from '../../stores/character'
+import { useChapterStore } from '../../stores/chapter'
+import { useItemLedgerStore } from '../../stores/item-ledger'
+import { useCodexStore } from '../../stores/codex'
+import { aggregateInventory } from '../../lib/types/item-ledger'
+import { CInput } from '../shared/CompositionInput'
 
 interface Props {
   project: Project
 }
 
-const CATEGORIES: StateCategory[] = ['character', 'location', 'item', 'faction', 'event']
+const LOCATION_KEYS = ['位置', '地点', '所在地', '当前地点', 'location']
+const FACTION_KEYS = ['势力', '所属势力', '归属', '阵营', 'faction']
+const ITEM_KEYS = ['持有物', '物品', '装备', '随身物品', 'item']
 
-const CATEGORY_COLORS: Record<StateCategory, string> = {
-  character: 'bg-blue-500/10 text-blue-400',
-  location:  'bg-green-500/10 text-green-400',
-  item:      'bg-yellow-500/10 text-yellow-400',
-  faction:   'bg-purple-500/10 text-purple-400',
-  event:     'bg-red-500/10 text-red-400',
+function findField(fields: StateField[], keys: string[]): string {
+  const normalized = keys.map(key => key.toLocaleLowerCase())
+  return fields.find(field => normalized.some(key => field.key.toLocaleLowerCase().includes(key)))?.value || ''
 }
 
-type ViewMode = 'cards' | 'timeline'
-
 export default function StatePanel({ project }: Props) {
-  const dialog = useDialog()
-  const { cards, loading, loadAll, addCard, updateCard, deleteCard, buildStateContext } = useStateCardStore()
-  const [filter, setFilter] = useState<StateCategory | 'all'>('all')
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [showAdd, setShowAdd] = useState(false)
-  const [viewMode, setViewMode] = useState<ViewMode>('cards')
+  const projectId = project.id!
+  const { cards, loading, loadAll, addCard, updateCard, buildStateContext } = useStateCardStore()
+  const { characters, loadAll: loadCharacters } = useCharacterStore()
+  const { chapters, loadAll: loadChapters } = useChapterStore()
+  const { entries: itemEntries, loadAll: loadItems } = useItemLedgerStore()
+  const { categories, entries: codexEntries, loadAll: loadCodex } = useCodexStore()
+  const [editingCharacter, setEditingCharacter] = useState<number | null>(null)
 
   useEffect(() => {
-    loadAll(project.id!).catch(err => {
-      console.error('[StatePanel] 加载状态卡失败:', err)
-    })
-  }, [project.id, loadAll])
+    void Promise.all([
+      loadAll(projectId),
+      loadCharacters(projectId),
+      loadChapters(projectId),
+      loadItems(projectId),
+      loadCodex(projectId),
+    ])
+  }, [projectId, loadAll, loadCharacters, loadChapters, loadItems, loadCodex])
 
-  const filtered = filter === 'all' ? cards : cards.filter(c => c.category === filter)
+  const characterCards = useMemo(
+    () => cards.filter(card => card.category === 'character'),
+    [cards],
+  )
+  const inventory = useMemo(
+    () => aggregateInventory(itemEntries).filter(item => item.quantity > 0),
+    [itemEntries],
+  )
+  const chapterById = useMemo(
+    () => new Map(chapters.filter(chapter => chapter.id != null).map(chapter => [chapter.id!, chapter])),
+    [chapters],
+  )
+  const factionNames = useMemo(() => {
+    const factionCategoryIds = new Set(
+      categories.filter(category => category.builtInKey === 'faction').map(category => category.id),
+    )
+    return codexEntries
+      .filter(entry => factionCategoryIds.has(entry.categoryId))
+      .map(entry => entry.name)
+  }, [categories, codexEntries])
 
   const handleExportText = () => {
-    try {
-      const text = buildStateContext()
-      if (!text) {
-        console.warn('[StatePanel] 状态表为空，无法导出')
-        return
-      }
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${project.name}_状态表.txt`
-      a.click()
-      URL.revokeObjectURL(url)
-      console.log('[StatePanel] 状态表文本已导出')
-    } catch (err) {
-      console.error('[StatePanel] 导出失败:', err)
-    }
+    const text = buildStateContext()
+    if (!text) return
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${project.name}_角色状态卡.txt`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
-    <div className="max-w-3xl">
-      <div className="flex items-center justify-between mb-4">
+    <div className="max-w-5xl space-y-5">
+      <div className="flex items-start justify-between gap-3 pb-4 border-b border-border/40">
         <div>
-          <h2 className="text-xl font-bold text-text-primary">📋 状态表</h2>
-          <p className="text-sm text-text-muted mt-1">
-            追踪角色、地点、物品、势力的当前状态。章节完成后可 AI 自动提取变更。
+          <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+            <UserRound className="w-5 h-5" /> 角色状态卡
+          </h2>
+          <p className="text-xs text-text-muted mt-1">
+            以角色为中心聚合当前状态、地点、剧情进度、持有物与势力。章节编辑器的“提取状态”只会更新已登记角色。
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={handleExportText} disabled={!cards.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-bg-elevated text-text-secondary rounded-lg hover:bg-bg-hover disabled:opacity-40 transition-colors">
-            <Download className="w-4 h-4" /> 导出
-          </button>
-          <button onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors">
-            <Plus className="w-4 h-4" /> 新增状态卡
-          </button>
-        </div>
-      </div>
-
-      {/* 视图切换 */}
-      <div className="flex gap-2 mb-4">
-        <div className="flex bg-bg-elevated rounded-lg p-0.5 border border-border">
-          <button
-            onClick={() => setViewMode('cards')}
-            className={`px-3 py-1 text-xs rounded transition-colors ${
-              viewMode === 'cards' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
-            }`}
-          >
-            📋 状态卡
-          </button>
-          <button
-            onClick={() => setViewMode('timeline')}
-            className={`flex items-center gap-1 px-3 py-1 text-xs rounded transition-colors ${
-              viewMode === 'timeline' ? 'bg-accent text-white' : 'text-text-muted hover:text-text-primary'
-            }`}
-          >
-            <Clock className="w-3 h-3" /> 事件线
-          </button>
-        </div>
-      </div>
-
-      {viewMode === 'timeline' ? (
-        <EventTimeline projectId={project.id!} />
-      ) : (
-      <>
-      {/* 分类筛选 */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <button onClick={() => setFilter('all')}
-          className={`px-3 py-1 text-xs rounded-full transition-colors ${
-            filter === 'all' ? 'bg-accent text-white' : 'bg-bg-elevated text-text-muted hover:text-text-primary'
-          }`}>
-          <Filter className="w-3 h-3 inline mr-1" />全部（{cards.length}）
+        <button
+          onClick={handleExportText}
+          disabled={!characterCards.length}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-bg-elevated text-text-secondary disabled:opacity-40"
+        >
+          <Download className="w-3.5 h-3.5" /> 导出
         </button>
-        {CATEGORIES.map(cat => {
-          const count = cards.filter(c => c.category === cat).length
-          return (
-            <button key={cat} onClick={() => setFilter(cat)}
-              className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                filter === cat ? 'bg-accent text-white' : `${CATEGORY_COLORS[cat]} hover:opacity-80`
-              }`}>
-              {STATE_CATEGORY_LABELS[cat]}（{count}）
-            </button>
-          )
-        })}
       </div>
 
-      {/* 新增表单 */}
-      {showAdd && (
-        <AddCardForm
-          projectId={project.id!}
-          onAdd={async (card) => {
-            try {
-              await addCard(card)
-              setShowAdd(false)
-            } catch (err) {
-              console.error('[StatePanel] 新增失败:', err)
-            }
-          }}
-          onCancel={() => setShowAdd(false)}
-        />
-      )}
+      <div className="grid grid-cols-3 gap-3">
+        <Summary label="角色总数" value={characters.length} />
+        <Summary label="已建立状态" value={characterCards.length} accent />
+        <Summary label="待补状态" value={Math.max(0, characters.length - characterCards.length)} />
+      </div>
 
-      {/* 状态卡列表 */}
       {loading ? (
-        <div className="text-center py-12 text-text-muted text-sm">加载中...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-text-muted text-sm">
-          {cards.length === 0 ? '还没有状态卡。点「新增」或在章节编辑器中用 AI 提取。' : '当前分类没有状态卡。'}
+        <div className="text-sm text-text-muted text-center py-10">加载中…</div>
+      ) : characters.length === 0 ? (
+        <div className="text-center py-12 text-text-muted">
+          <UserRound className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">还没有角色</p>
+          <p className="text-xs mt-1">先在“角色设计”登记角色，再从章节正文提取动态状态。</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map(card => (
-            <StateCardItem
-              key={card.id}
-              card={card}
-              isEditing={editingId === card.id}
-              onEdit={() => setEditingId(editingId === card.id ? null : card.id!)}
-              onUpdate={async (data) => {
-                try {
-                  await updateCard(card.id!, data)
-                  setEditingId(null)
-                } catch (err) {
-                  console.error('[StatePanel] 更新失败:', err)
-                }
-              }}
-              onDelete={async () => {
-                const ok = await dialog.confirm({
-                  title: `删除「${card.entityName}」的状态卡？`,
-                  message: '此操作不可恢复。',
-                  confirmText: '删除',
-                  tone: 'danger',
-                })
-                if (!ok) return
-                try {
-                  await deleteCard(card.id!)
-                } catch (err) {
-                  console.error('[StatePanel] 删除失败:', err)
-                }
-              }}
-            />
-          ))}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {characters.map(character => {
+            const card = characterCards.find(item => item.entityName === character.name) || null
+            return (
+              <CharacterStateCard
+                key={character.id}
+                character={character}
+                card={card}
+                chapterTitle={card?.lastChapterId ? chapterById.get(card.lastChapterId)?.title : undefined}
+                protagonistItems={character.role === 'protagonist' ? inventory.map(item => `${item.itemName} ×${item.quantity}`) : []}
+                knownFactions={factionNames}
+                editing={editingCharacter === character.id}
+                onToggleEdit={() => setEditingCharacter(editingCharacter === character.id ? null : character.id!)}
+                onSave={async fields => {
+                  if (card?.id) {
+                    await updateCard(card.id, { fields: stringifyFields(fields) })
+                  } else {
+                    await addCard({
+                      projectId,
+                      category: 'character',
+                      entityName: character.name,
+                      fields: stringifyFields(fields),
+                    })
+                  }
+                  setEditingCharacter(null)
+                }}
+              />
+            )
+          })}
         </div>
-      )}
-      </>
       )}
     </div>
   )
 }
 
-// ── 单张状态卡组件 ──
+function Summary({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+  return (
+    <div className="rounded-xl border border-border bg-bg-surface p-3">
+      <p className="text-[10px] uppercase tracking-wide text-text-muted">{label}</p>
+      <p className={`text-xl font-semibold mt-1 ${accent ? 'text-accent' : 'text-text-primary'}`}>{value}</p>
+    </div>
+  )
+}
 
-function StateCardItem({ card, isEditing, onEdit, onUpdate, onDelete }: {
-  card: StateCard
-  isEditing: boolean
-  onEdit: () => void
-  onUpdate: (data: Partial<StateCard>) => void
-  onDelete: () => void
+function CharacterStateCard({
+  character, card, chapterTitle, protagonistItems, knownFactions, editing, onToggleEdit, onSave,
+}: {
+  character: Character
+  card: StateCard | null
+  chapterTitle?: string
+  protagonistItems: string[]
+  knownFactions: string[]
+  editing: boolean
+  onToggleEdit: () => void
+  onSave: (fields: StateField[]) => Promise<void>
 }) {
-  const fields = parseFields(card.fields)
-  const [editFields, setEditFields] = useState<StateField[]>(fields)
+  const fields = useMemo(() => parseFields(card?.fields || '[]'), [card?.fields])
+  const [draft, setDraft] = useState<StateField[]>(fields)
 
-  // 同步
   useEffect(() => {
-    if (isEditing) setEditFields(parseFields(card.fields))
-  }, [isEditing, card.fields])
+    if (editing) setDraft(fields.length ? fields : [{ key: '当前状态', value: '' }])
+  }, [editing, fields])
 
-  const handleSave = () => {
-    onUpdate({ fields: stringifyFields(editFields) })
-  }
-
-  const addField = () => {
-    setEditFields([...editFields, { key: '', value: '' }])
-  }
-
-  const removeField = (idx: number) => {
-    setEditFields(editFields.filter((_, i) => i !== idx))
-  }
+  const location = findField(fields, LOCATION_KEYS) || character.location || '未记录'
+  const faction = findField(fields, FACTION_KEYS)
+    || knownFactions.find(name => fields.some(field => field.value.includes(name)))
+    || '未记录'
+  const stateItems = findField(fields, ITEM_KEYS)
+  const heldItems = protagonistItems.length ? protagonistItems.join('、') : stateItems || '未记录'
+  const coreFields = fields.filter(field =>
+    ![...LOCATION_KEYS, ...FACTION_KEYS, ...ITEM_KEYS]
+      .some(key => field.key.toLocaleLowerCase().includes(key.toLocaleLowerCase())),
+  )
 
   return (
-    <div className="bg-bg-surface border border-border rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <span className={`px-2 py-0.5 rounded text-xs ${CATEGORY_COLORS[card.category]}`}>
-          {STATE_CATEGORY_LABELS[card.category]}
-        </span>
-        <span className="font-semibold text-text-primary">{card.entityName}</span>
-        <div className="flex-1" />
-        <button onClick={onEdit} className="p-1 text-text-muted hover:text-accent transition-colors" title="编辑">
-          <Edit3 className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={onDelete} className="p-1 text-text-muted hover:text-error transition-colors" title="删除">
-          <Trash2 className="w-3.5 h-3.5" />
+    <article className="rounded-xl border border-border bg-bg-surface p-4">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center font-semibold">
+          {character.name.slice(0, 1)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-text-primary truncate">{character.name}</h3>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-elevated text-text-muted">{character.role}</span>
+            {!card && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">待提取</span>}
+          </div>
+          <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{character.shortDescription || '暂无角色简介'}</p>
+        </div>
+        <button onClick={onToggleEdit} className="p-1 text-text-muted hover:text-accent" title="编辑状态">
+          {editing ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
         </button>
       </div>
 
-      {isEditing ? (
-        <div className="space-y-2">
-          {editFields.map((f, idx) => (
-            <div key={idx} className="flex gap-2">
-              <CInput value={f.key} onChange={e => {
-                const next = [...editFields]; next[idx] = { ...f, key: e.target.value }; setEditFields(next)
-              }} placeholder="字段名" className="w-24 px-2 py-1 bg-bg-base border border-border rounded text-xs text-text-primary" />
-              <CInput value={f.value} onChange={e => {
-                const next = [...editFields]; next[idx] = { ...f, value: e.target.value }; setEditFields(next)
-              }} placeholder="值" className="flex-1 px-2 py-1 bg-bg-base border border-border rounded text-xs text-text-primary" />
-              <button onClick={() => removeField(idx)} className="p-1 text-text-muted hover:text-error">
-                <X className="w-3 h-3" />
+      {editing ? (
+        <div className="mt-4 space-y-2">
+          {draft.map((field, index) => (
+            <div key={index} className="flex gap-2">
+              <CInput
+                value={field.key}
+                onChange={event => setDraft(current => current.map((item, i) => i === index ? { ...item, key: event.target.value } : item))}
+                placeholder="字段"
+                className="w-28 px-2 py-1.5 rounded border border-border bg-bg-base text-xs"
+              />
+              <CInput
+                value={field.value}
+                onChange={event => setDraft(current => current.map((item, i) => i === index ? { ...item, value: event.target.value } : item))}
+                placeholder="当前值"
+                className="flex-1 px-2 py-1.5 rounded border border-border bg-bg-base text-xs"
+              />
+              <button onClick={() => setDraft(current => current.filter((_, i) => i !== index))} className="p-1 text-text-muted hover:text-red-400">
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ))}
-          <div className="flex gap-2">
-            <button onClick={addField}
-              className="text-xs text-accent hover:text-accent-hover">+ 添加字段</button>
-            <div className="flex-1" />
-            <button onClick={onEdit}
-              className="px-2 py-1 text-xs text-text-muted hover:text-text-primary">取消</button>
-            <button onClick={handleSave}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-accent text-white rounded hover:bg-accent-hover">
-              <Save className="w-3 h-3" /> 保存
+          <div className="flex items-center justify-between">
+            <button onClick={() => setDraft(current => [...current, { key: '', value: '' }])} className="text-xs text-accent">+ 添加字段</button>
+            <button
+              onClick={() => onSave(draft.filter(field => field.key.trim() && field.value.trim()))}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-accent text-white text-xs"
+            >
+              <Save className="w-3.5 h-3.5" /> 保存
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-          {fields.length === 0 ? (
-            <span className="text-text-muted">（无字段，点击编辑添加）</span>
-          ) : (
-            fields.map((f, idx) => (
-              <span key={idx} className="text-text-secondary">
-                <span className="text-text-muted">{f.key}：</span>{f.value}
-              </span>
-            ))
-          )}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <Fact icon={MapPin} label="所在地点" value={location} />
+            <Fact icon={Shield} label="归属势力" value={faction} />
+            <Fact icon={BookOpenCheck} label="剧情进度" value={chapterTitle || '未记录'} />
+            <Fact icon={Package} label="持有物" value={heldItems} />
+          </div>
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <p className="text-[10px] uppercase tracking-wide text-text-muted flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> 当前状态
+            </p>
+            {coreFields.length ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {coreFields.map((field, index) => (
+                  <span key={index} className="px-2 py-1 rounded-lg bg-bg-elevated text-xs text-text-secondary">
+                    <span className="text-text-muted">{field.key}：</span>{field.value}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-text-muted mt-2">尚无动态状态。可在章节编辑器中点击“提取状态”。</p>
+            )}
+          </div>
+        </>
       )}
-    </div>
+    </article>
   )
 }
 
-// ── 新增状态卡表单 ──
-
-function AddCardForm({ projectId, onAdd, onCancel }: {
-  projectId: number
-  onAdd: (card: Omit<StateCard, 'id' | 'createdAt' | 'updatedAt'>) => void
-  onCancel: () => void
+function Fact({ icon: Icon, label, value }: {
+  icon: typeof MapPin
+  label: string
+  value: string
 }) {
-  const [entityName, setEntityName] = useState('')
-  const [category, setCategory] = useState<StateCategory>('character')
-  const [fields, setFields] = useState<StateField[]>([{ key: '', value: '' }])
-
-  const handleSubmit = () => {
-    if (!entityName.trim()) return
-    const validFields = fields.filter(f => f.key.trim() && f.value.trim())
-    onAdd({
-      projectId,
-      category,
-      entityName: entityName.trim(),
-      fields: stringifyFields(validFields),
-    })
-  }
-
   return (
-    <div className="bg-bg-surface border border-accent/30 rounded-xl p-4 mb-4 space-y-3">
-      <div className="flex gap-3">
-        <select value={category} onChange={e => setCategory(e.target.value as StateCategory)}
-          className="px-2 py-1.5 bg-bg-base border border-border rounded text-sm text-text-primary">
-          {CATEGORIES.map(cat => (
-            <option key={cat} value={cat}>{STATE_CATEGORY_LABELS[cat]}</option>
-          ))}
-        </select>
-        <CInput value={entityName} onChange={e => setEntityName(e.target.value)}
-          placeholder="实体名称（如：李明远、长安城）"
-          className="flex-1 px-3 py-1.5 bg-bg-base border border-border rounded text-sm text-text-primary" />
-      </div>
-      {fields.map((f, idx) => (
-        <div key={idx} className="flex gap-2">
-          <CInput value={f.key} onChange={e => {
-            const next = [...fields]; next[idx] = { ...f, key: e.target.value }; setFields(next)
-          }} placeholder="字段名（如：位置）" className="w-32 px-2 py-1 bg-bg-base border border-border rounded text-xs text-text-primary" />
-          <CInput value={f.value} onChange={e => {
-            const next = [...fields]; next[idx] = { ...f, value: e.target.value }; setFields(next)
-          }} placeholder="值（如：长安）" className="flex-1 px-2 py-1 bg-bg-base border border-border rounded text-xs text-text-primary" />
-          <button onClick={() => setFields(fields.filter((_, i) => i !== idx))}
-            className="p-1 text-text-muted hover:text-error"><X className="w-3 h-3" /></button>
-        </div>
-      ))}
-      <button onClick={() => setFields([...fields, { key: '', value: '' }])}
-        className="text-xs text-accent hover:text-accent-hover">+ 添加字段</button>
-      <div className="flex justify-end gap-2 pt-1">
-        <button onClick={onCancel}
-          className="px-3 py-1.5 text-xs text-text-muted hover:text-text-primary">取消</button>
-        <button onClick={handleSubmit} disabled={!entityName.trim()}
-          className="px-3 py-1.5 text-xs bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-40">
-          创建
-        </button>
-      </div>
+    <div className="rounded-lg bg-bg-elevated/60 p-2.5 min-w-0">
+      <p className="text-[10px] text-text-muted flex items-center gap-1">
+        <Icon className="w-3 h-3" /> {label}
+      </p>
+      <p className="text-xs text-text-secondary mt-1 line-clamp-2">{value}</p>
     </div>
   )
 }

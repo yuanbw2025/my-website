@@ -228,7 +228,7 @@ export const FIELD_REGISTRY: FieldSpec[] = [
 
   // codex
   text('codexCategories', 'name', ['分类名']),
-  enumeration('codexCategories', 'domain', ['natural', 'humanity'], { 自然: 'natural', 自然环境: 'natural', 人文: 'humanity', 人文环境: 'humanity' }),
+  enumeration('codexCategories', 'domain', ['natural', 'humanity', 'origin'], { 自然: 'natural', 自然环境: 'natural', 人文: 'humanity', 人文环境: 'humanity', 起源: 'origin', 世界起源: 'origin' }),
   num('codexCategories', 'parentId'),
   text('codexCategories', 'icon'),
   text('codexCategories', 'builtInKey'),
@@ -244,8 +244,38 @@ export const FIELD_REGISTRY: FieldSpec[] = [
   longtext('codexEntries', 'description', ['描述']),
   json('codexEntries', 'fields', ['字段']),
   json('codexEntries', 'refs', ['引用']),
+  json('codexEntries', 'tags', ['标签']),
+  num('codexEntries', 'importance', ['重要度']),
   num('codexEntries', 'order'),
   num('codexEntries', 'worldGroupId'),
+
+  // importantLocations / downstream extraction products
+  text('importantLocations', 'name', ['地点名']),
+  json('importantLocations', 'tags', ['地点标签']),
+  longtext('importantLocations', 'description', ['地点描述']),
+  longtext('importantLocations', 'significance', ['剧情重要性']),
+  num('importantLocations', 'parentId'),
+  num('importantLocations', 'sortOrder'),
+
+  text('itemLedger', 'itemName', ['物品名']),
+  enumeration('itemLedger', 'action', ['gain', 'consume'], { 获得: 'gain', 消耗: 'consume', 失去: 'consume' }),
+  num('itemLedger', 'quantity', ['数量']),
+  num('itemLedger', 'chapterId'),
+  text('itemLedger', 'chapterTitle', ['章节标题']),
+  longtext('itemLedger', 'note', ['备注']),
+
+  text('storyTimelineEvents', 'title', ['事件标题']),
+  text('storyTimelineEvents', 'storyTime', ['故事时间']),
+  num('storyTimelineEvents', 'importance', ['重要度']),
+  longtext('storyTimelineEvents', 'description', ['事件描述']),
+  num('storyTimelineEvents', 'chapterId'),
+  text('storyTimelineEvents', 'chapterTitle', ['章节标题']),
+  num('storyTimelineEvents', 'order'),
+
+  enumeration('stateCards', 'category', ['character', 'location', 'item', 'faction', 'event']),
+  text('stateCards', 'entityName', ['角色名', '实体名']),
+  json('stateCards', 'fields', ['状态字段']),
+  num('stateCards', 'lastChapterId'),
 ]
 
 export const FIELD_BY_TARGET: ReadonlyMap<string, FieldSpec[]> = new Map(

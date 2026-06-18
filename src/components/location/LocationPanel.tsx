@@ -5,13 +5,24 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Plus, Trash2, ChevronDown, ChevronRight, MapPin,
-  GitBranch, List,
+  GitBranch, List, Sparkles, Loader2,
 } from 'lucide-react'
 import { useLocationStore } from '../../stores/location'
 import type { Project, ImportantLocation, LocationTag } from '../../lib/types'
 import { TAG_EMOJI } from '../../lib/types/location'
 import LocationTagPicker from './LocationTagPicker'
 import LocationTreeView from './LocationTreeView'
+import { useChapterStore } from '../../stores/chapter'
+import { useAIConfigStore } from '../../stores/ai-config'
+import { chat } from '../../lib/ai/client'
+import {
+  buildLocationExtractPrompt, parseLocations, splitExtractionText, type ExtractedLocation,
+} from '../../lib/ai/adapters/structured-extract-adapter'
+import { htmlToPlainText } from '../../lib/utils/html'
+import { uniqueBy } from '../../lib/ai/structured-extraction'
+import { adopt } from '../../lib/registry/adopt'
+import ExtractionReviewPanel from '../shared/ExtractionReviewPanel'
+import { assembleContext } from '../../lib/registry/assemble-context'
 
 interface Props {
   project: Project
@@ -23,14 +34,21 @@ export default function LocationPanel({ project }: Props) {
     addLocation, updateLocation, deleteLocation,
     getTree,
   } = useLocationStore()
+  const { chapters, loadAll: loadChapters } = useChapterStore()
+  const aiConfig = useAIConfigStore(s => s.config)
 
   const [view, setView] = useState<'tree' | 'list'>('tree')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const [extracting, setExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+  const [candidates, setCandidates] = useState<ExtractedLocation[]>([])
+  const [selectedCandidates, setSelectedCandidates] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     loadAll(project.id!)
-  }, [project.id, loadAll])
+    loadChapters(project.id!)
+  }, [project.id, loadAll, loadChapters])
 
   const tree = getTree()
 
@@ -59,6 +77,74 @@ export default function LocationPanel({ project }: Props) {
 
   const parseTags = (tagsStr: string): LocationTag[] => {
     try { return JSON.parse(tagsStr || '[]') } catch { return [] }
+  }
+
+  const handleExtractLocations = async () => {
+    if (!aiConfig.apiKey) {
+      setExtractError('请先在「设置」中配置 AI API Key')
+      return
+    }
+    const written = chapters.filter(chapter => htmlToPlainText(chapter.content || '').trim().length > 50)
+    if (written.length === 0) {
+      setExtractError('还没有已写正文的章节')
+      return
+    }
+    setExtracting(true)
+    setExtractError(null)
+    setCandidates([])
+    try {
+      const found: ExtractedLocation[] = []
+      for (const chapter of written) {
+        const chapterSource = await assembleContext({
+          projectId: project.id!,
+          chapterId: chapter.id,
+          sourceKeys: ['chapterContent'],
+        })
+        for (const chunk of splitExtractionText(chapterSource.text)) {
+          const raw = await chat(
+            buildLocationExtractPrompt(chunk, [...locations.map(location => location.name), ...found.map(item => item.name)]),
+            aiConfig,
+            { category: 'location.extract', projectId: project.id! },
+          )
+          found.push(...parseLocations(raw))
+        }
+      }
+      const existing = new Set(locations.map(location => location.name.trim().toLocaleLowerCase()))
+      const unique = uniqueBy(
+        found.filter(item => !existing.has(item.name.toLocaleLowerCase())),
+        item => item.name.toLocaleLowerCase(),
+      )
+      setCandidates(unique)
+      setSelectedCandidates(new Set(unique.map((_, index) => index)))
+    } catch (error) {
+      setExtractError(error instanceof Error ? error.message : '地点提取失败')
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  const handleAdoptLocations = async () => {
+    const selected = candidates.filter((_, index) => selectedCandidates.has(index))
+    const result = await adopt({
+      projectId: project.id!,
+      target: 'importantLocations',
+      mode: 'add-many',
+      data: selected.map((item, index) => ({
+        name: item.name,
+        tags: item.tags,
+        description: item.description,
+        significance: item.significance,
+        parentId: null,
+        sortOrder: locations.length + index,
+      })),
+    })
+    if (!result.written.length && result.skipped.length) {
+      setExtractError(result.skipped.map(item => item.reason).join('；'))
+      return
+    }
+    await loadAll(project.id!)
+    setCandidates([])
+    setSelectedCandidates(new Set())
   }
 
   // 递归渲染列表项
@@ -265,8 +351,43 @@ export default function LocationPanel({ project }: Props) {
             <Plus className="w-4 h-4" />
             添加地点
           </button>
+          <button
+            onClick={handleExtractLocations}
+            disabled={extracting}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-accent/30 bg-accent/5 text-accent text-sm rounded-md hover:bg-accent/10 disabled:opacity-50 transition-colors"
+          >
+            {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {extracting ? '正在分析正文…' : 'AI 从正文提取'}
+          </button>
         </div>
       </div>
+
+      {(extracting || extractError || candidates.length > 0) && (
+        <ExtractionReviewPanel
+          title="地点候选"
+          items={candidates}
+          selected={selectedCandidates}
+          loading={extracting}
+          error={extractError}
+          onToggle={index => setSelectedCandidates(prev => {
+            const next = new Set(prev)
+            if (next.has(index)) next.delete(index)
+            else next.add(index)
+            return next
+          })}
+          onConfirm={handleAdoptLocations}
+          onClose={() => { setCandidates([]); setExtractError(null) }}
+          renderItem={item => (
+            <div>
+              <div className="font-medium text-sm text-text-primary">{item.name}</div>
+              <p className="text-xs text-text-muted mt-0.5">{item.significance || item.description}</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {item.tags.map(tag => <span key={tag} className="px-1.5 py-0.5 rounded bg-bg-elevated text-[10px] text-text-muted">{TAG_EMOJI[tag]} {tag}</span>)}
+              </div>
+            </div>
+          )}
+        />
+      )}
 
       {/* 树状图视图 */}
       {view === 'tree' && (

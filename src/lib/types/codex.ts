@@ -87,6 +87,8 @@ export interface CodexEntry {
   fields: string
   /** 与其它词条的关联（JSON：{ [fieldKey]: entryId[] }） */
   refs?: string
+  /** 标签（JSON string: string[]），可由 AI 提取补充，也可手动编辑。 */
+  tags?: string
   /**
    * 重要度星级（1-5）。主要用于「地点」类词条标记重要程度，
    * 也可用于任意词条。未设/0 表示未标记。非索引字段，零 DB 迁移。

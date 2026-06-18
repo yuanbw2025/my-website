@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Trash2, EyeOff, Eye, FolderPlus, Boxes, ChevronRight, Settings2, X, ChevronUp, ChevronDown, Star,
+  Sparkles, Loader2,
 } from 'lucide-react'
 import { CInput, CTextarea } from '../shared/CompositionInput'
 import { useCodexStore } from '../../stores/codex'
@@ -17,6 +18,16 @@ import {
 } from '../../lib/types/codex'
 import type { Project } from '../../lib/types'
 import { useDialog } from '../shared/Dialog'
+import { useAIConfigStore } from '../../stores/ai-config'
+import { useWorldGroupStore } from '../../stores/world-group'
+import { chat } from '../../lib/ai/client'
+import {
+  buildCodexExtractPrompt, parseCodexEntries, splitExtractionText,
+} from '../../lib/ai/adapters/structured-extract-adapter'
+import { adopt } from '../../lib/registry/adopt'
+import { useToast } from '../shared/Toast'
+import { uniqueBy } from '../../lib/ai/structured-extraction'
+import { assembleContext } from '../../lib/registry/assemble-context'
 
 interface Props {
   project: Project
@@ -30,12 +41,17 @@ interface Props {
   fixedCategoryKeys?: string[]
   /** 嵌入模式:去掉外层标题/高度占满,适配面板内嵌 */
   embedded?: boolean
+  /** 当前方面上方的整段全貌，作为 AI 拆分词条的默认来源。 */
+  extractionSourceText?: string
 }
 
 const DOMAINS: CodexDomain[] = ['natural', 'humanity']
 
-export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, embedded }: Props) {
+export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, embedded, extractionSourceText = '' }: Props) {
   const dialog = useDialog()
+  const toast = useToast()
+  const aiConfig = useAIConfigStore(s => s.config)
+  const activeGroupId = useWorldGroupStore(s => s.activeGroupId)
   const projectId = project.id!
   const {
     categories, entries, loadAll,
@@ -56,6 +72,12 @@ export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, em
   const [showFieldsEditor, setShowFieldsEditor] = useState(false)
   // 词条排序方式:order=手动顺序 / importance=重要度降序 / pinyin=拼音首字母
   const [sortMode, setSortMode] = useState<'order' | 'importance' | 'pinyin'>('order')
+  const [extractOpen, setExtractOpen] = useState(false)
+  const [extractText, setExtractText] = useState('')
+  const [supplementTags, setSupplementTags] = useState(true)
+  const [extracting, setExtracting] = useState(false)
+  const [candidates, setCandidates] = useState<ReturnType<typeof parseCodexEntries>>([])
+  const [selectedCandidates, setSelectedCandidates] = useState<Set<number>>(new Set())
 
   useEffect(() => { loadAll(projectId) }, [projectId, loadAll])
 
@@ -157,6 +179,75 @@ export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, em
     if (!ok) return
     await deleteEntry(entry.id!)
     if (activeEntryId === entry.id) setActiveEntryId(null)
+  }
+
+  const openExtractor = () => {
+    setExtractText(extractionSourceText)
+    setCandidates([])
+    setSelectedCandidates(new Set())
+    setExtractOpen(true)
+  }
+
+  const handleExtractEntries = async () => {
+    if (!activeCat || !extractText.trim()) return
+    if (!aiConfig.apiKey) { toast.error('请先在设置中配置 API Key。'); return }
+    setExtracting(true)
+    try {
+      const schema = parseFieldSchema(activeCat.fieldSchema)
+      const found: ReturnType<typeof parseCodexEntries> = []
+      for (const chunk of splitExtractionText(extractText)) {
+        const source = await assembleContext({
+          projectId,
+          sourceKeys: ['manualText'],
+          manualSourceText: chunk,
+        })
+        const raw = await chat(buildCodexExtractPrompt({
+          categoryName: activeCat.name,
+          sourceText: source.text,
+          fieldSchema: schema,
+          existingNames: [...catEntries.map(e => e.name), ...found.map(e => e.name)],
+          supplementTags,
+        }), aiConfig, { category: 'codex.extract', projectId })
+        found.push(...parseCodexEntries(raw, schema.map(f => f.key)))
+      }
+      const existingNames = new Set(catEntries.map(entry => entry.name.trim().toLocaleLowerCase()))
+      const parsed = uniqueBy(
+        found.filter(item => !existingNames.has(item.name.toLocaleLowerCase())),
+        item => item.name.toLocaleLowerCase(),
+      )
+      setCandidates(parsed)
+      setSelectedCandidates(new Set(parsed.map((_, index) => index)))
+      if (!parsed.length) toast.info('AI 未从这段内容中识别出可独立登记的词条。')
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  const handleAdoptCandidates = async () => {
+    if (!activeCat) return
+    const chosen = candidates.filter((_, index) => selectedCandidates.has(index))
+    const result = await adopt({
+      projectId,
+      worldGroupId: project.enableMultiWorld ? activeGroupId : null,
+      target: 'codexEntries',
+      mode: 'add-many',
+      data: chosen.map((item, index) => ({
+        categoryId: activeCat.id!,
+        name: item.name,
+        icon: item.icon || activeCat.icon,
+        summary: item.summary,
+        description: item.description,
+        fields: JSON.stringify(item.fields),
+        refs: '{}',
+        tags: JSON.stringify(item.tags),
+        importance: item.importance,
+        order: catEntries.length + index,
+        worldGroupId: project.enableMultiWorld ? activeGroupId : null,
+      })),
+    })
+    await loadAll(projectId)
+    setExtractOpen(false)
+    toast.success(`已写入 ${result.written.length} 个词条${result.skipped.length ? `，跳过 ${result.skipped.length} 个重复项` : ''}。`)
   }
 
   return (
@@ -289,6 +380,13 @@ export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, em
           </div>
           <div className="m-2 space-y-1.5">
             <button
+              onClick={openExtractor}
+              disabled={!activeCatId}
+              className="w-full px-2 py-1.5 text-xs rounded-lg border border-accent/30 text-accent hover:bg-accent/10 disabled:opacity-40 inline-flex items-center justify-center gap-1"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> AI 从内容拆分词条
+            </button>
+            <button
               onClick={handleAddEntry}
               disabled={!activeCatId}
               className="w-full px-2 py-1.5 text-xs rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-40 inline-flex items-center justify-center gap-1"
@@ -333,6 +431,58 @@ export default function CodexPanel({ project, fixedDomain, fixedCategoryKeys, em
           onClose={() => setShowFieldsEditor(false)}
           onSave={(fieldSchema) => { updateCategory(activeCat.id!, { fieldSchema }); setShowFieldsEditor(false) }}
         />
+      )}
+      {extractOpen && activeCat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" onClick={() => setExtractOpen(false)}>
+          <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-bg-surface border border-border rounded-xl p-4 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-text-primary">AI 拆分「{activeCat.name}」词条</h3>
+                <p className="text-xs text-text-muted">AI 只生成候选，确认后才写入；同名词条会自动合并/跳过。</p>
+              </div>
+              <button onClick={() => setExtractOpen(false)}><X className="w-4 h-4 text-text-muted" /></button>
+            </div>
+            <textarea value={extractText} onChange={e => setExtractText(e.target.value)} rows={8}
+              placeholder="粘贴或编辑要拆分的整段设定内容"
+              className="w-full p-3 bg-bg-base border border-border rounded-lg text-sm text-text-primary resize-y" />
+            <label className="flex items-start gap-2 text-xs text-text-secondary">
+              <input type="checkbox" checked={supplementTags} onChange={e => setSupplementTags(e.target.checked)} className="mt-0.5 accent-accent" />
+              <span>AI 补充词条标签 <span className="text-amber-400">⚠ 会增加少量 token 消耗</span></span>
+            </label>
+            <button onClick={handleExtractEntries} disabled={extracting || !extractText.trim()}
+              className="px-3 py-1.5 bg-accent text-white rounded-lg text-sm disabled:opacity-40 inline-flex items-center gap-1.5">
+              {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {extracting ? 'AI 拆分中…' : '开始拆分'}
+            </button>
+            {candidates.length > 0 && (
+              <div className="space-y-2 border-t border-border pt-3">
+                {candidates.map((item, index) => (
+                  <label key={`${item.name}-${index}`} className="flex gap-3 p-3 border border-border rounded-lg bg-bg-base">
+                    <input type="checkbox" checked={selectedCandidates.has(index)} onChange={() => {
+                      setSelectedCandidates(prev => {
+                        const next = new Set(prev)
+                        if (next.has(index)) next.delete(index); else next.add(index)
+                        return next
+                      })
+                    }} className="mt-1 accent-accent" />
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm text-text-primary">{item.name}</div>
+                      <div className="text-xs text-text-muted">{item.summary}</div>
+                      {item.tags.length > 0 && <div className="mt-1 text-[10px] text-accent">{item.tags.map(t => `#${t}`).join(' ')}</div>}
+                    </div>
+                  </label>
+                ))}
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setExtractOpen(false)} className="px-3 py-1.5 text-xs text-text-muted">取消</button>
+                  <button onClick={handleAdoptCandidates} disabled={!selectedCandidates.size}
+                    className="px-3 py-1.5 text-xs bg-accent text-white rounded disabled:opacity-40">
+                    写入所选 {selectedCandidates.size} 项
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -456,6 +606,14 @@ function EntryDetail({
   const schema = useMemo(() => parseFieldSchema(category.fieldSchema), [category.fieldSchema])
   const fields = useMemo(() => parseEntryFields(entry.fields), [entry.fields])
   const refs = useMemo(() => parseEntryRefs(entry.refs), [entry.refs])
+  const tags = useMemo(() => {
+    try {
+      const parsed = JSON.parse(entry.tags || '[]')
+      return Array.isArray(parsed) ? parsed.map(String) : []
+    } catch {
+      return []
+    }
+  }, [entry.tags])
 
   const setField = (key: string, value: string) => {
     onChange({ fields: stringifyEntryFields({ ...fields, [key]: value }) })
@@ -513,6 +671,14 @@ function EntryDetail({
         value={entry.summary}
         onChange={(e) => onChange({ summary: e.target.value })}
         placeholder="一句话简介"
+        className="w-full px-3 py-2 rounded-lg bg-bg-elevated border border-border text-sm"
+      />
+      <CInput
+        value={tags.join('、')}
+        onChange={(e) => onChange({
+          tags: JSON.stringify(e.target.value.split(/[、,，]/).map(tag => tag.trim()).filter(Boolean)),
+        })}
+        placeholder="标签（用顿号或逗号分隔）"
         className="w-full px-3 py-2 rounded-lg bg-bg-elevated border border-border text-sm"
       />
       <CTextarea
