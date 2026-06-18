@@ -12,6 +12,7 @@ import {
 import { useCharacterStore } from '../../stores/character'
 import { useOutlineStore } from '../../stores/outline'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import {
   buildCharacterDrivenPlotPrompt,
   parsePlotOutput,
@@ -38,7 +39,7 @@ const ROLE_LABELS: Record<string, string> = {
 export default function CharacterDrivenPlotPanel({ project }: Props) {
   const { characters, loadAll: loadChars } = useCharacterStore()
   const { nodes, loadAll: loadOutline, addNode } = useOutlineStore()
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(project.id!, 'character-driven-plot.generate'))
 
   const [arcs, setArcs] = useState<CharacterArcInput[]>([])
   const [userHint, setUserHint] = useState('')

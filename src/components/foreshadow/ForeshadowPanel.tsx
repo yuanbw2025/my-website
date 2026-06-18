@@ -6,6 +6,7 @@ import { useChapterStore } from '../../stores/chapter'
 import { useOutlineStore } from '../../stores/outline'
 import { useAIConfigStore } from '../../stores/ai-config'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildForeshadowSuggestPrompt, buildForeshadowStructurePrompt, parseForeshadowStructured } from '../../lib/ai/adapters/foreshadow-adapter'
 import { chat } from '../../lib/ai/client'
 import { adopt } from '../../lib/registry/adopt'
@@ -37,10 +38,10 @@ export default function ForeshadowPanel({ project }: Props) {
   const { chapters } = useChapterStore()
   const { nodes: outlineNodes } = useOutlineStore()
   const { config } = useAIConfigStore()
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(project.id!, 'foreshadow.suggest'))
   const [filterStatus, setFilterStatus] = useState<ForeshadowStatus | 'all'>('all')
   const [selected, setSelected] = useState<number | null>(null)
-  const [showAI, setShowAI] = useState(false)
+  const [showAI, setShowAI] = useState(() => !!(ai.output || ai.isStreaming || ai.error))
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
   const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
   const [systemOverride, setSystemOverride] = useState<string | null>(null)

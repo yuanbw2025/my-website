@@ -2,10 +2,14 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Plus, Trash2, Sparkles, ChevronRight, ChevronDown, Check, X, LayoutList, Layers, Loader2, GripVertical, CornerDownRight } from 'lucide-react'
 import { useOutlineStore } from '../../stores/outline'
 import { useDragReorder, type ItemDnD } from './useDragReorder'
-import { useWorldviewStore } from '../../stores/worldview'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
-import { buildVolumeOutlinePrompt, buildChapterOutlinePrompt } from '../../lib/ai/adapters/outline-adapter'
+import { createAISessionKey } from '../../stores/ai-generation-session'
+import {
+  buildVolumeOutlinePrompt,
+  buildChapterOutlinePrompt,
+  buildSingleChapterOutlinePrompt,
+} from '../../lib/ai/adapters/outline-adapter'
 import { assembleContext } from '../../lib/registry/assemble-context'
 import {
   parseVolumeOutlineSmart, parseChapterOutlineSmart,
@@ -31,11 +35,35 @@ interface Props {
   onOpenChapter?: (nodeId: number) => void
 }
 
+type OutlineGenerationRequest =
+  | { kind: 'volumes' }
+  | { kind: 'chapters'; volumeId: number }
+  | { kind: 'single-volume'; volumeId: number }
+  | { kind: 'single-chapter'; chapterId: number }
+
+function encodeGenerationOperation(request: OutlineGenerationRequest): string {
+  if (request.kind === 'volumes') return 'outline.volume:batch'
+  if (request.kind === 'chapters') return `outline.chapter:batch:${request.volumeId}`
+  if (request.kind === 'single-volume') return `outline.volume:single:${request.volumeId}`
+  return `outline.chapter:single:${request.chapterId}`
+}
+
+function decodeGenerationOperation(operation: string | null): OutlineGenerationRequest | null {
+  if (!operation) return null
+  if (operation === 'outline.volume' || operation === 'outline.volume:batch') return { kind: 'volumes' }
+  const parts = operation.split(':')
+  const id = Number(parts[2])
+  if (!Number.isFinite(id)) return null
+  if (parts[0] === 'outline.volume' && parts[1] === 'single') return { kind: 'single-volume', volumeId: id }
+  if (parts[0] === 'outline.chapter' && parts[1] === 'batch') return { kind: 'chapters', volumeId: id }
+  if (parts[0] === 'outline.chapter' && parts[1] === 'single') return { kind: 'single-chapter', chapterId: id }
+  return null
+}
+
 export default function OutlinePanel({ project, onOpenChapter }: Props) {
   const dialog = useDialog()
   const toast = useToast()
   const { nodes, loadAll, addNode, updateNode, deleteNode, reorderNodes, insertNodeAt } = useOutlineStore()
-  const { storyCore } = useWorldviewStore()
   const worldGroups = useWorldGroupStore(s => s.groups)
   const aiConfig = useAIConfigStore(s => s.config)
   const [selectedVolId, setSelectedVolId] = useState<number | null>(null)
@@ -44,10 +72,13 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
   const [systemOverride, setSystemOverride] = useState<string | null>(null)
   const [userOverride, setUserOverride] = useState<string | null>(null)
   const [activeModuleKey, setActiveModuleKey] = useState<'outline.volume' | 'outline.chapter'>('outline.volume')
+  const [pendingGeneration, setPendingGeneration] = useState<OutlineGenerationRequest | null>(null)
+  const [promptPanelOpen, setPromptPanelOpen] = useState(false)
 
   // 采纳预览
   const [previewVolumes, setPreviewVolumes] = useState<ParsedVolume[] | null>(null)
   const [previewChapters, setPreviewChapters] = useState<ParsedChapter[] | null>(null)
+  const [previewTargetId, setPreviewTargetId] = useState<number | null>(null)
 
   // D1: 批量生成状态
   const [batchProgress, setBatchProgress] = useState<BatchOutlineProgress | null>(null)
@@ -74,7 +105,13 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
   }, [project.id])
   const [batchResult, setBatchResult] = useState<Map<number, ParsedChapter[]> | null>(null)
 
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(project.id!, 'outline.generate'))
+  const sessionModuleKey: 'outline.volume' | 'outline.chapter' =
+    pendingGeneration
+      ? (pendingGeneration.kind === 'volumes' || pendingGeneration.kind === 'single-volume' ? 'outline.volume' : 'outline.chapter')
+      : ai.operation?.startsWith('outline.chapter') ? 'outline.chapter'
+      : ai.operation?.startsWith('outline.volume') ? 'outline.volume'
+        : activeModuleKey
 
   useEffect(() => { loadAll(project.id!) }, [project.id, loadAll])
 
@@ -205,6 +242,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
         'worldRules',
         'historical',
         'locations',
+        'existingVolumeOutlines',
       ],
     })
   }, [project.id, aiConfig.provider, aiConfig.model])
@@ -216,32 +254,141 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
 
   // ── AI 生成 ──
 
-  const handleAIVolumes = async () => {
-    setActiveModuleKey('outline.volume')
+  const prepareGeneration = (request: OutlineGenerationRequest) => {
+    const moduleKey = request.kind === 'volumes' || request.kind === 'single-volume'
+      ? 'outline.volume'
+      : 'outline.chapter'
+    setActiveModuleKey(moduleKey)
+    setPendingGeneration(request)
+    setPromptPanelOpen(true)
     setPreviewVolumes(null)
     setPreviewChapters(null)
-    const assembled = await buildOutlineAssembledContext(null)
-    const worldCtx = assembled.text
-    const scCtx = storyCore ? `主题：${storyCore.theme}\n冲突：${storyCore.centralConflict}\n主线：${storyCore.mainPlot || storyCore.storyLines || ''}${storyCore.subPlots ? `\n复线：${storyCore.subPlots}` : ''}` : ''
-    const charCtx = contextPart(assembled, 'characters')
-    const rulesCtx = contextPart(assembled, 'worldRules')
-    const messages = buildVolumeOutlinePrompt(project.name, project.genre, worldCtx, scCtx, project.targetWordCount || 500000, hint, buildOpts(), charCtx, rulesCtx)
-    ai.start(messages, undefined, { category: 'outline.volume', projectId: project.id! })
+    setPreviewTargetId(null)
   }
 
-  const handleAIChapters = async () => {
-    if (!selectedVol) return
-    setActiveModuleKey('outline.chapter')
+  const findVolumeForChapter = (chapterId: number) => {
+    const chapter = nodes.find(node => node.id === chapterId && node.type === 'chapter')
+    if (!chapter) return null
+    const parent = nodes.find(node => node.id === chapter.parentId)
+    if (parent?.type === 'volume') return parent
+    if (parent?.type === 'storyBlock') {
+      return nodes.find(node => node.id === parent.parentId && node.type === 'volume') ?? null
+    }
+    return null
+  }
+
+  const executeGeneration = async (request: OutlineGenerationRequest) => {
+    const moduleKey = request.kind === 'volumes' || request.kind === 'single-volume'
+      ? 'outline.volume'
+      : 'outline.chapter'
+    setActiveModuleKey(moduleKey)
+    ai.setOperation(encodeGenerationOperation(request))
     setPreviewVolumes(null)
     setPreviewChapters(null)
-    const assembled = await buildOutlineAssembledContext(selectedVol.worldGroupId ?? null, selectedVol.id)
-    const worldCtx = assembled.text
-    const volIdx = volumes.indexOf(selectedVol)
+    setPreviewTargetId(null)
+
+    if (request.kind === 'volumes' || request.kind === 'single-volume') {
+      const explicitCount = Number(parameterValues.volumeCount)
+      if (
+        request.kind === 'volumes' &&
+        parameterValues.volumeCount !== '' &&
+        parameterValues.volumeCount != null &&
+        Number.isFinite(explicitCount) &&
+        explicitCount > 0 &&
+        explicitCount <= volumes.length
+      ) {
+        ai.reset()
+        toast.info(`当前已有 ${volumes.length} 卷，已达到你设定的 ${Math.floor(explicitCount)} 卷，无需继续生成。`)
+        return
+      }
+      const targetVolume = request.kind === 'single-volume'
+        ? volumes.find(volume => volume.id === request.volumeId)
+        : null
+      if (request.kind === 'single-volume' && !targetVolume) {
+        toast.error('要补全的卷不存在，请重新选择。')
+        return
+      }
+      const assembled = await buildOutlineAssembledContext(targetVolume?.worldGroupId ?? null, targetVolume?.id)
+      const messages = buildVolumeOutlinePrompt(
+        project.name,
+        project.genre,
+        assembled.text,
+        contextPart(assembled, 'storyCore'),
+        project.targetWordCount || 500000,
+        hint,
+        buildOpts(),
+        contextPart(assembled, 'characters'),
+        contextPart(assembled, 'worldRules'),
+        {
+          existingVolumesContext: contextPart(assembled, 'existingVolumeOutlines'),
+          existingVolumeCount: volumes.length,
+          targetVolumeTitle: targetVolume?.title,
+        },
+      )
+      await ai.start(messages, undefined, { category: 'outline.volume', projectId: project.id! })
+      return
+    }
+
+    const volume = request.kind === 'chapters'
+      ? volumes.find(item => item.id === request.volumeId)
+      : findVolumeForChapter(request.chapterId)
+    if (!volume) {
+      toast.error('要生成章纲的卷不存在，请重新选择。')
+      return
+    }
+    const assembled = await buildOutlineAssembledContext(volume.worldGroupId ?? null, volume.id)
+    const volIdx = volumes.indexOf(volume)
     const prevSummary = volIdx > 0 ? volumes[volIdx - 1].summary : ''
     const charCtx = contextPart(assembled, 'characters')
     const rulesCtx = contextPart(assembled, 'worldRules')
-    const messages = buildChapterOutlinePrompt(selectedVol.title, selectedVol.summary, worldCtx, prevSummary, hint, buildOpts(), charCtx, rulesCtx)
-    ai.start(messages, undefined, { category: 'outline.chapter', projectId: project.id! })
+    const messages = request.kind === 'single-chapter'
+      ? (() => {
+        const chapter = nodes.find(node => node.id === request.chapterId && node.type === 'chapter')!
+        const siblings = nodes
+          .filter(node => node.type === 'chapter' && node.parentId === chapter.parentId && node.id !== chapter.id)
+          .sort((a, b) => a.order - b.order)
+        const siblingContext = siblings.length
+          ? `同级已有章节：\n${siblings.map(item => `- ${item.title}${item.summary ? `：${item.summary}` : ''}`).join('\n')}`
+          : ''
+        return buildSingleChapterOutlinePrompt(
+          volume.title,
+          volume.summary,
+          chapter.title,
+          siblingContext,
+          assembled.text,
+          prevSummary,
+          hint,
+          buildOpts(),
+          charCtx,
+          rulesCtx,
+        )
+      })()
+      : buildChapterOutlinePrompt(
+        volume.title,
+        volume.summary,
+        assembled.text,
+        prevSummary,
+        hint,
+        buildOpts(),
+        charCtx,
+        rulesCtx,
+      )
+    await ai.start(messages, undefined, { category: 'outline.chapter', projectId: project.id! })
+  }
+
+  const handleAIVolumes = () => prepareGeneration({ kind: 'volumes' })
+  const handleAIChapters = () => {
+    if (selectedVol?.id) prepareGeneration({ kind: 'chapters', volumeId: selectedVol.id })
+  }
+  const handleConfirmGeneration = () => {
+    if (!pendingGeneration) return
+    const request = pendingGeneration
+    setPendingGeneration(null)
+    void executeGeneration(request)
+  }
+  const handleRetryGeneration = () => {
+    const request = decodeGenerationOperation(ai.operation)
+    if (request) void executeGeneration(request)
   }
 
   // ── D1: 批量生成 ──
@@ -331,20 +478,34 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
   const handlePreviewAccept = async (text: string) => {
     setRestructuring(true)
     try {
-      if (activeModuleKey === 'outline.volume') {
+      if (sessionModuleKey === 'outline.volume') {
         const parsed = await parseVolumeOutlineSmart(text, aiConfig)
         if (parsed.length === 0) {
           toast.error('未能从 AI 输出中解析出卷级大纲，请检查输出内容或重试。')
           return
         }
-        setPreviewVolumes(parsed)
+        const operation = decodeGenerationOperation(ai.operation)
+        if (operation?.kind === 'single-volume') {
+          setPreviewTargetId(operation.volumeId)
+          setPreviewVolumes(parsed.slice(0, 1))
+        } else {
+          setPreviewTargetId(null)
+          setPreviewVolumes(parsed)
+        }
       } else {
         const parsed = await parseChapterOutlineSmart(text, aiConfig)
         if (parsed.length === 0) {
           toast.error('未能从 AI 输出中解析出章节大纲，请检查输出内容或重试。')
           return
         }
-        setPreviewChapters(parsed)
+        const operation = decodeGenerationOperation(ai.operation)
+        if (operation?.kind === 'single-chapter') {
+          setPreviewTargetId(operation.chapterId)
+          setPreviewChapters(parsed.slice(0, 1))
+        } else {
+          setPreviewTargetId(null)
+          setPreviewChapters(parsed)
+        }
       }
     } finally {
       setRestructuring(false)
@@ -353,7 +514,26 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
 
   const handleConfirmVolumes = async () => {
     if (!previewVolumes) return
+    const targetId = previewTargetId
     ai.reset()
+    if (targetId != null) {
+      const result = await adopt({
+        projectId: project.id!,
+        target: 'outlineNodes',
+        recordId: targetId,
+        mode: 'replace',
+        data: { summary: previewVolumes[0]?.summary ?? '' },
+      })
+      if (result.written.length === 0) {
+        toast.error(`未能写入本卷卷纲：${result.skipped[0]?.reason ?? '结果为空'}`)
+        return
+      }
+      await loadAll(project.id!)
+      setPreviewVolumes(null)
+      setPreviewTargetId(null)
+      toast.success('本卷卷纲已写入。')
+      return
+    }
     const existingCount = volumes.length
     let firstId: number | null = null
     let written = 0
@@ -375,6 +555,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     }
     await loadAll(project.id!)
     setPreviewVolumes(null)
+    setPreviewTargetId(null)
     if (firstId) setSelectedVolId(firstId)
     // FB-10:不再静默——全跳过/部分跳过都明确告知用户原因
     if (written === 0) {
@@ -387,15 +568,39 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
   }
 
   const handleConfirmChapters = async () => {
-    if (!previewChapters || !selectedVol) return
+    if (!previewChapters) return
+    const targetId = previewTargetId
+    const operation = decodeGenerationOperation(ai.operation)
     ai.reset()
-    const existingCount = selectedVolChapters.length
+    if (targetId != null) {
+      const result = await adopt({
+        projectId: project.id!,
+        target: 'outlineNodes',
+        recordId: targetId,
+        mode: 'replace',
+        data: { summary: previewChapters[0]?.summary ?? '' },
+      })
+      if (result.written.length === 0) {
+        toast.error(`未能写入本章章纲：${result.skipped[0]?.reason ?? '结果为空'}`)
+        return
+      }
+      await loadAll(project.id!)
+      setPreviewChapters(null)
+      setPreviewTargetId(null)
+      toast.success('本章章纲已写入。')
+      return
+    }
+    const destinationVolume = operation?.kind === 'chapters'
+      ? volumes.find(volume => volume.id === operation.volumeId) ?? null
+      : selectedVol
+    if (!destinationVolume) return
+    const existingCount = nodes.filter(node => node.parentId === destinationVolume.id && node.type === 'chapter').length
     let written = 0
     const skipReasons = new Set<string>()
     try {
       for (let i = 0; i < previewChapters.length; i++) {
         const r = await addOutlineNodeByAdopt({
-          parentId: selectedVol.id!, type: 'chapter',
+          parentId: destinationVolume.id!, type: 'chapter',
           title: previewChapters[i].title, summary: previewChapters[i].summary,
           order: existingCount + i,
         })
@@ -409,6 +614,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
     }
     await loadAll(project.id!)
     setPreviewChapters(null)
+    setPreviewTargetId(null)
     if (written === 0) {
       toast.error(`未写入任何章节。原因:${[...skipReasons].join('；') || '与本卷已有章节标题重复(已跳过)'}。`)
     } else if (written < previewChapters.length) {
@@ -432,6 +638,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
   const handleCancelPreview = () => {
     setPreviewVolumes(null)
     setPreviewChapters(null)
+    setPreviewTargetId(null)
   }
 
   // ── 侧栏：卷列表 ──
@@ -446,12 +653,12 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
         </button>
         <button onClick={handleAIVolumes} disabled={ai.isStreaming || batchRunning}
           className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-accent text-white rounded-md hover:bg-accent-hover disabled:opacity-50 transition-colors">
-          <Sparkles className="w-3.5 h-3.5" /> AI 生成卷级大纲
+          <Sparkles className="w-3.5 h-3.5" /> 批量生成卷级大纲
         </button>
         {volumes.length >= 2 && (
           <button onClick={handleBatchGenerate} disabled={ai.isStreaming || batchRunning}
             className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-bg-elevated text-accent rounded-md hover:bg-accent/10 border border-accent/30 disabled:opacity-50 transition-colors">
-            <Layers className="w-3.5 h-3.5" /> 批量生成所有章节
+            <Layers className="w-3.5 h-3.5" /> 批量生成所有卷的章节
           </button>
         )}
       </div>
@@ -564,22 +771,56 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
           className="w-full px-3 py-2 bg-bg-surface border border-border rounded-md text-text-primary text-sm focus:outline-none focus:border-accent" />
 
         <PromptRunPanel
-          moduleKey={activeModuleKey}
+          moduleKey={sessionModuleKey}
           parameterValues={parameterValues}
           onParamChange={setParameterValues}
           systemOverride={systemOverride}
           onSystemOverrideChange={setSystemOverride}
           userOverride={userOverride}
           onUserOverrideChange={setUserOverride}
+          open={promptPanelOpen}
+          onOpenChange={setPromptPanelOpen}
         />
+
+        {pendingGeneration && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2">
+            <div className="text-xs text-text-secondary">
+              <span className="font-medium text-text-primary">
+                {pendingGeneration.kind === 'volumes' && '批量生成卷级大纲'}
+                {pendingGeneration.kind === 'chapters' && '生成本卷所有章节'}
+                {pendingGeneration.kind === 'single-volume' && 'AI 生成本卷卷纲'}
+                {pendingGeneration.kind === 'single-chapter' && 'AI 生成本章章纲'}
+              </span>
+              <span className="ml-2">
+                {pendingGeneration.kind === 'single-chapter'
+                  ? '单章补全固定只生成当前 1 章；上方“本卷章节数”不参与本次调用。确认后才会调用 API。'
+                  : '请先调整上方参数，确认后才会调用 API。'}
+              </span>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                onClick={() => setPendingGeneration(null)}
+                className="px-2.5 py-1 text-xs text-text-muted border border-border rounded hover:text-text-primary"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmGeneration}
+                className="px-2.5 py-1 text-xs text-white bg-accent rounded hover:bg-accent-hover"
+              >
+                确认生成
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* AI 输出（就地显示） */}
         {(ai.output || ai.isStreaming || ai.error) && (
           <AIStreamOutput output={ai.output} isStreaming={ai.isStreaming} error={ai.error} tokenUsage={ai.tokenUsage}
             onStop={ai.stop}
             onAccept={handlePreviewAccept}
-            onRetry={activeModuleKey === 'outline.volume' ? handleAIVolumes : handleAIChapters}
-            moduleKey={activeModuleKey} />
+            onRetry={handleRetryGeneration}
+            moduleKey={sessionModuleKey} />
         )}
 
         {restructuring && (
@@ -591,7 +832,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
         {/* 采纳预览：卷 */}
         {previewVolumes && (
           <PreviewPanel
-            label={`将创建 ${previewVolumes.length} 个卷`}
+            label={previewTargetId != null ? '将补全当前卷的卷纲' : `将创建 ${previewVolumes.length} 个卷`}
             items={previewVolumes}
             onConfirm={handleConfirmVolumes}
             onCancel={handleCancelPreview}
@@ -601,7 +842,9 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
         {/* 采纳预览：章节 */}
         {previewChapters && (
           <PreviewPanel
-            label={`将在「${selectedVol?.title}」下创建 ${previewChapters.length} 个章节`}
+            label={previewTargetId != null
+              ? '将补全当前章节的章纲'
+              : `将在「${selectedVol?.title}」下创建 ${previewChapters.length} 个章节`}
             items={previewChapters}
             onConfirm={handleConfirmChapters}
             onCancel={handleCancelPreview}
@@ -618,9 +861,18 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
                 className="text-lg font-bold bg-transparent text-text-primary outline-none flex-1"
               />
               <div className="flex items-center gap-1.5">
+                {!selectedVol.summary.trim() && (
+                  <button
+                    onClick={() => prepareGeneration({ kind: 'single-volume', volumeId: selectedVol.id! })}
+                    disabled={ai.isStreaming}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-bg-elevated text-accent rounded-md hover:bg-accent/10 border border-accent/30 disabled:opacity-50 transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" /> AI 生成本卷卷纲
+                  </button>
+                )}
                 <button onClick={handleAIChapters} disabled={ai.isStreaming}
                   className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-accent text-white rounded-md hover:bg-accent-hover disabled:opacity-50 transition-colors">
-                  <Sparkles className="w-3.5 h-3.5" /> AI 生成章节
+                  <Sparkles className="w-3.5 h-3.5" /> 生成本卷所有章节
                 </button>
                 <button onClick={() => handleAddChapter()}
                   className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-bg-elevated text-text-secondary rounded-md hover:text-text-primary border border-border transition-colors">
@@ -690,6 +942,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
                         onOpenChapter={onOpenChapter}
                         onReorder={(ids) => reorderNodes(ids)}
                         onInsertAfter={(chId) => handleInsertChapterAfter(chId, block.id!)}
+                        onGenerateChapter={(chapterId) => prepareGeneration({ kind: 'single-chapter', chapterId })}
                       />
                     )
                   })}
@@ -704,7 +957,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
               {!hasBlocks && (
                 selectedVolChapters.length === 0 ? (
                   <div className="text-center py-8 text-text-muted text-sm border border-dashed border-border rounded-lg">
-                    还没有章节，点击「AI 生成章节」或「添加章节」
+                    还没有章节，点击「生成本卷所有章节」或「添加章节」
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -714,6 +967,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
                         onUpdate={updateNode} onDelete={deleteNode} onOpen={onOpenChapter}
                         dnd={directChaptersDnD.itemDnD(ch.id)}
                         onInsertAfter={() => handleInsertChapterAfter(ch.id!, selectedVol.id!)}
+                        onGenerate={() => prepareGeneration({ kind: 'single-chapter', chapterId: ch.id! })}
                       />
                     ))}
                   </div>
@@ -724,7 +978,7 @@ export default function OutlinePanel({ project, onOpenChapter }: Props) {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-text-muted gap-3">
             <div className="text-4xl opacity-20">📖</div>
-            <p className="text-sm">选择左侧的卷开始编辑，或点击「AI 生成卷级大纲」</p>
+            <p className="text-sm">选择左侧的卷开始编辑，或点击「批量生成卷级大纲」</p>
           </div>
         )}
       </div>
@@ -773,7 +1027,7 @@ function PreviewPanel({
 
 // ── 章节行 ──
 
-function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen, dnd, onInsertAfter }: {
+function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen, dnd, onInsertAfter, onGenerate }: {
   ch: { id?: number; title: string; summary: string }
   idx: number
   onUpdate: (id: number, patch: Record<string, string>) => void
@@ -781,6 +1035,7 @@ function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen, dnd, onInsertAfter }:
   onOpen?: (id: number) => void
   dnd?: ItemDnD
   onInsertAfter?: () => void
+  onGenerate?: () => void
 }) {
   // FB-3:章节摘要(章节大纲)由单行 input 升级为多行自增 textarea —— 单行下改 1-2 句大纲很难受
   //       (横向滚、看不全、改中间费劲)。本地草稿 + 失焦保存(IME 安全:组合输入结束后才 onBlur 写库)。
@@ -826,7 +1081,14 @@ function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen, dnd, onInsertAfter }:
           className="w-full bg-transparent text-text-muted text-xs outline-none mt-0.5 resize-none overflow-hidden leading-relaxed"
         />
       </div>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1">
+      <div className={`flex items-center gap-0.5 transition-opacity shrink-0 mt-1 ${
+        !ch.summary.trim() && onGenerate ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+      }`}>
+        {!ch.summary.trim() && onGenerate && (
+          <button onClick={onGenerate} className="p-1 text-text-muted hover:text-accent rounded" title="AI 生成本章章纲">
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
+        )}
         {onInsertAfter && (
           <button onClick={onInsertAfter} className="p-1 text-text-muted hover:text-accent rounded" title="在此章下方插入一章">
             <CornerDownRight className="w-3.5 h-3.5" />
@@ -847,7 +1109,7 @@ function ChapterRow({ ch, idx, onUpdate, onDelete, onOpen, dnd, onInsertAfter }:
 
 // ── 故事块区域 ──
 
-function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddChapter, onOpenChapter, onReorder, onInsertAfter }: {
+function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddChapter, onOpenChapter, onReorder, onInsertAfter, onGenerateChapter }: {
   block: { id?: number; title: string; summary: string }
   chapters: { id?: number; title: string; summary: string }[]
   onUpdateNode: (id: number, patch: Record<string, string>) => void
@@ -856,6 +1118,7 @@ function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddC
   onOpenChapter?: (id: number) => void
   onReorder: (orderedIds: number[]) => void
   onInsertAfter: (chapterId: number) => void
+  onGenerateChapter: (chapterId: number) => void
 }) {
   const dialog = useDialog()
   const [expanded, setExpanded] = useState(true)
@@ -913,6 +1176,7 @@ function StoryBlockSection({ block, chapters, onUpdateNode, onDeleteNode, onAddC
                 onUpdate={onUpdateNode} onDelete={onDeleteNode} onOpen={onOpenChapter}
                 dnd={blockChaptersDnD.itemDnD(ch.id)}
                 onInsertAfter={() => onInsertAfter(ch.id!)}
+                onGenerate={() => onGenerateChapter(ch.id!)}
               />
             ))
           )}

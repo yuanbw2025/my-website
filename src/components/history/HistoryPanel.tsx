@@ -11,6 +11,7 @@ import { useWorldviewStore } from '../../stores/worldview'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { usePromptStore } from '../../stores/prompt'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { renderPrompt } from '../../lib/ai/prompt-engine'
 import type { Project, HistoricalTimelineEvent, HistoricalEra, HistoricalKeyword, HistoricalKeywordCategory } from '../../lib/types'
 import { HISTORICAL_ERA_LABELS, KEYWORD_CATEGORY_LABELS } from '../../lib/types/history'
@@ -89,9 +90,32 @@ export default function HistoryPanel({ project }: Props) {
   const [filterCategory, setFilterCategory] = useState<HistoricalKeywordCategory | 'all'>('all')
   const [filterEra, setFilterEra] = useState<HistoricalEra | 'all'>('all')
 
-  const consultAI = useAIStream()
-  const stormAI = useAIStream()
+  const historySessionScope = scopeGroupId ?? 'project'
+  const consultAI = useAIStream(createAISessionKey(project.id!, 'history.consult', historySessionScope))
+  const stormAI = useAIStream(createAISessionKey(project.id!, 'history.storm', historySessionScope))
   const { worldview, loadAll: loadWorldview } = useWorldviewStore()
+
+  useEffect(() => {
+    const restoreTarget = (
+      operation: string | null,
+      setEventId: (id: number | null) => void,
+      setKeywordId: (id: number | null) => void,
+    ) => {
+      if (!operation) return
+      const [kind, rawId] = operation.split(':')
+      const id = Number(rawId)
+      if (!Number.isFinite(id)) return
+      if (kind === 'event') {
+        setEventId(id)
+        setKeywordId(null)
+      } else if (kind === 'keyword') {
+        setKeywordId(id)
+        setEventId(null)
+      }
+    }
+    restoreTarget(consultAI.operation, setConsultEventId, setConsultKeywordId)
+    restoreTarget(stormAI.operation, setStormEventId, setStormKeywordId)
+  }, [consultAI.operation, stormAI.operation])
 
   // 多世界：让 worldview store 跟随当前世界标签，保证历史 AI 考证读到对的世界设定
   useEffect(() => {
@@ -185,6 +209,8 @@ export default function HistoryPanel({ project }: Props) {
   const handleAIConsult = (evt: HistoricalTimelineEvent) => {
     if (!evt.id) return
     setConsultEventId(evt.id)
+    setConsultKeywordId(null)
+    consultAI.setOperation(`event:${evt.id}`)
 
     const eraLabel = HISTORICAL_ERA_LABELS[evt.era as HistoricalEra] || evt.era
     const itemMeta = [
@@ -214,6 +240,8 @@ export default function HistoryPanel({ project }: Props) {
   const handleAIStorm = (evt: HistoricalTimelineEvent) => {
     if (!evt.id) return
     setStormEventId(evt.id)
+    setStormKeywordId(null)
+    stormAI.setOperation(`event:${evt.id}`)
 
     const eraLabel = HISTORICAL_ERA_LABELS[evt.era as HistoricalEra] || evt.era
     const itemMeta = [
@@ -242,6 +270,8 @@ export default function HistoryPanel({ project }: Props) {
   const handleAIKeywordConsult = (kw: HistoricalKeyword) => {
     if (!kw.id) return
     setConsultKeywordId(kw.id)
+    setConsultEventId(null)
+    consultAI.setOperation(`keyword:${kw.id}`)
 
     const eraLabel = HISTORICAL_ERA_LABELS[kw.era as HistoricalEra] || kw.era
     const categoryLabel = KEYWORD_CATEGORY_LABELS[kw.category as HistoricalKeywordCategory] || kw.category
@@ -269,6 +299,8 @@ export default function HistoryPanel({ project }: Props) {
   const handleAIKeywordStorm = (kw: HistoricalKeyword) => {
     if (!kw.id) return
     setStormKeywordId(kw.id)
+    setStormEventId(null)
+    stormAI.setOperation(`keyword:${kw.id}`)
 
     const eraLabel = HISTORICAL_ERA_LABELS[kw.era as HistoricalEra] || kw.era
     const categoryLabel = KEYWORD_CATEGORY_LABELS[kw.category as HistoricalKeywordCategory] || kw.category

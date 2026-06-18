@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react'
 import { ScanSearch, Sparkles, Loader2 } from 'lucide-react'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { assembleContext } from '../../lib/registry/assemble-context'
 import { buildSceneVerifyPrompt } from '../../lib/ai/adapters/scene-verify-adapter'
 import AIStreamOutput from '../shared/AIStreamOutput'
@@ -23,7 +24,11 @@ interface Props {
 
 export default function SceneVerifyPanel({ project }: Props) {
   const activeGroupId = useWorldGroupStore(s => s.activeGroupId)
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(
+    project.id!,
+    'scene.verify',
+    project.enableMultiWorld ? activeGroupId ?? 'global' : 'project',
+  ))
 
   const draftKey = `sf-scene-verify-${project.id}`
   const [scene, setScene] = useState('')

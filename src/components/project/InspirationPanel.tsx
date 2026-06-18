@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import {
   buildInspirationReversePrompt,
   parseReverseOutput,
@@ -37,7 +38,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function InspirationPanel({ project }: Props) {
   const wgStore = useWorldGroupStore()
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(project.id!, 'inspiration.reverse'))
   const isMW = !!project.enableMultiWorld
 
   const draftKey = `sf-inspiration-draft-${project.id}`

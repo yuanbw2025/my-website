@@ -70,6 +70,26 @@ describe('Phase 1.2a · 统一写回层', () => {
     expect(rows[0].worldGroupId).toBe(101)
   })
 
+  it('单例写回:worldviews 原生对象字段保持对象，不序列化成字符串', async () => {
+    const projectId = await createProject()
+    const divineDesign = {
+      hasDivinity: true,
+      divineRank: '主神 / 次神',
+      divineNames: '星母',
+      divineRules: '朔日禁火',
+    }
+    await adopt({
+      projectId,
+      target: 'worldviews',
+      mode: 'replace',
+      data: { divineDesign },
+    })
+
+    const row = await db.worldviews.where('projectId').equals(projectId).first()
+    expect(row?.divineDesign).toEqual(divineDesign)
+    expect(typeof row?.divineDesign).toBe('object')
+  })
+
   it('单例写回:storyCores.storyLines 自动映射到 mainPlot,append 合并长文本', async () => {
     const projectId = await createProject()
     await adopt({

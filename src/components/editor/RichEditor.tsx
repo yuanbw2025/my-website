@@ -237,6 +237,11 @@ const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEditor(
           <Minus className="w-3.5 h-3.5" />
         </button>
         <div className="flex-1" />
+        {/* G3：正文字数统计 */}
+        <span className="text-[11px] text-text-muted font-mono px-1.5 tabular-nums select-none" title="本章正文字数（不含空白）">
+          {countWords(editor.getText()).toLocaleString()} 字
+        </span>
+        <div className="w-px h-4 bg-border mx-1" />
         <button
           type="button"
           onClick={() => editor.chain().focus().undo().run()}

@@ -5,6 +5,7 @@ import { useDetailedOutlineStore } from '../../stores/detailed-outline'
 import { useCharacterStore } from '../../stores/character'
 import { useForeshadowStore } from '../../stores/foreshadow'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildDetailSceneGeneratePrompt, buildEnhancedDetailPrompt, parseEnhancedDetailSmart } from '../../lib/ai/adapters/detail-scene-adapter'
 import { useAIConfigStore } from '../../stores/ai-config'
 import { batchGenerateDetails, type BatchProgress } from '../../lib/ai/batch-detail-runner'
@@ -53,10 +54,9 @@ export default function DetailedOutlinePanel({ project }: Props) {
   const { characters, loadAll: loadCharacters } = useCharacterStore()
   const aiConfig = useAIConfigStore(s => s.config)
   const { foreshadows, loadAll: loadForeshadows } = useForeshadowStore()
-  const ai = useAIStream()
-  const enhanceAI = useAIStream()
-
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null)
+  const ai = useAIStream(createAISessionKey(project.id!, 'detail.scene', selectedNodeId ?? 'unselected'))
+  const enhanceAI = useAIStream(createAISessionKey(project.id!, 'detail.enhance', selectedNodeId ?? 'unselected'))
 
   useEffect(() => {
     loadOutline(project.id!)

@@ -3,14 +3,18 @@
  *
  * 集成三套质量检测：审校(F1)、去AI味(F2)、追读力(F3)
  */
-import { useState } from 'react'
-import { X, ShieldCheck, Bot, TrendingUp, Loader2, AlertTriangle, AlertCircle, Info } from 'lucide-react'
+import { X, ShieldCheck, Bot, TrendingUp, Loader2, AlertTriangle, AlertCircle, Info, Wand2 } from 'lucide-react'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
+import { useReviewResultStore, selectChapterReview, type ReviewTab } from '../../stores/review-result'
 import { buildReviewPrompt, parseReviewResult, REVIEW_DIMENSION_LABELS, type ReviewResult } from '../../lib/ai/adapters/review-adapter'
 import { buildAntiAIPrompt, parseAntiAIResult, ANTI_AI_DIMENSION_LABELS, extractHighFreqWords, type AntiAIResult } from '../../lib/ai/adapters/anti-ai-adapter'
 import { buildReadabilityPrompt, parseReadabilityResult, READABILITY_DIMENSION_LABELS, type ReadabilityResult } from '../../lib/ai/adapters/readability-adapter'
 
 interface Props {
+  projectId: number
+  /** 当前章节 id — 审校结果按章缓存到 store，收起/切标签不丢（bug G7 / B1） */
+  chapterId: number
   chapterContent: string
   chapterTitle: string
   worldContext: string
@@ -20,9 +24,11 @@ interface Props {
   foreshadowContext: string
   stateContext: string
   onClose: () => void
+  /** G8：按审校报告让 AI 改全文（交给 ChapterEditor 走标准生成→采纳流程） */
+  onReviseByReport?: (report: ReviewResult) => void
 }
 
-type TabType = 'review' | 'antiAI' | 'readability'
+type TabType = ReviewTab
 
 const TABS: { key: TabType; label: string; icon: typeof ShieldCheck }[] = [
   { key: 'review', label: '审校', icon: ShieldCheck },
@@ -31,15 +37,18 @@ const TABS: { key: TabType; label: string; icon: typeof ShieldCheck }[] = [
 ]
 
 export default function ReviewPanel(props: Props) {
-  const { chapterContent, chapterTitle, worldContext, characterContext,
-    prevChapterSummary, nextChapterSummary, foreshadowContext, stateContext, onClose } = props
+  const { projectId, chapterId, chapterContent, chapterTitle, worldContext, characterContext,
+    prevChapterSummary, nextChapterSummary, foreshadowContext, stateContext, onClose, onReviseByReport } = props
 
-  const [activeTab, setActiveTab] = useState<TabType>('review')
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(projectId, 'review.run', chapterId))
 
-  const [reviewResult, setReviewResult] = useState<ReviewResult | null>(null)
-  const [antiAIResult, setAntiAIResult] = useState<AntiAIResult | null>(null)
-  const [readabilityResult, setReadabilityResult] = useState<ReadabilityResult | null>(null)
+  // 结果与当前标签都存 store（按 chapterId），故收起再展开 / 切一级标签回来都还在
+  const cached = useReviewResultStore(selectChapterReview(chapterId))
+  const { review: reviewResult, antiAI: antiAIResult, readability: readabilityResult, activeTab } = cached
+  const setReview = useReviewResultStore(s => s.setReview)
+  const setAntiAI = useReviewResultStore(s => s.setAntiAI)
+  const setReadability = useReviewResultStore(s => s.setReadability)
+  const setActiveTab = (tab: TabType) => useReviewResultStore.getState().setActiveTab(chapterId, tab)
 
   const handleRunReview = async () => {
     const messages = buildReviewPrompt(
@@ -48,7 +57,7 @@ export default function ReviewPanel(props: Props) {
     )
     const output = await ai.start(messages, undefined, { category: 'review.quality' })
     const result = parseReviewResult(output)
-    if (result) setReviewResult(result)
+    if (result) setReview(chapterId, result)
   }
 
   const handleRunAntiAI = async () => {
@@ -56,7 +65,7 @@ export default function ReviewPanel(props: Props) {
     const messages = buildAntiAIPrompt(chapterContent, highFreq.map(w => w.replace(/\(\d+次\)/, '')))
     const output = await ai.start(messages, undefined, { category: 'review.anti-ai' })
     const result = parseAntiAIResult(output)
-    if (result) setAntiAIResult(result)
+    if (result) setAntiAI(chapterId, result)
   }
 
   const handleRunReadability = async () => {
@@ -65,7 +74,7 @@ export default function ReviewPanel(props: Props) {
     )
     const output = await ai.start(messages, undefined, { category: 'review.readability' })
     const result = parseReadabilityResult(output)
-    if (result) setReadabilityResult(result)
+    if (result) setReadability(chapterId, result)
   }
 
   const handleRun = () => {
@@ -98,6 +107,18 @@ export default function ReviewPanel(props: Props) {
           ))}
         </div>
         <div className="flex items-center gap-2">
+          {/* G8：审校出报告后，一键让 AI 按报告改全文（改稿在下方生成区预览，确认才替换原文） */}
+          {activeTab === 'review' && reviewResult && onReviseByReport && (
+            <button
+              onClick={() => onReviseByReport(reviewResult)}
+              disabled={ai.isStreaming}
+              title="让 AI 按上面的审校报告修改全文，结果会先预览"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-emerald-500/10 text-emerald-400 rounded-md hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
+            >
+              <Wand2 className="w-3 h-3" />
+              按报告 AI 修改
+            </button>
+          )}
           <button
             onClick={handleRun}
             disabled={ai.isStreaming || !chapterContent}

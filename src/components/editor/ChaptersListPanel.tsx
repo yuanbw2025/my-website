@@ -193,9 +193,9 @@ export default function ChaptersListPanel({ project, initialNodeId }: Props) {
             />
           </div>
 
-          {/* 正文编辑器 */}
+          {/* 正文编辑器 — key 按章节隔离：切章强制重挂载，AI 生成态/草稿不跨章串台（bug G5） */}
           <div className="flex-1 min-h-0">
-            <ChapterEditor project={project} outlineNodeId={selectedNode.id!} />
+            <ChapterEditor key={selectedNode.id} project={project} outlineNodeId={selectedNode.id!} />
           </div>
         </div>
       ) : (

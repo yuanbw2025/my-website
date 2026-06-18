@@ -3,6 +3,7 @@ import { Plus, Trash2, ArrowRightLeft, ArrowRight, Users, GitFork, List, Sparkle
 import { useCharacterRelationStore } from '../../stores/character-relation'
 import { useCharacterStore } from '../../stores/character'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildRelationExtractPrompt, parseRelationOutput, matchRelations, type MatchedRelation } from '../../lib/ai/relation-extractor'
 import type { Project, RelationType } from '../../lib/types'
 import RelationGraph from './RelationGraph'
@@ -35,7 +36,7 @@ export default function CharacterRelationPanel({ project }: Props) {
   const [graphWidth, setGraphWidth] = useState(700)
 
   // ── AI 提取相关状态 ──
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(projectId, 'relation.extract'))
   const [extractedRelations, setExtractedRelations] = useState<MatchedRelation[]>([])
   const [selectedExtracted, setSelectedExtracted] = useState<Set<number>>(new Set())
   const [showExtractPanel, setShowExtractPanel] = useState(false)
@@ -52,7 +53,8 @@ export default function CharacterRelationPanel({ project }: Props) {
 
   // ── AI 提取：流完成后自动解析 ──
   useEffect(() => {
-    if (!ai.isStreaming && ai.output && showExtractPanel) {
+    if (!ai.isStreaming && ai.output) {
+      setShowExtractPanel(true)
       const parsed = parseRelationOutput(ai.output)
       const matched = matchRelations(parsed, characters, relations)
       setExtractedRelations(matched)
@@ -61,7 +63,7 @@ export default function CharacterRelationPanel({ project }: Props) {
       matched.forEach((r, i) => { if (!r.isDuplicate) sel.add(i) })
       setSelectedExtracted(sel)
     }
-  }, [ai.isStreaming, ai.output, showExtractPanel, characters, relations])
+  }, [ai.isStreaming, ai.output, characters, relations])
 
   const handleAIExtract = useCallback(async () => {
     setShowExtractPanel(true)

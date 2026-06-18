@@ -7,6 +7,7 @@ import CodexPanel from '../codex/CodexPanel'
 import CodexSearchBar from '../codex/CodexSearchBar'
 import { InlineTextarea } from '../shared/InlineEdit'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildWorldviewPrompt } from '../../lib/ai/adapters/worldview-adapter'
 import { assembleContext } from '../../lib/registry/assemble-context'
 import AIStreamOutput from '../shared/AIStreamOutput'
@@ -134,7 +135,7 @@ export default function WorldviewNaturalPanel({ project }: Props) {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ── 左侧边栏 ── */}
-        <nav className="w-48 flex-shrink-0 border-r border-border bg-bg-surface/50 overflow-y-auto">
+        <nav className="w-max min-w-32 max-w-44 flex-shrink-0 border-r border-border bg-bg-surface/50 overflow-y-auto">
           {[...FIELDS.map(f => ({ key: f.key, emoji: f.emoji, label: f.label })),
             { key: 'naturalResources' as const, emoji: '🌿', label: '自然资源' },
           ].map(f => {
@@ -236,8 +237,12 @@ function SimpleFieldEditor({ field, value, onChange, project, contextSummary, on
   const [systemOverride, setSystemOverride] = useState<string | null>(null)
   const [userOverride, setUserOverride] = useState<string | null>(null)
   const [mode, setMode] = useState<FieldGenerationMode>('expand')
-  const ai = useAIStream()
   const activeGroupId = useWorldGroupStore(s => s.activeGroupId)
+  const ai = useAIStream(createAISessionKey(
+    project.id!,
+    'worldview.dimension',
+    `${activeGroupId ?? 'global'}:${field.key}`,
+  ))
 
   useEffect(() => {
     onStreamingChange(ai.isStreaming)

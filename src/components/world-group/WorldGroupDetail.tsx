@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Save, Loader2, Sparkles, Check } from 'lucide-react'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildWorldExpandPrompt, parseWorldExpandOutput } from '../../lib/ai/world-group-ai'
 import { buildAllWorldsOverview } from '../../lib/ai/world-group-context'
 import { db } from '../../lib/db/schema'
@@ -79,7 +80,7 @@ export default function WorldGroupDetail({ group, onBack }: Props) {
   }
 
   // ── AI 扩写世界观 ──
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(group.projectId, 'world-group.expand', group.id ?? group.name))
   const [expanded, setExpanded] = useState(false)
 
   const handleAIExpand = async () => {

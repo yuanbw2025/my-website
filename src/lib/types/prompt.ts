@@ -159,7 +159,7 @@ export interface PromptVariableContext {
   volumeSummary?: string
   prevVolumeSummary?: string
   targetWordCount?: number
-  estimatedVolumes?: number
+  estimatedVolumes?: number | string
   // 章节
   chapterTitle?: string
   chapterSummary?: string

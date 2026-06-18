@@ -8,6 +8,7 @@ import { useStoryArcStore } from '../../stores/story-arc'
 import { useWorldviewStore } from '../../stores/worldview'
 import { useOutlineStore } from '../../stores/outline'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildStoryArcPrompt, parseStoryArcResult } from '../../lib/ai/adapters/story-arc-adapter'
 import { assembleContext } from '../../lib/registry/assemble-context'
 import { CInput } from '../shared/CompositionInput'
@@ -27,7 +28,7 @@ export default function StoryArcPanel({ project }: Props) {
   const { arcs, activeArcId, loadAll, setActiveArc, addArc, updateArc, deleteArc, updateStages } = useStoryArcStore()
   const { storyCore, loadAll: loadWorldview } = useWorldviewStore()
   const { nodes, loadAll: loadOutline } = useOutlineStore()
-  const ai = useAIStream()
+  const ai = useAIStream(createAISessionKey(project.id!, 'story-arc.generate'))
   const [genType, setGenType] = useState<StoryArcType>('main')
 
   useEffect(() => {

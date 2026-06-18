@@ -15,7 +15,7 @@
 | `worldview.dimension` | 内置-世界观维度生成 | 为世界观的单个维度（地理/历史/社会/文化/经济/规则/摘要）生成内容。 | `projectName` `genres` `dimension` `worldContext` `worldRulesContext` `userHint` `isSummary` |
 | `character.generate` | 内置-角色完整设计 | 基于世界观和已有角色，设计一个新角色的完整资料。 | `projectName` `genres` `worldContext` `existingCharacters` `userHint` |
 | `character.dimension` | 内置-角色维度补全 | 为指定角色的某个维度（背景/性格/能力等）补充约 200-400 字的细节。 | `characterName` `characterInfo` `worldContext` `dimension` |
-| `outline.volume` | 内置-卷级大纲生成 | 基于世界观与故事核心生成全书的卷级大纲。 | `projectName` `genres` `targetWordCount` `estimatedVolumes` `worldContext` `storyCore` `characterContext` `worldRulesContext` `userHint` |
+| `outline.volume` | 内置-卷级大纲生成 | 基于世界观与故事核心生成全书的卷级大纲。 | `projectName` `genres` `targetWordCount` `worldContext` `storyCore` `characterContext` `worldRulesContext` `existingVolumesContext` `userHint` |
 | `outline.chapter` | 内置-章节大纲展开 | 将单卷展开为 15-25 章的章节大纲。 | `volumeTitle` `volumeSummary` `worldContext` `prevVolumeSummary` `characterContext` `worldRulesContext` `userHint` |
 | `chapter.content` | 内置-长篇连载（默认） | 通用男频网文风格的章节正文生成，支持基调/节奏/字数三个可调参数。 | `chapterTitle` `chapterSummary` `worldContext` `characters` `previousChapterEnding` `worldRulesContext` `userHint` |
 | `chapter.continue` | 内置-章节续写 | 从已有正文末尾继续往下写约 1000-2000 字。 | `chapterSummary` `worldContext` `existingContent` `userHint` |
@@ -50,12 +50,13 @@
 
 ## 二、上下文源清单（CONTEXT_SOURCES · AI 读什么）
 
-共 19 个上下文源。assembleContext({ sourceKeys }) 按 key 装配。
+共 20 个上下文源。assembleContext({ sourceKeys }) 按 key 装配。
 
 | key | 标签 | 作用域 | 层级 | 预算(token) |
 |---|---|---|---|---|
 | `contextMemo` | 上下文快照 | project | L3 | 1500 |
 | `chapterOutline` | 当前章节大纲 | node | L1 | 800 |
+| `existingVolumeOutlines` | 已有卷大纲 | project | L1 | 2400 |
 | `detailedOutline` | 本章细纲(场景拆解) | node | L1 | 1500 |
 | `previousChapterEnding` | 上一章结尾 | manual | L1 | 500 |
 | `worldview` | 世界观 | world | L2 | 8000 |
@@ -96,50 +97,51 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 
 ## 四、AI 调用点（消耗统计 category · 在哪触发)
 
-共 39 个 category。
+共 40 个 category。
 未分类调用: 0 个。动态 category 调用: 1 个。
 
 | category | 触发文件 |
 |---|---|
 | `ai.restructure` | `src/lib/ai/restructure.ts:52` |
-| `chapter.content` | `src/components/editor/ChapterEditor.tsx:274` |
+| `chapter.content` | `src/components/editor/ChapterEditor.tsx:299` |
 | `chapter.content.batch` | `src/lib/ai/batch-detail-runner.ts:256` |
-| `chapter.continue` | `src/components/editor/ChapterEditor.tsx:284` |
-| `chapter.deai` | `src/components/editor/ChapterEditor.tsx:308` |
-| `chapter.expand` | `src/components/editor/ChapterEditor.tsx:300` |
-| `chapter.polish` | `src/components/editor/ChapterEditor.tsx:292` |
+| `chapter.continue` | `src/components/editor/ChapterEditor.tsx:309` |
+| `chapter.deai` | `src/components/editor/ChapterEditor.tsx:345` |
+| `chapter.expand` | `src/components/editor/ChapterEditor.tsx:325` |
+| `chapter.polish` | `src/components/editor/ChapterEditor.tsx:317` |
 | `chapter.toolbar` | `src/components/editor/FloatingToolbar.tsx:105` |
-| `character.generate` | `src/components/character/CharacterPanel.tsx:132` |
+| `character.generate` | `src/components/character/CharacterPanel.tsx:137` |
 | `character.structure` | `src/lib/ai/parse-character-output.ts:92` |
-| `detail.scene` | `src/components/outline/DetailedOutlinePanel.tsx:163`<br/>`src/components/outline/ScenePanel.tsx:110`<br/>`src/lib/ai/batch-detail-runner.ts:109` |
-| `emotion.beat` | `src/components/editor/EmotionBeatCard.tsx:65` |
-| `foreshadow.structure` | `src/components/foreshadow/ForeshadowPanel.tsx:59` |
-| `foreshadow.suggest` | `src/components/foreshadow/ForeshadowPanel.tsx:158` |
-| `geography.concept-map` | `src/components/geography/GeographyPanel.tsx:110` |
-| `geography.world-map` | `src/components/geography/WorldMapPanel.tsx:98` |
-| `inspiration.reverse` | `src/components/project/InspirationPanel.tsx:110` |
+| `detail.scene` | `src/components/outline/DetailedOutlinePanel.tsx:163`<br/>`src/components/outline/ScenePanel.tsx:111`<br/>`src/lib/ai/batch-detail-runner.ts:109` |
+| `emotion.beat` | `src/components/editor/EmotionBeatCard.tsx:66` |
+| `foreshadow.structure` | `src/components/foreshadow/ForeshadowPanel.tsx:60` |
+| `foreshadow.suggest` | `src/components/foreshadow/ForeshadowPanel.tsx:159` |
+| `geography.concept-map` | `src/components/geography/GeographyPanel.tsx:127` |
+| `geography.world-map` | `src/components/geography/WorldMapPanel.tsx:103` |
+| `inspiration.reverse` | `src/components/project/InspirationPanel.tsx:111` |
 | `inventory.extract` | `src/components/items/InventoryPanel.tsx:63` |
-| `outline.chapter` | `src/components/outline/OutlinePanel.tsx:244`<br/>`src/lib/ai/batch-outline-runner.ts:123` |
-| `outline.character-driven` | `src/components/outline/CharacterDrivenPlotPanel.tsx:115` |
-| `outline.volume` | `src/components/outline/OutlinePanel.tsx:229` |
+| `outline.chapter` | `src/components/outline/OutlinePanel.tsx:376`<br/>`src/lib/ai/batch-outline-runner.ts:123` |
+| `outline.character-driven` | `src/components/outline/CharacterDrivenPlotPanel.tsx:116` |
+| `outline.volume` | `src/components/outline/OutlinePanel.tsx:328` |
 | `prompt.examples` | `src/components/settings/prompt/PromptExamplesEditor.tsx:105` |
 | `reference.characters` | `src/components/project/AnalysisReportViewer.tsx:138` |
 | `reference.summary` | `src/components/project/AnalysisReportViewer.tsx:109` |
-| `relation.extract` | `src/components/relations/CharacterRelationPanel.tsx:71` |
-| `review.anti-ai` | `src/components/editor/ReviewPanel.tsx:57` |
-| `review.quality` | `src/components/editor/ReviewPanel.tsx:49` |
-| `review.readability` | `src/components/editor/ReviewPanel.tsx:66` |
-| `rules.generate` | `src/components/rules/CreativeRulesPanel.tsx:77` |
-| `scene.verify` | `src/components/scene/SceneVerifyPanel.tsx:76` |
-| `story-arc.generate` | `src/components/outline/StoryArcPanel.tsx:83` |
-| `story.generate` | `src/components/worldview/StoryCorePanel.tsx:190` |
+| `relation.extract` | `src/components/relations/CharacterRelationPanel.tsx:73` |
+| `review.anti-ai` | `src/components/editor/ReviewPanel.tsx:66` |
+| `review.quality` | `src/components/editor/ReviewPanel.tsx:58` |
+| `review.readability` | `src/components/editor/ReviewPanel.tsx:75` |
+| `review.revise` | `src/components/editor/ChapterEditor.tsx:360` |
+| `rules.generate` | `src/components/rules/CreativeRulesPanel.tsx:80` |
+| `scene.verify` | `src/components/scene/SceneVerifyPanel.tsx:81` |
+| `story-arc.generate` | `src/components/outline/StoryArcPanel.tsx:84` |
+| `story.generate` | `src/components/worldview/StoryCorePanel.tsx:193` |
 | `story.timeline` | `src/components/timeline/StoryTimelinePanel.tsx:70` |
 | `style.learn` | `src/components/style/StyleLearningPanel.tsx:76` |
-| `world-group.expand` | `src/components/world-group/WorldGroupDetail.tsx:97` |
-| `world-group.suggest` | `src/components/world-group/WorldGroupOverview.tsx:50` |
-| `worldview.dimension` | `src/components/worldview/WorldviewHumanityPanel.tsx:242`<br/>`src/components/worldview/WorldviewNaturalPanel.tsx:261`<br/>`src/components/worldview/WorldviewOriginPanel.tsx:265` |
-| `worldview.divine` | `src/components/worldview/WorldviewOriginPanel.tsx:360` |
-| `worldview.divine.split` | `src/components/worldview/WorldviewOriginPanel.tsx:384` |
+| `world-group.expand` | `src/components/world-group/WorldGroupDetail.tsx:98` |
+| `world-group.suggest` | `src/components/world-group/WorldGroupOverview.tsx:57` |
+| `worldview.dimension` | `src/components/worldview/WorldviewHumanityPanel.tsx:247`<br/>`src/components/worldview/WorldviewNaturalPanel.tsx:266`<br/>`src/components/worldview/WorldviewOriginPanel.tsx:273` |
+| `worldview.divine` | `src/components/worldview/WorldviewOriginPanel.tsx:372` |
+| `worldview.divine.split` | `src/components/worldview/WorldviewOriginPanel.tsx:396` |
 
 ### 动态 category 调用
 
@@ -147,4 +149,4 @@ AI 输出经 `adopt({ target, data })` 写回,只有这里登记的字段可写(
 
 ---
 
-生成时间基准:commit `c84fbf0`
+生成时间基准:commit `6638c47`

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Trash2, GripVertical, ArrowRight, ChevronRight, Sparkles, Loader2, Check } from 'lucide-react'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIStream } from '../../hooks/useAIStream'
+import { createAISessionKey } from '../../stores/ai-generation-session'
 import { buildWorldSuggestPrompt, parseWorldSuggestOutput, type SuggestedWorld } from '../../lib/ai/world-group-ai'
 import { buildAllWorldsOverview } from '../../lib/ai/world-group-context'
 import { WORLD_GROUP_TYPE_LABELS, WORLD_LINK_TYPE_LABELS } from '../../lib/types/world-group'
@@ -27,8 +28,8 @@ export default function WorldGroupOverview({ project }: Props) {
   })
 
   // AI 建议世界
-  const ai = useAIStream()
-  const [showSuggest, setShowSuggest] = useState(false)
+  const ai = useAIStream(createAISessionKey(project.id!, 'world-group.suggest'))
+  const [showSuggest, setShowSuggest] = useState(() => !!(ai.output || ai.isStreaming || ai.error))
   const [concept, setConcept] = useState('')
   const [suggested, setSuggested] = useState<SuggestedWorld[] | null>(null)
   const [adoptedIdx, setAdoptedIdx] = useState<Set<number>>(new Set())
@@ -37,6 +38,12 @@ export default function WorldGroupOverview({ project }: Props) {
     if (!project.id) return
     loadAll(project.id).then(() => ensurePrimaryGroup(project.id!))
   }, [project.id, loadAll, ensurePrimaryGroup])
+
+  useEffect(() => {
+    if (ai.isStreaming || !ai.output) return
+    setShowSuggest(true)
+    setSuggested(parseWorldSuggestOutput(ai.output))
+  }, [ai.isStreaming, ai.output])
 
   const handleAISuggest = async () => {
     const existingWorlds = await buildAllWorldsOverview(project.id!)

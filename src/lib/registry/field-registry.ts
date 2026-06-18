@@ -78,6 +78,11 @@ function json(target: string, field: string, aliases?: string[]): FieldSpec {
   return { target, field, type: 'json', aliases }
 }
 
+/** IndexedDB 原生对象字段（区别于以 JSON string 存储的 json 字段）。 */
+function object(target: string, field: string, aliases?: string[]): FieldSpec {
+  return { target, field, type: 'object', aliases }
+}
+
 function arr(target: string, field: string, aliases?: string[]): FieldSpec {
   return { target, field, type: 'array', aliases }
 }
@@ -104,7 +109,7 @@ export const FIELD_REGISTRY: FieldSpec[] = [
   // worldviews: v3 结构字段。summary 作为 AI 反推别名归一到 worldOrigin。
   longtext('worldviews', 'worldOrigin', ['summary', 'origin', 'worldSummary', '世界来源', '世界起源']),
   longtext('worldviews', 'powerHierarchy', ['powerSystem', 'power', '力量体系']),
-  json('worldviews', 'divineDesign', ['divinity', '神明设定']),
+  object('worldviews', 'divineDesign', ['divinity', '神明设定']),
   longtext('worldviews', 'worldStructure', ['structure', '世界结构']),
   longtext('worldviews', 'worldDimensions', ['dimensions', '世界尺寸']),
   longtext('worldviews', 'continentLayout', ['continent', 'layout', '地貌分布', '大陆分布']),
@@ -112,7 +117,7 @@ export const FIELD_REGISTRY: FieldSpec[] = [
   longtext('worldviews', 'mountainsRivers', ['山川河流']),
   longtext('worldviews', 'climateByRegion', ['climate', '气候']),
   longtext('worldviews', 'naturalResourceOverview', ['自然资源概述', '自然资源全貌']),
-  json('worldviews', 'naturalResources', ['resources', '自然资源']),
+  object('worldviews', 'naturalResources', ['resources', '自然资源']),
   longtext('worldviews', 'historyLine', ['history', 'worldHistory', '历史线']),
   longtext('worldviews', 'worldEvents', ['events', '大事记']),
   longtext('worldviews', 'races', ['species', '种族']),
