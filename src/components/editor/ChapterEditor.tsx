@@ -419,6 +419,13 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
     }
   }
 
+  // 手动「重新生成摘要」：改完终稿（如去 AI 味后贴回）能基于当前正文刷新摘要，
+  // 不必非走一次 AI 生成/续写才更新（社区反馈）。
+  const handleManualSummary = async () => {
+    if (!plainText.trim() || autoProcessing === 'summarizing') return
+    await handleAutoSummary(plainText)
+  }
+
   // ── Phase A1: 生成正文完成后的自动流程 ──
   // 接受AI生成的文本后，自动触发状态提取 → 摘要生成
   const handleAutoPostGenerate = async (text: string) => {
@@ -785,11 +792,26 @@ export default function ChapterEditor({ project, outlineNodeId }: Props) {
         </div>
       )}
 
-      {/* Phase A3: 章节摘要显示 */}
-      {currentChapter?.summary && (
+      {/* Phase A3: 章节摘要显示 + 手动重新生成（改完终稿可基于当前正文刷新） */}
+      {(currentChapter?.summary || plainText) && (
         <div className="mb-3 p-3 bg-bg-elevated border border-border rounded-lg">
-          <p className="text-xs text-text-muted mb-1">📝 章节摘要</p>
-          <p className="text-sm text-text-secondary">{currentChapter.summary}</p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-text-muted">📝 章节摘要</p>
+            <button
+              onClick={handleManualSummary}
+              disabled={!plainText || autoProcessing === 'summarizing' || summaryAI.isStreaming}
+              title="基于当前正文重新生成摘要（去 AI 味/手改后刷新）"
+              className="flex items-center gap-1 text-xs text-text-muted hover:text-accent disabled:opacity-50 transition-colors"
+            >
+              <FileText className="w-3 h-3" />
+              {autoProcessing === 'summarizing'
+                ? '生成中...'
+                : currentChapter?.summary ? '重新生成' : '生成摘要'}
+            </button>
+          </div>
+          {currentChapter?.summary
+            ? <p className="text-sm text-text-secondary">{currentChapter.summary}</p>
+            : <p className="text-xs text-text-muted/60">改完正文后点「生成摘要」，让后续章节读到最新前情。</p>}
         </div>
       )}
 
