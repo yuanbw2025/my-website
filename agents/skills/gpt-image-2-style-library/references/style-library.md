@@ -20,7 +20,7 @@ Generated from `data/style-library.json`. Use this file as the detailed index fo
 - Scenes: Tech, Social
 - Tags: UI, Dashboard, Screenshot
 - Cover: `/images/case17.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-ui
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-ui
 - Example cases: case 17, case 2, case 4
 
 Use when:
@@ -47,7 +47,7 @@ Pitfalls:
 - Scenes: Education, Tech
 - Tags: Infographic, Chart, Education
 - Cover: `/images/case334.png`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-infographic
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-infographic
 - Example cases: case 334, case 1, case 8
 
 Use when:
@@ -74,7 +74,7 @@ Pitfalls:
 - Scenes: Education, Tech
 - Tags: Infographic, Chart, Education
 - Cover: `/images/case341.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-infographic
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-infographic
 - Example cases: case 341
 
 Use when:
@@ -101,7 +101,7 @@ Pitfalls:
 - Scenes: Commerce, Social
 - Tags: Poster, Typography, Campaign
 - Cover: `/images/case345.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
 - Example cases: case 345, case 5, case 10
 
 Use when:
@@ -128,7 +128,7 @@ Pitfalls:
 - Scenes: Commerce, Fashion
 - Tags: Poster, Campaign, Typography
 - Cover: `/images/case350.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
 - Example cases: case 350, case 3
 
 Use when:
@@ -155,7 +155,7 @@ Pitfalls:
 - Scenes: Creative, Social
 - Tags: Typography, Poster, Style
 - Cover: `/images/case355.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
 - Example cases: case 355
 
 Use when:
@@ -182,7 +182,7 @@ Pitfalls:
 - Scenes: Story, History
 - Tags: Poster, Classical, Style
 - Cover: `/images/case359.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
 - Example cases: case 359
 
 Use when:
@@ -209,7 +209,7 @@ Pitfalls:
 - Scenes: Education
 - Tags: Poster, Education, Style
 - Cover: `/images/case339.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster
 - Example cases: case 339
 
 Use when:
@@ -236,7 +236,7 @@ Pitfalls:
 - Scenes: Commerce, Food
 - Tags: Product, Commerce, Packaging
 - Cover: `/images/case373.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-product
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-product
 - Example cases: case 373, case 358
 
 Use when:
@@ -263,7 +263,7 @@ Pitfalls:
 - Scenes: Commerce, Fashion
 - Tags: Product, Layout, Style
 - Cover: `/images/case353.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-product
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-product
 - Example cases: case 353
 
 Use when:
@@ -290,7 +290,7 @@ Pitfalls:
 - Scenes: Commerce
 - Tags: Brand, Logo, Identity
 - Cover: `/images/case354.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-brand
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-brand
 - Example cases: case 354
 
 Use when:
@@ -317,7 +317,7 @@ Pitfalls:
 - Scenes: Commerce, Social
 - Tags: Brand, Identity, Campaign
 - Cover: `/images/case362.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-brand
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-brand
 - Example cases: case 362
 
 Use when:
@@ -344,7 +344,7 @@ Pitfalls:
 - Scenes: Travel, Commerce
 - Tags: Architecture, Interior, Map
 - Cover: `/images/case331.png`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-architecture
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-architecture
 - Example cases: case 331, case 11
 
 Use when:
@@ -371,7 +371,7 @@ Pitfalls:
 - Scenes: Fashion, Commerce
 - Tags: Photography, Realistic, Lens
 - Cover: `/images/case377.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-photo
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-photo
 - Example cases: case 377
 
 Use when:
@@ -398,7 +398,7 @@ Pitfalls:
 - Scenes: Travel, Social
 - Tags: Photography, Realistic, Scene
 - Cover: `/images/case376.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-photo
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-photo
 - Example cases: case 376
 
 Use when:
@@ -425,7 +425,7 @@ Pitfalls:
 - Scenes: Story, Creative
 - Tags: Illustration, Art, Style
 - Cover: `/images/case346.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-illustration
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-illustration
 - Example cases: case 346, case 6
 
 Use when:
@@ -452,7 +452,7 @@ Pitfalls:
 - Scenes: Story
 - Tags: Character, Pose, Style
 - Cover: `/images/case347.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-character
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-character
 - Example cases: case 347
 
 Use when:
@@ -479,7 +479,7 @@ Pitfalls:
 - Scenes: Commerce, Creative
 - Tags: Character, 3D, Style
 - Cover: `/images/case378.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-character
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-character
 - Example cases: case 378
 
 Use when:
@@ -506,7 +506,7 @@ Pitfalls:
 - Scenes: Story, Social
 - Tags: Scene, Story, Storyboard
 - Cover: `/images/case330.png`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-scene
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-scene
 - Example cases: case 330
 
 Use when:
@@ -533,7 +533,7 @@ Pitfalls:
 - Scenes: History, Story
 - Tags: History, Classical, Scroll
 - Cover: `/images/case375.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-history
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-history
 - Example cases: case 375, case 338
 
 Use when:
@@ -560,7 +560,7 @@ Pitfalls:
 - Scenes: Education, Tech
 - Tags: Document, Publishing, Layout
 - Cover: `/images/case360.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-document
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-document
 - Example cases: case 360
 
 Use when:
@@ -587,7 +587,7 @@ Pitfalls:
 - Scenes: Creative, Tech
 - Tags: Creative, R&D, Special
 - Cover: `/images/case370.jpg`
-- Template source: https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-other
+- Template source: https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-other
 - Example cases: case 370, case 361
 
 Use when:

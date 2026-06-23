@@ -3,10 +3,10 @@
 <h3 align="center">AI 视觉场景库 | 中文 AI 图像案例、提示词槽位、场景模板与实战生图指南</h3>
 
 <p align="center">
-  <a href="https://github.com/freestylefly/awesome-gpt-image-2"><img src="https://img.shields.io/github/stars/freestylefly/awesome-gpt-image-2?style=flat-square&color=rgb(25%2C%20121%2C%20255)" alt="Stars"></a>
-  <a href="https://github.com/freestylefly/awesome-gpt-image-2"><img src="https://img.shields.io/github/forks/freestylefly/awesome-gpt-image-2?style=flat-square&color=green" alt="Forks"></a>
-  <a href="https://github.com/freestylefly/awesome-gpt-image-2"><img src="https://img.shields.io/badge/Cases-378-blueviolet?style=flat-square" alt="Cases"></a>
-  <a href="https://github.com/freestylefly/awesome-gpt-image-2"><img src="https://img.shields.io/badge/100%25-Original_AI_Rewritten-green?style=flat-square" alt="Original"></a>
+  <a href="https://github.com/yuanbw2025/awesome-gpt-image-2"><img src="https://img.shields.io/github/stars/yuanbw2025/awesome-gpt-image-2?style=flat-square&color=rgb(25%2C%20121%2C%20255)" alt="Stars"></a>
+  <a href="https://github.com/yuanbw2025/awesome-gpt-image-2"><img src="https://img.shields.io/github/forks/yuanbw2025/awesome-gpt-image-2?style=flat-square&color=green" alt="Forks"></a>
+  <a href="https://github.com/yuanbw2025/awesome-gpt-image-2"><img src="https://img.shields.io/badge/Cases-378-blueviolet?style=flat-square" alt="Cases"></a>
+  <a href="https://github.com/yuanbw2025/awesome-gpt-image-2"><img src="https://img.shields.io/badge/100%25-Original_AI_Rewritten-green?style=flat-square" alt="Original"></a>
 </p>
 
 <p align="center">
@@ -229,7 +229,7 @@ GPT-Image2 全量开放后，AI 画图从“能不能出图”变成了“能不
 
 仓库内提供了 agent skill，用同一份风格库数据为 Claude Code、Codex 等 Agent 选择 GPT-Image2 模板、分类、风格和场景标签。
 
-包地址：[npm](https://www.npmjs.com/package/gpt-image-2-style-library) / [GitHub Packages](https://github.com/freestylefly/awesome-gpt-image-2/pkgs/npm/gpt-image-2-style-library)
+包地址：[npm](https://www.npmjs.com/package/gpt-image-2-style-library) / [GitHub Packages](https://github.com/yuanbw2025/awesome-gpt-image-2/pkgs/npm/gpt-image-2-style-library)
 
 <p align="center">
   <img src="agents/skills/gpt-image-2-style-library/assets/city-life-system-map.png" alt="使用 GPT-Image2 风格库 skill 生成的城市生命系统图谱示例" width="760">
@@ -242,13 +242,13 @@ GPT-Image2 全量开放后，AI 画图从“能不能出图”变成了“能不
 推荐给 Claude Code、Codex、Cursor，以及其他 [`skills`](https://www.npmjs.com/package/skills) 支持的本地 Agent：
 
 ```bash
-npx skills add freestylefly/awesome-gpt-image-2 --skill gpt-image-2-style-library --agent claude-code codex --global --yes --copy
+npx skills add yuanbw2025/awesome-gpt-image-2 --skill gpt-image-2-style-library --agent claude-code codex --global --yes --copy
 ```
 
 安装到所有支持的本地 Agent：
 
 ```bash
-npx skills add freestylefly/awesome-gpt-image-2 --global --all --copy
+npx skills add yuanbw2025/awesome-gpt-image-2 --global --all --copy
 ```
 
 ### Claude Code 插件市场
@@ -256,7 +256,7 @@ npx skills add freestylefly/awesome-gpt-image-2 --global --all --copy
 在 Claude Code 中运行：
 
 ```text
-/plugin marketplace add freestylefly/awesome-gpt-image-2
+/plugin marketplace add yuanbw2025/awesome-gpt-image-2
 /plugin install gpt-image-2-style-library@awesome-gpt-image-2
 ```
 
@@ -519,7 +519,7 @@ GOOGLE_ANALYTICS_REFRESH_TOKEN=
 
 ## Star 趋势图
 
-[![Star History Chart](https://api.star-history.com/svg?repos=freestylefly/awesome-gpt-image-2&type=Date)](https://star-history.com/#freestylefly/awesome-gpt-image-2&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=yuanbw2025/awesome-gpt-image-2&type=Date)](https://star-history.com/#yuanbw2025/awesome-gpt-image-2&Date)
 
 ## 📜 开源协议
 

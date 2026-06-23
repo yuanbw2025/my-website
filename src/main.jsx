@@ -38,7 +38,7 @@ import visualGuides from './data/visual-guides.json';
 import wechatCommunityImage from './assets/wechat-community.jpg';
 import skillExampleImage from '../agents/skills/gpt-image-2-style-library/assets/city-life-system-map.png';
 
-const fallbackRepoUrl = 'https://github.com/freestylefly/awesome-gpt-image-2';
+const fallbackRepoUrl = 'https://github.com/yuanbw2025/awesome-gpt-image-2';
 const gaMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
 
 const copy = {
@@ -2456,7 +2456,7 @@ function SkillSection({ language, repoUrl }) {
   const t = copy[language];
   const [commandCopied, setCommandCopied] = useState(false);
   const installCommand =
-    'npx skills add freestylefly/awesome-gpt-image-2 --skill gpt-image-2-style-library --agent claude-code codex --global --yes --copy';
+    'npx skills add yuanbw2025/awesome-gpt-image-2 --skill gpt-image-2-style-library --agent claude-code codex --global --yes --copy';
   const skillSourceUrl = `${repoUrl}/tree/main/agents/skills/gpt-image-2-style-library`;
   const npmUrl = 'https://www.npmjs.com/package/gpt-image-2-style-library';
 

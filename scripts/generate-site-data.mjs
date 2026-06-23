@@ -162,7 +162,7 @@ function parseCases() {
         styles: tags.styles,
         scenes: tags.scenes,
         featured: featuredIds.has(id),
-        githubUrl: `https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/gallery-part-${part}.md#case-${id}`
+        githubUrl: `https://github.com/yuanbw2025/awesome-gpt-image-2/blob/main/docs/gallery-part-${part}.md#case-${id}`
       });
     }
   }
@@ -176,7 +176,7 @@ const styles = [...new Set(cases.flatMap((item) => item.styles))].sort();
 const scenes = [...new Set(cases.flatMap((item) => item.scenes))].sort();
 
 const payload = {
-  repository: 'https://github.com/freestylefly/awesome-gpt-image-2',
+  repository: 'https://github.com/yuanbw2025/awesome-gpt-image-2',
   totalCases: cases.length,
   categories,
   styles,
