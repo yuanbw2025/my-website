@@ -21,7 +21,7 @@
 
 ## Star 趋势图
 
-[![Star History Chart](https://api.star-history.com/svg?repos=freestylefly/awesome-gpt-image-2&type=Date)](https://star-history.com/#freestylefly/awesome-gpt-image-2&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=yuanbw2025/awesome-gpt-image-2&type=Date)](https://star-history.com/#yuanbw2025/awesome-gpt-image-2&Date)
 
 ## 公众号与交流群
 
