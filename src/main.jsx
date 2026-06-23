@@ -544,6 +544,31 @@ function textFor(value, language) {
   return value[language] || value.en || value.zh || '';
 }
 
+function resolvePublicAsset(path) {
+  if (!path || /^(?:[a-z]+:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) {
+    return path;
+  }
+
+  const base = import.meta.env.BASE_URL || '/';
+  if (path.startsWith(base)) return path;
+  return `${base}${path.replace(/^\/+/, '')}`;
+}
+
+function resolveLibraryAssets(library) {
+  return Object.fromEntries(
+    Object.entries(library).map(([key, value]) => [
+      key,
+      Array.isArray(value)
+        ? value.map((item) => (
+            item && typeof item === 'object' && item.cover
+              ? { ...item, cover: resolvePublicAsset(item.cover) }
+              : item
+          ))
+        : value
+    ])
+  );
+}
+
 function listFor(value, language) {
   const localized = value?.[language] || value?.en || value?.zh || [];
   return Array.isArray(localized) ? localized : [];
@@ -3164,8 +3189,14 @@ function App() {
     ])
       .then(([payload, library]) => {
         if (!cancelled) {
-          setSiteData(payload);
-          setStyleLibrary(library);
+          setSiteData({
+            ...payload,
+            cases: payload.cases.map((item) => ({
+              ...item,
+              image: resolvePublicAsset(item.image)
+            }))
+          });
+          setStyleLibrary(resolveLibraryAssets(library));
         }
       });
     return () => {
