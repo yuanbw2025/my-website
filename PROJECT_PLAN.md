@@ -40,7 +40,7 @@
 │ novel-game       │──subtree pull──▶│ novel-game/                  │
 │ ai-slides        │──subtree pull──▶│ ai-slides/                   │
 │ ai-presentation  │──subtree pull──▶│ ai-presentation/             │
-│ wechat-html-injector│─subtree pull─▶│ wechat-plugin/              │
+│ wechat-html-injector│─subtree pull─▶│ wechat-plugin/extension/     │
 │ infiniteskill    │──subtree pull──▶│ infiniteskill/               │
 └──────────────────┘                 │                              │
                                      │ + index.html (门户页面)       │
@@ -71,6 +71,13 @@ cd ~/Desktop/projects/my-website
 git subtree pull --prefix=storyforge storyforge-mirror main --squash \
   -m "sync: pull latest storyforge"
 git push origin main                # 触发 Vercel 部署
+```
+
+微信 HTML 注入器保留 `wechat-plugin/` 落地页，源码同步到其子目录：
+
+```bash
+git subtree pull --prefix=wechat-plugin/extension wechat-html-injector-mirror main --squash \
+  -m "sync: pull latest wechat html injector"
 ```
 
 **批量同步所有子项目（使用 sync.sh）：**

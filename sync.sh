@@ -14,16 +14,17 @@
 
 set -e
 
-# 子项目映射：子目录名:remote名
+# 子项目映射：命令名:主库子目录:remote名
 PROJECTS=(
-  "storyforge:storyforge-mirror"
-  "yuntype:yuntype-mirror"
-  "novel-game:novel-game-mirror"
-  "ai-slides:ai-slides-mirror"
-  "ai-presentation:ai-presentation-mirror"
-  "cyber-flying-sword:cyber-flying-sword-mirror"
-  "promo-video-maker:promo-video-maker-mirror"
-  "awesome-gpt-image-2:awesome-gpt-image-2-mirror"
+  "storyforge:storyforge:storyforge-mirror"
+  "yuntype:yuntype:yuntype-mirror"
+  "novel-game:novel-game:novel-game-mirror"
+  "ai-slides:ai-slides:ai-slides-mirror"
+  "ai-presentation:ai-presentation:ai-presentation-mirror"
+  "cyber-flying-sword:cyber-flying-sword:cyber-flying-sword-mirror"
+  "promo-video-maker:promo-video-maker:promo-video-maker-mirror"
+  "awesome-gpt-image-2:awesome-gpt-image-2:awesome-gpt-image-2-mirror"
+  "wechat-plugin:wechat-plugin/extension:wechat-html-injector-mirror"
 )
 
 # 如果传了参数，只同步指定项目
@@ -32,11 +33,10 @@ TARGET="$1"
 synced=0
 
 for entry in "${PROJECTS[@]}"; do
-  prefix="${entry%%:*}"
-  remote="${entry##*:}"
+  IFS=: read -r target prefix remote <<< "$entry"
 
   # 如果指定了 TARGET，跳过不匹配的
-  if [ -n "$TARGET" ] && [ "$prefix" != "$TARGET" ]; then
+  if [ -n "$TARGET" ] && [ "$target" != "$TARGET" ]; then
     continue
   fi
 
