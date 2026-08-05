@@ -1,18 +1,30 @@
-import { useEffect } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import { useCharacterStore } from '../../stores/character'
 import type { Project, Character } from '../../lib/types'
 import { filterCharactersByRoleWeight } from '../../lib/character/character-axes'
+import CharacterDimensionFields from './CharacterDimensionFields'
+import CharacterSupplementAction from './CharacterSupplementAction'
+import { filledDimensions } from '../../lib/character/character-dimensions'
+import { CInput } from '../shared/CompositionInput'
 
 interface Props {
   project: Project
 }
 
-/** v3 §2.1 — NPC（紧凑列表视图） */
+/** v3 §2.1 — NPC（紧凑列表视图 + 可展开完整设定） */
 export default function CharacterNPCPanel({ project }: Props) {
   const { characters, loadAll, addCharacter, updateCharacter, deleteCharacter } = useCharacterStore()
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
 
   useEffect(() => { loadAll(project.id!) }, [project.id, loadAll])
+
+  const toggle = (id: number) => setExpanded(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
 
   const list = filterCharactersByRoleWeight(characters, 'npc')
 
@@ -50,38 +62,63 @@ export default function CharacterNPCPanel({ project }: Props) {
         </div>
       ) : (
         <div className="bg-bg-surface border border-border rounded-xl divide-y divide-border">
-          {list.map(c => (
-            <div key={c.id} className="flex items-center gap-3 p-3 hover:bg-bg-hover transition-colors">
-              <input
-                type="text"
-                value={c.name}
-                onChange={e => update(c.id!, { name: e.target.value })}
-                placeholder="姓名"
-                className="w-32 flex-shrink-0 px-2 py-1 bg-bg-base border border-border rounded text-sm font-medium text-text-primary focus:outline-none focus:border-accent"
-              />
-              <input
-                type="text"
-                value={c.location || ''}
-                onChange={e => update(c.id!, { location: e.target.value })}
-                placeholder="地点"
-                className="w-28 flex-shrink-0 px-2 py-1 bg-bg-base border border-border rounded text-sm text-text-primary focus:outline-none focus:border-accent"
-              />
-              <input
-                type="text"
-                value={c.shortDescription}
-                onChange={e => update(c.id!, { shortDescription: e.target.value })}
-                placeholder="一句话描述（性格/职业/作用）..."
-                className="flex-1 px-2 py-1 bg-bg-base border border-border rounded text-sm text-text-primary focus:outline-none focus:border-accent"
-              />
-              <button
-                onClick={() => deleteCharacter(c.id!)}
-                className="p-1 text-text-muted hover:text-error flex-shrink-0"
-                title="删除"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+          {list.map(c => {
+            const filled = filledDimensions(c).filter(k => k !== 'shortDescription' && k !== 'location').length
+            const isOpen = expanded.has(c.id!)
+            return (
+            <div key={c.id} className="p-3 hover:bg-bg-hover transition-colors">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => toggle(c.id!)}
+                  className="p-0.5 text-text-muted hover:text-accent flex-shrink-0"
+                  title={isOpen ? '收起完整设定' : '展开完整设定'}
+                >
+                  {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                <CInput
+                  value={c.name}
+                  onChange={e => update(c.id!, { name: e.target.value })}
+                  placeholder="姓名"
+                  className="w-32 flex-shrink-0 px-2 py-1 bg-bg-base border border-border rounded text-sm font-medium text-text-primary focus:outline-none focus:border-accent"
+                />
+                <CInput
+                  value={c.location || ''}
+                  onChange={e => update(c.id!, { location: e.target.value })}
+                  placeholder="地点"
+                  className="w-28 flex-shrink-0 px-2 py-1 bg-bg-base border border-border rounded text-sm text-text-primary focus:outline-none focus:border-accent"
+                />
+                <CInput
+                  value={c.shortDescription}
+                  onChange={e => update(c.id!, { shortDescription: e.target.value })}
+                  placeholder="一句话描述（性格/职业/作用）..."
+                  className="flex-1 px-2 py-1 bg-bg-base border border-border rounded text-sm text-text-primary focus:outline-none focus:border-accent"
+                />
+                {filled > 0 && !isOpen && (
+                  <span className="flex-shrink-0 text-[11px] text-text-muted whitespace-nowrap" title="已有完整设定，点左侧箭头展开">已填 {filled} 项 ▸</span>
+                )}
+                <CharacterSupplementAction
+                  character={c}
+                  projectId={project.id!}
+                  worldGroupId={c.homeWorldGroupId ?? null}
+                  onDone={() => loadAll(project.id!)}
+                  compact
+                />
+                <button
+                  onClick={() => deleteCharacter(c.id!)}
+                  className="p-1 text-text-muted hover:text-error flex-shrink-0"
+                  title="删除"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+              {isOpen && (
+                <div className="mt-3 pl-7">
+                  <CharacterDimensionFields character={c} onChange={patch => update(c.id!, patch)} exclude={['shortDescription', 'location']} />
+                </div>
+              )}
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

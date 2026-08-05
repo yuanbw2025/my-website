@@ -7,11 +7,16 @@
 
 import type { UnifiedParseResult } from '../types'
 import type { ImportSession } from '../types'
+import type { CodexImportCategoryOption } from './codex-classification'
+import {
+  mergeCodexImportCandidates,
+  normalizeCodexImportCandidates,
+} from './codex-classification'
 
 const CHARACTER_LIKE_SYSTEM_WORDS = /精灵|器灵|人格|助手|伙伴|化身|宿主|管理员|管家/
 
 function normalizeConceptName(name: string): string {
-  return name.replace(/[\s　:：\-—_【】\[\]（）()]/g, '').trim()
+  return name.replace(/[\s\u3000:：—_【】[\]（）()-]/g, '').trim()
 }
 
 function isNonCharacterConceptName(name: string): boolean {
@@ -98,6 +103,20 @@ export function normalizeNonCharacterConcepts(input: UnifiedParseResult): Unifie
  * - worldview: 每个字段以 "\n\n" 连接追加
  * - characters / outline: 直接 push（跨块重名由 runCharacterMerge 另行处理）
  */
+/** 世界观字段追加：段落级去重，已存在的段落不再重复拼接。 */
+function appendDedupParagraph(cur: string, add: string): string {
+  if (!add) return cur
+  if (!cur) return add
+  const existing = cur.split('\n\n').map(s => s.trim())
+  if (existing.includes(add)) return cur
+  return `${cur}\n\n${add}`
+}
+
+/** 大纲节点去重键：标题 + 摘要精确匹配。 */
+function olKey(n: Record<string, unknown>): string {
+  return `${String(n.title ?? '').trim()}¦${String(n.summary ?? '').trim()}`
+}
+
 export function mergeUnified(
   acc: UnifiedParseResult,
   fresh: UnifiedParseResult,
@@ -106,25 +125,54 @@ export function mergeUnified(
     worldview: { ...(acc.worldview || {}) },
     characters: [...(acc.characters || [])],
     outline: [...(acc.outline || [])],
+    codexCandidates: [...(acc.codexCandidates || [])],
     writingTechniques: { ...(acc.writingTechniques || {}) },
   }
+  // 世界观：段落级去重——每块常重述同一段设定，旧代码无脑 \n\n 拼接会拼成 N 份
+  // （社区反馈：导入后世界观同一句重复十几遍）。同一段落只保留一次。
   if (fresh.worldview) {
     for (const [k, v] of Object.entries(fresh.worldview)) {
       if (typeof v === 'string' && v.trim()) {
-        const cur = out.worldview![k] || ''
-        out.worldview![k] = cur ? `${cur}\n\n${v.trim()}` : v.trim()
+        out.worldview![k] = appendDedupParagraph(out.worldview![k] || '', v.trim())
       }
     }
   }
+  // 角色：按名字去重——每块都会重复吐出同一角色，旧代码无脑 push 堆到几百个。
+  // 同名只保留信息最全的一条（不同称呼的语义合并仍由「AI 整理角色卡」处理）。
   if (Array.isArray(fresh.characters)) {
+    const idxByName = new Map<string, number>()
+    out.characters!.forEach((c, i) => {
+      const n = String((c as Record<string, unknown>).name ?? '').trim()
+      if (n) idxByName.set(n, i)
+    })
     for (const c of fresh.characters) {
-      if (c && typeof c.name === 'string' && c.name.trim()) {
+      const name = c && typeof c.name === 'string' ? c.name.trim() : ''
+      if (!name) continue
+      const existingIdx = idxByName.get(name)
+      if (existingIdx == null) {
+        idxByName.set(name, out.characters!.length)
         out.characters!.push(c)
+      } else if (JSON.stringify(c).length > JSON.stringify(out.characters![existingIdx]).length) {
+        // 后出现的信息更全 → 用它替换（保留信息最多的一份）
+        out.characters![existingIdx] = c
       }
     }
   }
+  // 大纲：按「标题+摘要」精确去重（分块重叠会重复吐同一节点；不同章节标题/摘要不同，不会误删）。
   if (Array.isArray(fresh.outline)) {
-    for (const n of fresh.outline) out.outline!.push(n)
+    const seen = new Set(out.outline!.map(olKey))
+    for (const n of fresh.outline) {
+      const key = olKey(n as Record<string, unknown>)
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.outline!.push(n)
+    }
+  }
+  if (Array.isArray(fresh.codexCandidates)) {
+    out.codexCandidates = mergeCodexImportCandidates(
+      out.codexCandidates || [],
+      fresh.codexCandidates,
+    )
   }
   // 写作技法：每个字段追加拼接
   if (fresh.writingTechniques && typeof fresh.writingTechniques === 'object') {
@@ -169,18 +217,34 @@ export function buildRollingContext(merged: UnifiedParseResult): string {
       lines.push(keep.join(' / '))
     }
   }
+  if (merged.codexCandidates?.length) {
+    lines.push(`【已识别词条候选（${merged.codexCandidates.length} 条）】`)
+    lines.push(merged.codexCandidates.slice(-30).map(candidate => candidate.name).join('、'))
+  }
   let txt = lines.join('\n')
   if (txt.length > 1500) txt = txt.slice(0, 1500) + '...（截断）'
   return txt
 }
 
 /** 把 AI 原始 JSON 规整成 UnifiedParseResult 的标准形状，缺项用空对象/空数组兜底。 */
-export function normalizeUnified(raw: unknown): UnifiedParseResult {
+export function normalizeUnified(raw: unknown, codex?: {
+  sourceText: string
+  chunkIndex: number
+  options: readonly CodexImportCategoryOption[]
+}): UnifiedParseResult {
   const r = (raw as UnifiedParseResult) || {}
   return normalizeNonCharacterConcepts({
     worldview: r.worldview && typeof r.worldview === 'object' ? r.worldview : {},
     characters: Array.isArray(r.characters) ? r.characters : [],
     outline: Array.isArray(r.outline) ? r.outline : [],
+    codexCandidates: codex
+      ? normalizeCodexImportCandidates(
+          (r as unknown as Record<string, unknown>).codexCandidates,
+          codex.sourceText,
+          codex.chunkIndex,
+          codex.options,
+        )
+      : (Array.isArray(r.codexCandidates) ? r.codexCandidates : []),
     writingTechniques: r.writingTechniques && typeof r.writingTechniques === 'object'
       ? r.writingTechniques : {},
   })
@@ -199,12 +263,14 @@ export function buildFinalReport(session: ImportSession): string {
   const totalOl = session.chunks
     .map(c => c.extractedCounts?.outlineNodes || 0)
     .reduce((a, b) => a + b, 0)
+  const codexCandidates = session.merged?.codexCandidates?.length || 0
   const lines = [
     `📊 任务汇报：${session.filename}`,
     `· 文件总字数：${session.totalChars.toLocaleString()} 字`,
     `· 分块：${session.totalChunks} 块（每块约 ${session.chunkSize.toLocaleString()} 字）`,
     `· 成功：${done} 块；失败：${failed} 块`,
     `· 累计入库：世界观字段 ${totalWv}、角色 ${totalChars}（合并前）、大纲节点 ${totalOl}、写作技法已分析`,
+    `· 待作者审查：Codex 词条候选 ${codexCandidates} 条（尚未自动入库）`,
   ]
   if (failed > 0) {
     lines.push('')

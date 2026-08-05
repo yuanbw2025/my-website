@@ -9,6 +9,10 @@
  */
 
 import type { AIProvider, ChatMessage } from '../types'
+import {
+  CONTINUITY_CORE_END,
+  CONTINUITY_CORE_START,
+} from './chapter-memory/continuity-envelope'
 
 // ── 模型上下文窗口预设 ──────────────────────────────
 
@@ -77,6 +81,21 @@ export const MODEL_CONTEXT_PRESETS: Record<string, ModelContextPreset> = {
   'agnes': { label: 'Agnes 默认', maxContext: 1_000_000, maxOutput: 8_192 },
   'agnes:agnes-1.5-flash': { label: 'Agnes 1.5 Flash', maxContext: 1_000_000, maxOutput: 8_192 },
   'agnes:Agnes-2.0-Flash': { label: 'Agnes 2.0 Flash', maxContext: 1_000_000, maxOutput: 8_192 },
+
+  // LongCat(美团 · OpenAI 兼容 · 1M 上下文)
+  'longcat': { label: 'LongCat 默认', maxContext: 1_000_000, maxOutput: 128_000 },
+  'longcat:LongCat-2.0': { label: 'LongCat 2.0', maxContext: 1_000_000, maxOutput: 128_000 },
+
+  // OpenCode Go(chat/completions 兼容模型)
+  'opencode': { label: 'OpenCode Go 默认', maxContext: 128_000, maxOutput: 8_192 },
+  'opencode:kimi-k2.7-code': { label: 'Kimi K2.7 Code', maxContext: 128_000, maxOutput: 8_192 },
+  'opencode:kimi-k2.6': { label: 'Kimi K2.6', maxContext: 128_000, maxOutput: 8_192 },
+  'opencode:glm-5.2': { label: 'GLM-5.2', maxContext: 128_000, maxOutput: 8_192 },
+  'opencode:glm-5.1': { label: 'GLM-5.1', maxContext: 128_000, maxOutput: 8_192 },
+  'opencode:deepseek-v4-pro': { label: 'DeepSeek V4 Pro', maxContext: 128_000, maxOutput: 8_192 },
+  'opencode:deepseek-v4-flash': { label: 'DeepSeek V4 Flash', maxContext: 128_000, maxOutput: 8_192 },
+  'opencode:mimo-v2.5-pro': { label: 'MiMo-V2.5-Pro', maxContext: 128_000, maxOutput: 8_192 },
+  'opencode:mimo-v2.5': { label: 'MiMo-V2.5', maxContext: 128_000, maxOutput: 8_192 },
 
   // ModelScope
   'modelscope': { label: 'ModelScope 默认', maxContext: 32_000, maxOutput: 8_192 },
@@ -240,6 +259,7 @@ export interface TrimmedMessagesResult {
   trimmed: boolean
   totalInputTokens: number
   inputBudget: number
+  protectedEnvelopePreserved: boolean
 }
 
 /** True request-side trimming used before fetch, not only for the UI budget preview. */
@@ -272,13 +292,47 @@ export function trimMessagesToFit(
       copy[index].content = '（此段因上下文窗口限制已裁剪）'
     } else {
       const keepTokens = Math.max(64, tokens - overflow - 128)
-      copy[index].content = trimTextToApproxTokens(copy[index].content, keepTokens)
+      copy[index].content = trimTextToApproxTokensPreservingContinuity(copy[index].content, keepTokens)
     }
     total = copy.reduce((sum, message) => sum + estimateTokens(message.content), 0)
     trimmed = true
   }
 
-  return { messages: copy, trimmed, totalInputTokens: total, inputBudget }
+  const protectedBlocks = messages.flatMap(message => extractContinuityBlocks(message.content))
+  const protectedEnvelopePreserved = total <= inputBudget && protectedBlocks.every(block =>
+    copy.some(message => message.content.includes(block))
+  )
+  return { messages: copy, trimmed, totalInputTokens: total, inputBudget, protectedEnvelopePreserved }
+}
+
+function extractContinuityBlocks(text: string): string[] {
+  const blocks: string[] = []
+  let searchFrom = 0
+  while (searchFrom < text.length) {
+    const start = text.indexOf(CONTINUITY_CORE_START, searchFrom)
+    if (start < 0) break
+    const end = text.indexOf(CONTINUITY_CORE_END, start)
+    if (end < 0) break
+    const block = text.slice(start, end + CONTINUITY_CORE_END.length)
+    blocks.push(block)
+    searchFrom = end + CONTINUITY_CORE_END.length
+  }
+  return blocks
+}
+
+function trimTextToApproxTokensPreservingContinuity(text: string, keepTokens: number): string {
+  const blocks = extractContinuityBlocks(text)
+  if (!blocks.length) return trimTextToApproxTokens(text, keepTokens)
+  const protectedBlock = blocks[blocks.length - 1]
+  const protectedTokens = estimateTokens(protectedBlock)
+  if (protectedTokens > keepTokens) {
+    // 调用方会通过 protectedEnvelopePreserved=false 明确拒绝该物理窗口。
+    return trimTextToApproxTokens(protectedBlock, keepTokens)
+  }
+  const prefix = text.slice(0, text.lastIndexOf(protectedBlock))
+  const remainingTokens = Math.max(0, keepTokens - protectedTokens - 16)
+  const keptPrefix = remainingTokens > 0 ? trimTextToApproxTokens(prefix, remainingTokens) : ''
+  return [keptPrefix, protectedBlock].filter(Boolean).join('\n')
 }
 
 function trimTextToApproxTokens(text: string, keepTokens: number): string {

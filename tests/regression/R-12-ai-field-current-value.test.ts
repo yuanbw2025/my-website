@@ -47,4 +47,36 @@ describe('R-12: AI field current value injection', () => {
     expect(prompt).toContain('忽略当前字段已有内容')
     expect(prompt).toContain('让制度更有矛盾')
   })
+
+  it('worldview origin and power generation include field boundary guards', () => {
+    const originPrompt = buildWorldviewPrompt(
+      'origin',
+      '镜城纪事',
+      'fantasy',
+      '【力量体系】镜术分九阶。',
+      '',
+      undefined,
+      '镜城由陨星镜海诞生。',
+      'expand',
+    ).map(m => m.content).join('\n\n')
+
+    expect(originPrompt).toContain('本次只生成“世界来源”')
+    expect(originPrompt).toContain('不要展开力量等级')
+    expect(originPrompt).toContain('力量体系”只能作为约束条件')
+
+    const powerPrompt = buildWorldviewPrompt(
+      'power',
+      '镜城纪事',
+      'fantasy',
+      '【世界来源】镜城由陨星镜海诞生。',
+      '',
+      undefined,
+      '镜术来自镜海潮汐。',
+      'expand',
+    ).map(m => m.content).join('\n\n')
+
+    expect(powerPrompt).toContain('本次只生成“力量体系”')
+    expect(powerPrompt).toContain('不要改写世界来源')
+    expect(powerPrompt).toContain('给出兼容方案')
+  })
 })

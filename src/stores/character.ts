@@ -3,6 +3,8 @@ import { db } from '../lib/db/schema'
 import type { Character } from '../lib/types'
 import { applyCharacterReferenceRemap } from '../lib/registry/character-references'
 import { normalizeCharacterAxes } from '../lib/character/character-axes'
+import { transactionTablesFor } from '../lib/registry/lifecycle'
+import { refreshSettingAssertionSourceStatus } from '../lib/fact-ledger/setting-assertions'
 
 // 注:势力(Faction)已于 C2 并入「势力」词条,旧 factions 表数据由
 // migrations/faction-to-codex 一次性迁移;本 store 不再管理势力。
@@ -50,6 +52,12 @@ export const useCharacterStore = create<CharacterStore>((set, get) => ({
     ) as Partial<Character>
     const updatedAt = now()
     await db.characters.update(id, { ...patch, updatedAt })
+    await refreshSettingAssertionSourceStatus({
+      projectId: current.projectId,
+      table: 'characters',
+      recordId: id,
+      changedFields: Object.keys(patch),
+    })
     set({
       characters: get().characters.map(c =>
         c.id === id ? { ...c, ...patch, updatedAt } : c
@@ -58,15 +66,16 @@ export const useCharacterStore = create<CharacterStore>((set, get) => ({
   },
 
   deleteCharacter: async (id) => {
-    await db.transaction('rw', db.characters, db.characterRelations, db.detailedOutlines, db.stateCards, async () => {
-      const char = await db.characters.get(id)
-      if (!char) return
-      await db.characters.delete(id)
+    const preChar = await db.characters.get(id)
+    if (!preChar) return
+    const projectId = preChar.projectId
+    await db.transaction('rw', transactionTablesFor('importProject'), async () => {
       await applyCharacterReferenceRemap({
-        projectId: char.projectId,
+        projectId,
         fromCharacterId: id,
-        fromName: char.name,
+        fromName: preChar.name,
       })
+      await db.characters.delete(id)
     })
     set({ characters: get().characters.filter(c => c.id !== id) })
   },

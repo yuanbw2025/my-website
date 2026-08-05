@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { X, CheckCircle2, AlertTriangle, RotateCcw, FileText, Trash2, ArrowRight } from 'lucide-react'
+import { X, CheckCircle2, AlertTriangle, RotateCcw, FileText, Trash2, ArrowRight, BookOpenCheck } from 'lucide-react'
 import type { ImportSession } from '../../../lib/types/import-session'
 
 interface Props {
@@ -9,6 +9,8 @@ interface Props {
   onDiscard: () => void
   /** 「前往查看」—— 跳到导入数据的落点（当前项目=设定库 / 项目参考页）。不传则不显示该按钮。 */
   onNavigate?: () => void
+  /** Phase 35-c：进入 Codex 候选审查；候选未确认前不会入库。 */
+  onReviewCodex?: () => void
 }
 
 /**
@@ -20,7 +22,7 @@ interface Props {
  *   · 要不要对失败块单独重试
  */
 export default function ImportReportModal({
-  session, onRetryFailed, onClose, onDiscard, onNavigate,
+  session, onRetryFailed, onClose, onDiscard, onNavigate, onReviewCodex,
 }: Props) {
   const toReference = session.importTarget === 'reference'
   const { done, failed, totalWv, totalChars, totalOl, failedChunks } = useMemo(() => {
@@ -40,18 +42,19 @@ export default function ImportReportModal({
   }, [session])
 
   const allSuccess = failed === 0
+  const codexCandidates = session.merged?.codexCandidates?.length || 0
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
       <div className="bg-bg-surface border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className={`flex items-center justify-between px-5 py-4 border-b border-border ${
-          allSuccess ? 'bg-success/10' : 'bg-warn/10'
+          allSuccess ? 'bg-success/10' : 'bg-warning/10'
         }`}>
           <div className="flex items-center gap-2">
             {allSuccess
               ? <CheckCircle2 className="w-5 h-5 text-success" />
-              : <AlertTriangle className="w-5 h-5 text-warn" />}
+              : <AlertTriangle className="w-5 h-5 text-warning" />}
             <h3 className="text-base font-semibold text-text-primary">
               {allSuccess ? '✓ 全部解析完成' : `⚠ 解析完成（${failed} 块失败）`}
             </h3>
@@ -75,11 +78,12 @@ export default function ImportReportModal({
           </div>
 
           {/* 结果摘要 */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             <StatCard label="成功块" value={done} color="text-success" />
             <StatCard label="失败块" value={failed} color={failed > 0 ? 'text-error' : 'text-text-muted'} />
             <StatCard label="世界观字段+" value={totalWv} color="text-accent" />
             <StatCard label="累计角色+" value={totalChars} color="text-accent" />
+            <StatCard label="词条候选" value={codexCandidates} color="text-accent" />
           </div>
           <div className="text-xs text-text-muted">
             大纲节点累计 +{totalOl} 个（跨块合并已自动处理别名去重）。
@@ -96,6 +100,38 @@ export default function ImportReportModal({
                 {toReference
                   ? '解析结果已作为创作参照保存到「项目参考」页，不影响当前项目。无需再点导入；关闭后可在「项目参考」中查看，并按需采用到项目。'
                   : '解析出的世界观、角色、大纲已在解析过程中实时写入对应模块——无需再点导入。关闭本窗口后，即可在左侧「设定库 / 角色设计 / 大纲」中查看与编辑。'}
+              </div>
+            </div>
+          )}
+
+          {codexCandidates > 0 && (
+            <div className={`border rounded-lg p-3 text-sm ${
+              session.codexAdoption
+                ? 'bg-success/10 border-success/30'
+                : 'bg-accent/10 border-accent/30'
+            }`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className={`flex items-center gap-1.5 font-medium ${
+                    session.codexAdoption ? 'text-success' : 'text-accent'
+                  }`}>
+                    <BookOpenCheck className="w-4 h-4" />
+                    {session.codexAdoption
+                      ? `词条审查已完成：新增 ${session.codexAdoption.imported}、补全 ${session.codexAdoption.updated}、跳过 ${session.codexAdoption.skipped}`
+                      : `${codexCandidates} 条 Codex 候选等待作者审查`}
+                  </div>
+                  <div className="text-xs text-text-secondary mt-1">
+                    AI 分类不会自动写库；可逐条取消、改名或改分类后再确认。
+                  </div>
+                </div>
+                {onReviewCodex && !session.codexAdoption && (
+                  <button
+                    onClick={onReviewCodex}
+                    className="px-3 py-2 bg-accent text-white text-xs rounded hover:bg-accent-hover shrink-0"
+                  >
+                    审查并选择
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -156,7 +192,7 @@ export default function ImportReportModal({
             {failedChunks.length > 0 && (
               <button
                 onClick={onRetryFailed}
-                className="flex items-center gap-1.5 px-4 py-2 bg-warn text-white text-sm rounded hover:bg-warn/90"
+                className="flex items-center gap-1.5 px-4 py-2 bg-warning text-white text-sm rounded hover:bg-warning/90"
               >
                 <RotateCcw className="w-4 h-4" /> 重试失败块（{failedChunks.length}）
               </button>

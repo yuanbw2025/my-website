@@ -371,6 +371,42 @@ export const GENRE_METADATA: GenreMetadata[] = [
     ],
   },
   {
+    id: 'shishi',
+    label: '史诗奇幻',
+    emoji: '🏰',
+    description: '宏大世界、群像远征、文明与命运级冲突',
+    antiPatterns: [
+      '避免只堆设定而缺少人物选择',
+      '避免阵营过多导致主线失焦',
+      '避免史诗战争没有代价和后果',
+    ],
+    pacingStrategy: '个人使命与世界格局交替推进，以远征、盟约、战争和牺牲构成卷级高潮',
+    typicalStructure: [
+      { title: '召唤', description: '危机显现、主角卷入宏大使命' },
+      { title: '结盟', description: '穿越地域与阵营，建立同盟或队伍' },
+      { title: '大战', description: '文明级冲突爆发，付出关键代价' },
+      { title: '终局', description: '命运抉择、世界秩序被重写或守住' },
+    ],
+  },
+  {
+    id: 'heian',
+    label: '黑暗奇幻',
+    emoji: '🕯️',
+    description: '残酷世界、道德灰度、诅咒与代价',
+    antiPatterns: [
+      '避免为黑暗而黑暗，缺少角色动机',
+      '避免残酷事件没有剧情后果',
+      '避免把所有阵营都写成同质化邪恶',
+    ],
+    pacingStrategy: '压迫感逐步升级，在短暂喘息后设置更高代价的选择，高潮强调牺牲与不可逆后果',
+    typicalStructure: [
+      { title: '阴影', description: '建立残酷秩序、诅咒或腐化源头' },
+      { title: '交易', description: '角色为生存或目标付出代价' },
+      { title: '沦陷', description: '信任破裂、阵营崩坏或内心腐化' },
+      { title: '代价', description: '以不完美胜利或沉重牺牲收束' },
+    ],
+  },
+  {
     id: 'youxi',
     label: '游戏',
     emoji: '🎯',
@@ -390,28 +426,48 @@ export const GENRE_METADATA: GenreMetadata[] = [
   },
 ]
 
+const GENRE_METADATA_ALIASES: Record<string, string> = {
+  kehuan: 'scifi',
+  qihuan: 'xifan',
+  xifang: 'xifan',
+}
+
+export function normalizeGenreMetadataId(genreId: string): string {
+  return GENRE_METADATA_ALIASES[genreId] ?? genreId
+}
+
 /**
  * 根据题材 ID 获取元数据
  */
 export function getGenreMetadata(genreId: string): GenreMetadata | undefined {
-  return GENRE_METADATA.find(g => g.id === genreId)
+  const normalized = normalizeGenreMetadataId(genreId)
+  return GENRE_METADATA.find(g => g.id === normalized)
 }
 
 /**
  * 构建题材约束上下文（注入 AI prompt）
  */
-export function buildGenreConstraintContext(genreId: string): string {
-  const meta = getGenreMetadata(genreId)
-  if (!meta) return ''
-
-  const parts: string[] = [`【题材约束：${meta.label}】`]
-
-  if (meta.antiPatterns.length > 0) {
-    parts.push(`反模式（请避免）：${meta.antiPatterns.join('；')}`)
+export function buildGenreConstraintContext(genreIds: string | string[]): string {
+  const ids = (Array.isArray(genreIds) ? genreIds : [genreIds])
+    .map(id => id.trim())
+    .filter(Boolean)
+  const metas = new Map<string, GenreMetadata>()
+  for (const id of ids) {
+    const meta = getGenreMetadata(id)
+    if (meta) metas.set(meta.id, meta)
   }
-  if (meta.pacingStrategy) {
-    parts.push(`节奏策略：${meta.pacingStrategy}`)
-  }
+  if (metas.size === 0) return ''
 
-  return parts.join('\n')
+  return Array.from(metas.values()).map(meta => {
+    const parts: string[] = [`【题材约束：${meta.label}】`]
+
+    if (meta.antiPatterns.length > 0) {
+      parts.push(`反模式（请避免）：${meta.antiPatterns.join('；')}`)
+    }
+    if (meta.pacingStrategy) {
+      parts.push(`节奏策略：${meta.pacingStrategy}`)
+    }
+
+    return parts.join('\n')
+  }).join('\n\n')
 }

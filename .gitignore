@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 dist/
 .DS_Store
 *.local
@@ -11,3 +11,10 @@ public/fmg/
 tree.txt
 *.bak
 coverage/
+test-results/
+playwright-report/
+
+# Release packaging outputs
+release/
+packaging/desktop-server/web/*
+!packaging/desktop-server/web/placeholder.txt
