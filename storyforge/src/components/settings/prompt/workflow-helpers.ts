@@ -10,6 +10,11 @@
  */
 
 import type { SaveTarget } from '../../../lib/types/workflow'
+import type { WorkflowUpstreamInput } from '../../../lib/workflow/graph'
+import {
+  formatWorkflowUpstreamContext,
+  groupWorkflowInputsByVariable,
+} from '../../../lib/workflow/graph'
 
 /**
  * FB-1 修复 · 工作流步骤上下文整形(纯函数,可单测)。
@@ -31,17 +36,36 @@ export function assembleWorkflowStepVars(params: {
   genres?: string
   assembledContext?: string
   worldRulesContext?: string
+  userInput?: string
+  /** FLOW-1 显式图入边。提供时取代线性 prevOutput，但保留旧参数兼容。 */
+  upstreamInputs?: WorkflowUpstreamInput[]
 }): Record<string, string | number | undefined> {
-  const { step, prevOutput, projectName, genres, assembledContext, worldRulesContext } = params
+  const {
+    step,
+    prevOutput,
+    projectName,
+    genres,
+    assembledContext,
+    worldRulesContext,
+    userInput,
+    upstreamInputs,
+  } = params
   const ctx: Record<string, string | number | undefined> = {}
 
   ctx.projectName = projectName ?? ''
   ctx.genres = genres ?? ''
   ctx.dimension = step.label ?? ''
-  if (step.userHint) ctx.userHint = step.userHint
+  const mergedUserHint = [step.userHint?.trim(), userInput?.trim()].filter(Boolean).join('\n')
+  if (mergedUserHint) ctx.userHint = mergedUserHint
 
-  // 保留 inputMapping 中非 worldContext 的特定变量(worldContext 由下方通用槽位统一处理)
-  if (step.inputMapping && prevOutput) {
+  const hasGraphInputs = upstreamInputs !== undefined
+  const graphValues = hasGraphInputs ? groupWorkflowInputsByVariable(upstreamInputs) : {}
+  for (const [variable, value] of Object.entries(graphValues)) {
+    if (variable !== 'worldContext') ctx[variable] = value
+  }
+
+  // 旧线性工作流保留 inputMapping 中非 worldContext 的特定变量。
+  if (!hasGraphInputs && step.inputMapping && prevOutput) {
     for (const [from, to] of Object.entries(step.inputMapping)) {
       if (from === 'previousOutput' && to !== 'worldContext') ctx[to] = prevOutput
     }
@@ -49,8 +73,11 @@ export function assembleWorkflowStepVars(params: {
 
   if (worldRulesContext) ctx.worldRulesContext = worldRulesContext
 
-  // 通用前序上下文槽位:已存设定 + 上一步输出
-  const prior = [assembledContext, prevOutput].filter(Boolean).join('\n\n')
+  // 通用前序上下文槽位：已存设定 + 显式图入边（或旧线性的上一步输出）。
+  const upstreamContext = hasGraphInputs
+    ? formatWorkflowUpstreamContext(upstreamInputs)
+    : prevOutput
+  const prior = [assembledContext, upstreamContext].filter(Boolean).join('\n\n')
   if (prior) ctx.worldContext = prior
 
   return ctx
@@ -59,8 +86,15 @@ export function assembleWorkflowStepVars(params: {
 /** WorkflowEditor 下拉选项使用的模块键列表（与 prompt-seeds 的 system moduleKey 保持一致） */
 export const ALL_MODULE_KEYS_FOR_WORKFLOW = [
   'worldview.dimension', 'character.generate', 'character.dimension',
+  'worldview.worldbuilding', 'character.design',
+  'story.brief', 'story.ideation', 'story.positioning', 'story.core', 'story.packaging',
+  'research.method', 'prompt.operations',
   'outline.volume', 'outline.chapter',
+  'outline.plot', 'outline.structure', 'outline.long-form', 'outline.short-story', 'outline.serialization',
+  'detail.chapter-planning',
   'chapter.content', 'chapter.continue', 'chapter.polish', 'chapter.expand', 'chapter.de-ai',
+  'chapter.drafting', 'chapter.continuity', 'chapter.line-editing',
+  'review.developmental', 'review.line-editing', 'review.reader-validation',
   'foreshadow.generate', 'story.generate', 'rules.generate', 'detail.scene',
   'geography.concept-map', 'geography.image-map-prompt',
 ] as const

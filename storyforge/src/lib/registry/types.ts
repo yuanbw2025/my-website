@@ -7,6 +7,9 @@
 import type { Table } from 'dexie'
 import type { AIProvider } from '../types/ai'
 import type { ContextLayer, ContextSegment } from '../ai/context-budget'
+import type { PreparedContinuityContext } from '../ai/chapter-memory/continuity-context'
+import type { InspirationResultMode } from '../types/inspiration-workspace'
+import type { RagSelectionTraceCollector } from '../types/rag-library'
 
 /**
  * 表的归属方式 —— 决定删项目时如何定位该表的记录。
@@ -96,12 +99,29 @@ export interface ExportRemapField {
 
 /**
  * JSON 字段内引用的导出重映射(区别于 refs:refs 管删除级联,这里管导出/导入重映射)。
- * 目前仅 worldNodes.portalsJSON 一种结构(kind: 'portals')。
+ * exportAs 是新增的便携影子字段；保留原字段保证旧版导出契约可读，新版导入优先用影子字段重映射。
  */
-export interface ExportRefRemap {
+export type ExportRefRemap = {
   field: string
   remapVia: string
   kind: 'portals'
+} | {
+  field: string
+  remapVia: string
+  kind: 'id-array'
+  exportAs: string
+  storage?: 'array' | 'json-string'
+} | {
+  field: string
+  remapVia: string
+  kind: 'scene-character-ids'
+  exportAs: string
+} | {
+  /** CharacterDrivenPlan.arcs JSON 内逐项 characterId 的便携影子数组。 */
+  field: string
+  remapVia: string
+  kind: 'character-plan-arcs'
+  exportAs: string
 }
 
 /**
@@ -118,6 +138,11 @@ export interface TableSpec<T = any> {
   projectResolver?: (projectId: number) => Promise<number[]>
   /** 是否带 worldGroupId(参与多世界隔离/盖章/删世界级联) */
   worldScoped?: boolean
+  /**
+   * 导入后必须改写为本行新主键的嵌套字段路径。
+   * 例：chapters.continuityHandoff.chapterId。
+   */
+  selfIdPaths?: string[]
   /** worldGroupId 的字段名(默认 'worldGroupId') */
   worldGroupField?: string
   /** 是否带 homeWorldGroupId(仅 characters) */
@@ -128,6 +153,8 @@ export interface TableSpec<T = any> {
   refs?: RefSpec[]
   /** 是否纳入 JSON 备份导出 */
   exportable: boolean
+  /** PLATFORM-1：允许进入本地世界分享包；未显式登记的表默认禁止发布。 */
+  communityShare?: 'world'
   /** 导出时需要的 ID 重映射 */
   exportRemap?: ExportRemapField[]
   /**
@@ -183,6 +210,8 @@ export interface CollectionAdoptionSpec {
   target: string
   /** 唯一键策略(去重定位) */
   identity: 'id' | 'name' | CompositeIdentity
+  /** 只允许通过 recordId 定点更新，禁止 AI 新增集合行。 */
+  recordOnly?: boolean
   duplicatePolicy: 'skip' | 'update' | 'merge' | 'error'
   /** 必填字段;缺失则跳过该条 */
   required: string[]
@@ -193,6 +222,22 @@ export interface CollectionAdoptionSpec {
   /** 数组成员校验:过滤不存在的成员,并记录 fkErrors */
   arrayMemberChecks?: { field: string; itemTarget: string }[]
   mergeStrategy?: 'overwrite-non-empty' | 'append-text' | 'union-array'
+  /** 允许统一写回入口按这些字段清空旧集合，再写入新结果。 */
+  replaceScope?: string[]
+}
+
+/**
+ * 不适合通用 FIELD_REGISTRY/adopt() 语义的领域写回扩展。
+ * 扩展必须声明自己的策略注册表和唯一入口，禁止演变成平行通用写回层。
+ */
+export interface AdoptionExtensionSpec {
+  id: string
+  target: string
+  entrypoints: string[]
+  policyRegistry: string
+  reason: string
+  /** 到期后 CI 必须重新审查，而不是让例外永久沉积。ISO 日期。 */
+  reviewAfter: string
 }
 
 export interface AdoptInput {
@@ -200,6 +245,15 @@ export interface AdoptInput {
   worldGroupId?: number | null
   /** 集合表中定点更新既有记录；AI 补全空卷/空章等场景使用。 */
   recordId?: number
+  /**
+   * NS-1: chapters 派生记忆的原子 compare-and-set。
+   * adopt() 必须在写 summary/handoff 的同一事务中重算当前正文 hash。
+   */
+  compareAndSet?: {
+    kind: 'chapter-source-text-hash'
+    expectedHash: string
+    textNormalizationVersion: string
+  }
   target: string
   data: Record<string, unknown> | Record<string, unknown>[]
   mode: 'replace' | 'append' | 'add' | 'add-many' | 'merge-diffs'
@@ -214,7 +268,7 @@ export interface AdoptResult {
   skipped: { reason: string; data: unknown }[]
 }
 
-export type ContextSourceScope = 'project' | 'world' | 'node' | 'chapter' | 'manual'
+export type ContextSourceScope = 'project' | 'world' | 'node' | 'chapter' | 'manual' | 'runtime'
 
 export interface AssembleContextInput {
   projectId: number
@@ -228,12 +282,38 @@ export interface AssembleContextInput {
   model?: string
   /** Test/override hook. When set, this is the real input budget used for trimming. */
   inputBudgetTokens?: number
+  /** 调用方的领域级输入上限；与模型窗口取较小值，不覆盖测试用精确预算。 */
+  inputBudgetMaxTokens?: number
+  /** 调用方只能按比例收窄每个登记源的软上限，不能放大或绕过注册表。 */
+  sourceBudgetScale?: number
   citedReferenceIds?: number[]
   previousChapterEnding?: string
   stateReferenceText?: string
   extraStateIds?: number[]
   /** 手动输入/当前字段内容，供“内容反推结构化设定”类动作走注册表。 */
   manualSourceText?: string
+  /** C2 反向哺喂：以某角色为主体，召回剧情里关于 TA 的事实/正文证据（characterFacts/characterPassages 源用）。 */
+  subjectCharacterName?: string
+  /** INV-1: 按角色过滤物品流水/持有投影。 */
+  characterId?: number | null
+  /** SIM-1C: 冻结运行时会话，供 NPC 演进候选只读上下文使用。 */
+  simulationSessionId?: number
+  /** CM-1: 本次明确参与增量融合的碎片；由 inspirationWorkspace source 读取。 */
+  inspirationFragmentIds?: string[]
+  /** CM-1: 单世界与多世界各自维护最近确认版本。 */
+  inspirationMode?: InspirationResultMode
+  /** AGENT-1: 本地确定性项目搜索；只由 searchResults 上下文源消费。 */
+  searchQuery?: string
+  /** AGENT-1: 搜索最多返回 10 条短摘。 */
+  searchLimit?: number
+  /** AGENT-1: 搜索限定的数据类型。 */
+  searchKinds?: string[]
+  /** RAG-1: 节点/Agent 明确选择的稳定资料字段键。 */
+  ragEntryKeys?: string[]
+  /** RAG-1 内部执行证据收集器；调用结束后由节点运行快照冻结。 */
+  ragSelectionTrace?: RagSelectionTraceCollector
+  /** assembleContext 内部批量预取；调用方无需传。 */
+  continuitySnapshot?: PreparedContinuityContext
 }
 
 export interface ContextSource {
@@ -243,9 +323,14 @@ export interface ContextSource {
   layer: ContextLayer
   /** Approximate per-source soft cap. Adapters can still return less. */
   budgetTokens: number
+  /** NS-1: assembleContext 总预算裁剪时不得整段删除。 */
+  protectedFromTrim?: boolean
   requiresWorldGroupId?: boolean
+  requiresSimulationSessionId?: boolean
   requiresOutlineNodeId?: boolean
   requiresChapterId?: boolean
+  /** 规划尚未创建正文 Chapter 时，允许用 outlineNodeId 作为规范章序边界。 */
+  acceptsOutlineNodeAsChapterBoundary?: boolean
   enabled?: (input: AssembleContextInput) => boolean | Promise<boolean>
   read: (input: AssembleContextInput) => Promise<string>
 }
@@ -259,4 +344,5 @@ export interface AssembleContextResult {
   totalInputTokens: number
   inputBudget: number
   overBudgetBeforeTrim: boolean
+  overBudgetAfterTrim: boolean
 }

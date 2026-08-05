@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import {
-  Play, Square, Sparkles, Check, X, Loader2, ChevronRight, Save, ClipboardCopy,
-} from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Play, Square } from 'lucide-react'
 import { usePromptStore } from '../../../stores/prompt'
 import { useWorldviewStore } from '../../../stores/worldview'
 import { useCreativeRulesStore } from '../../../stores/project-singletons'
@@ -11,28 +9,37 @@ import { useForeshadowStore } from '../../../stores/foreshadow'
 import { useWorldGroupStore } from '../../../stores/world-group'
 import { useAIStream } from '../../../hooks/useAIStream'
 import { renderPrompt } from '../../../lib/ai/prompt-engine'
+import { assembleBoundPrompt } from '../../../lib/ai/prompt-variable-bindings'
 import { extractJSON } from '../../../lib/ai/adapters/import-adapter'
 import { adopt } from '../../../lib/registry/adopt'
 import { assembleContext } from '../../../lib/registry/assemble-context'
 import { db } from '../../../lib/db/schema'
 import type { PromptWorkflow, PromptWorkflowStep, SaveTarget } from '../../../lib/types/workflow'
 import type { Project } from '../../../lib/types'
-import type { TokenUsage } from '../../../lib/ai/logger'
-import { targetLabel, assembleWorkflowStepVars } from './workflow-helpers'
+import { assembleWorkflowStepVars } from './workflow-helpers'
+import {
+  prepareGenerationNode,
+  runGenerationNode,
+} from '../../../lib/generation/generation-node'
+import { createWorkflowGenerationNode } from '../../../lib/generation/workflow-generation-node'
 import { useToast } from '../../shared/Toast'
+import WorkflowStepCard from './WorkflowStepCard'
+import type { StepResult } from './WorkflowStepCard'
+import WorkflowExecutionGraph from './WorkflowExecutionGraph'
+import {
+  collectWorkflowUpstreamInputs,
+  compileWorkflowGraph,
+  formatWorkflowUpstreamContext,
+  groupWorkflowInputsByVariable,
+} from '../../../lib/workflow/graph'
+
+export { WorkflowStepCard as StepCard } from './WorkflowStepCard'
+export type { StepResult } from './WorkflowStepCard'
 
 interface RunnerProps {
   workflow: PromptWorkflow
   project?: Project
   onClose: () => void
-}
-
-interface StepResult {
-  stepId: string
-  output: string
-  status: 'pending' | 'running' | 'done' | 'skipped' | 'failed'
-  error?: string
-  tokenUsage?: TokenUsage | null
 }
 
 async function findExistingOutlineNode(
@@ -63,6 +70,18 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
   const { loadAll: loadForeshadows } = useForeshadowStore()
   const activeGroupId = useWorldGroupStore(s => s.activeGroupId)
   const [savedSteps, setSavedSteps] = useState<Set<string>>(new Set())
+  const graphCompilation = useMemo(() => {
+    try {
+      return { compiled: compileWorkflowGraph(workflow), error: null as string | null }
+    } catch (error) {
+      return {
+        compiled: null,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  }, [workflow])
+  const executionSteps = graphCompilation.compiled?.orderedSteps ?? []
+  const usesExplicitGraph = workflow.graph != null
 
   /**
    * 步骤输出累加器(FB-1 修复 · 缺陷 A)。
@@ -188,7 +207,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
 
   const [results, setResults] = useState<Map<string, StepResult>>(() => {
     const m = new Map<string, StepResult>()
-    workflow.steps.forEach(s => m.set(s.stepId, { stepId: s.stepId, output: '', status: 'pending' }))
+    executionSteps.forEach(s => m.set(s.stepId, { stepId: s.stepId, output: '', status: 'pending' }))
     return m
   })
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -204,6 +223,31 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
   }
 
   /**
+   * 重新生成或改写较早节点后，旧的后序候选已经基于过期输入，不能继续展示为可保存结果。
+   * v1 仍是按稳定拓扑顺序串行执行，因此保守地作废该位置之后的全部候选，避免为省调用
+   * 错把独立分支与旧依赖结果混在同一次运行里。
+   */
+  const invalidateFromIndex = (startIndex: number) => {
+    const invalidated = executionSteps.slice(startIndex)
+    if (!invalidated.length) return
+    const invalidatedIds = new Set(invalidated.map(step => step.stepId))
+    invalidatedIds.forEach(stepId => stepOutputsRef.current.delete(stepId))
+    setSavedSteps(current => new Set([...current].filter(stepId => !invalidatedIds.has(stepId))))
+    setResults(current => {
+      const next = new Map(current)
+      invalidated.forEach(step => {
+        next.set(step.stepId, {
+          stepId: step.stepId,
+          output: '',
+          status: 'pending',
+        })
+      })
+      return next
+    })
+    setCurrentIndex(startIndex)
+  }
+
+  /**
    * 为第 idx 步装配上下文(FB-1 修复 · 缺陷 B：走 assembleContext,不再裸 renderPrompt)。
    * - 项目元信息 projectName/genres + 维度 dimension + userHint(此前全空,AI 失去依据)
    * - 经注册表 assembleContext 拉取已存项目设定(故事核心/世界观/角色/力量/词条)+ 真实与幻想规则
@@ -215,9 +259,12 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
     step: PromptWorkflowStep,
     idx: number,
   ): Promise<Record<string, string | number | undefined>> => {
-    // ① 上一步输出(经 ref 累加器 → 修复闭包陈旧 · 缺陷 A)
-    const prevStep = idx > 0 ? workflow.steps[idx - 1] : undefined
+    // ① FLOW-1 显式图只读取自己的入边；旧工作流保持紧邻上一步兼容语义。
+    const prevStep = idx > 0 ? executionSteps[idx - 1] : undefined
     const prevOut = prevStep ? (stepOutputsRef.current.get(prevStep.stepId) ?? '') : ''
+    const upstreamInputs = usesExplicitGraph && graphCompilation.compiled
+      ? collectWorkflowUpstreamInputs(graphCompilation.compiled, step.stepId, stepOutputsRef.current)
+      : undefined
 
     // ② 走注册表拉取已存项目设定 + 真实与幻想规则(单一事实源,不在此手挑 buildXxxContext · 缺陷 B)
     let assembledText = ''
@@ -228,7 +275,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
         assembledText = (await assembleContext({
           projectId: project.id,
           worldGroupId: wg,
-          sourceKeys: ['storyCore', 'worldview', 'powerSystem', 'characters', 'codex'],
+          sourceKeys: ['canonAssertions', 'storyCore', 'worldview', 'powerSystem', 'cultivationProgress', 'characters', 'codex'],
         })).text
       } catch { /* 上下文装配失败不应阻断生成 */ }
       try {
@@ -248,38 +295,82 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
       genres: project?.genre,
       assembledContext: assembledText,
       worldRulesContext: worldRulesText,
+      userInput: userInputsRef.current.get(step.stepId),
+      upstreamInputs,
     })
-    // FB-7:把用户为本步输入的内容并入 userHint(在用户已写的基础上生成/扩展)
-    const userInput = userInputsRef.current.get(step.stepId)?.trim()
-    if (userInput) {
-      ctx.userHint = [ctx.userHint, userInput].filter(Boolean).join('\n')
-    }
     return ctx
   }
 
   /** 执行第 idx 步 */
   const runStep = async (idx: number) => {
-    const step = workflow.steps[idx]
+    const step = executionSteps[idx]
     if (!step) return
-    const tpl = usePromptStore.getState().getActive(step.promptModuleKey)
+    const promptState = usePromptStore.getState()
+    const tpl = step.templateId != null
+      ? promptState.templates.find(template => template.id === step.templateId)
+        ?? promptState.getActive(step.promptModuleKey)
+      : promptState.getActive(step.promptModuleKey)
 
     updateResult(step.stepId, { status: 'running', output: '', error: undefined })
 
     try {
-      const ctx = await buildStepContext(step, idx)
-      const { messages } = renderPrompt(tpl, ctx, {
-        parameterValues: step.parameterValues,
+      let messages
+      if (tpl.variableBindings?.length) {
+        const wg = project?.enableMultiWorld ? activeGroupId : null
+        const upstreamInputs = usesExplicitGraph && graphCompilation.compiled
+          ? collectWorkflowUpstreamInputs(graphCompilation.compiled, step.stepId, stepOutputsRef.current)
+          : []
+        const legacyPreviousOutput = idx > 0
+          ? stepOutputsRef.current.get(executionSteps[idx - 1].stepId)
+          : ''
+        const workflowContext = usesExplicitGraph
+          ? formatWorkflowUpstreamContext(upstreamInputs)
+          : legacyPreviousOutput
+        const bound = await assembleBoundPrompt({
+          template: tpl,
+          project,
+          worldGroupId: wg,
+          previousOutput: workflowContext,
+          workflowValues: usesExplicitGraph
+            ? groupWorkflowInputsByVariable(upstreamInputs)
+            : undefined,
+          userHint: userInputsRef.current.get(step.stepId),
+          manualValues: step.inputValues,
+          parameterValues: step.parameterValues,
+        })
+        if (bound.missingScopes.length) {
+          throw new Error(`当前模板需要${bound.missingScopes.join('、')}范围，请先补齐对应项目/章节选择`)
+        }
+        if (bound.missingVariables.length) {
+          throw new Error(`请填写必填字段：${bound.missingVariables.join('、')}`)
+        }
+        messages = bound.messages
+      } else {
+        const ctx = await buildStepContext(step, idx)
+        messages = renderPrompt(tpl, ctx, { parameterValues: step.parameterValues }).messages
+      }
+      const generationNode = createWorkflowGenerationNode({
+        workflowId: workflow.id ?? workflow.name,
+        stepId: step.stepId,
+        category: step.promptModuleKey,
+        projectId: project?.id,
+        ai,
       })
-      const output = await ai.start(messages, undefined, { category: step.promptModuleKey, projectId: project?.id })
+      const output = (
+        await runGenerationNode(
+          generationNode,
+          prepareGenerationNode(generationNode, messages),
+        )
+      ).output
       // FB-1 修复 · 缺陷 A：把本步输出存进 ref(而非只存 React state),供下一步取用
       stepOutputsRef.current.set(step.stepId, output)
       updateResult(step.stepId, { status: 'done', output, tokenUsage: ai.tokenUsage })
       setCurrentIndex(idx + 1)
 
       // 是否暂停等用户确认
-      if (step.userConfirmRequired && idx < workflow.steps.length - 1) {
+      if (step.userConfirmRequired && idx < executionSteps.length - 1) {
         setGlobalStatus('paused')
-      } else if (idx === workflow.steps.length - 1) {
+      } else if (idx === executionSteps.length - 1) {
         setGlobalStatus('completed')
       } else {
         // 继续下一步
@@ -295,12 +386,14 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
   }
 
   const handleStart = () => {
+    if (!graphCompilation.compiled) return
     stepOutputsRef.current.clear() // 全新运行:清空上一轮的步骤输出累加器
     setGlobalStatus('running')
     runStep(currentIndex)
   }
 
   const handleContinue = () => {
+    if (!graphCompilation.compiled) return
     setGlobalStatus('running')
     runStep(currentIndex)
   }
@@ -311,6 +404,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
   }
 
   const handleRetryStep = (idx: number) => {
+    invalidateFromIndex(idx)
     setGlobalStatus('running')
     runStep(idx)
   }
@@ -331,6 +425,7 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
           {globalStatus === 'idle' && (
             <button
               onClick={handleStart}
+              disabled={!graphCompilation.compiled || executionSteps.length === 0}
               className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-sm rounded hover:bg-accent-hover"
             >
               <Play className="w-4 h-4" /> 开始
@@ -361,6 +456,12 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
         </div>
       </div>
 
+      {graphCompilation.error && (
+        <div role="alert" className="px-3 py-2 rounded bg-error/10 text-error text-xs whitespace-pre-wrap">
+          工作流图无法执行：{graphCompilation.error}
+        </div>
+      )}
+
       {/* 全局状态 */}
       {globalStatus !== 'idle' && (
         <div className={`px-3 py-2 rounded text-xs ${
@@ -369,17 +470,19 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
           globalStatus === 'paused' ? 'bg-warning/10 text-warning' :
           'bg-info/10 text-info'
         }`}>
-          {globalStatus === 'running' && `▶ 正在运行第 ${currentIndex + 1} / ${workflow.steps.length} 步...`}
+          {globalStatus === 'running' && `▶ 正在运行第 ${currentIndex + 1} / ${executionSteps.length} 步...`}
           {globalStatus === 'paused' && `⏸ 已暂停（第 ${currentIndex + 1} 步等待你审核）`}
           {globalStatus === 'completed' && `✓ 工作流完成`}
           {globalStatus === 'aborted' && `✗ 已中止`}
         </div>
       )}
 
+      <WorkflowExecutionGraph workflow={workflow} results={results} />
+
       {/* 步骤列表 */}
       <div className="space-y-2">
-        {workflow.steps.map((step, idx) => (
-          <StepCard
+        {executionSteps.map((step, idx) => (
+          <WorkflowStepCard
             key={step.stepId}
             step={step}
             index={idx}
@@ -389,8 +492,22 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
             onRetry={() => handleRetryStep(idx)}
             onSave={(output, target) => handleSaveTarget(step.stepId, output, target)}
             onUserInputChange={(v) => userInputsRef.current.set(step.stepId, v)}
+            onOutputChange={(output) => {
+              stepOutputsRef.current.set(step.stepId, output)
+              updateResult(step.stepId, { output })
+              setSavedSteps(current => {
+                const next = new Set(current)
+                next.delete(step.stepId)
+                return next
+              })
+              if (idx < executionSteps.length - 1) {
+                invalidateFromIndex(idx + 1)
+                setGlobalStatus('paused')
+              }
+            }}
             saved={savedSteps.has(step.stepId)}
             hasProject={!!project?.id}
+            actionsDisabled={globalStatus === 'running'}
           />
         ))}
       </div>
@@ -402,178 +519,6 @@ export default function WorkflowRunner({ workflow, project, onClose }: RunnerPro
             可以把每步输出复制到对应模块（角色 / 大纲 / 章节正文等）。
             后续 Phase 可以做"一键写入"自动化。
           </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function StepCard({
-  step, index, result, isCurrent, onSkip, onRetry,
-  onSave, onUserInputChange, saved, hasProject,
-}: {
-  step: PromptWorkflowStep
-  index: number
-  result: StepResult
-  isCurrent: boolean
-  onSkip: () => void
-  onRetry: () => void
-  onSave: (output: string, target: SaveTarget) => void
-  onUserInputChange: (v: string) => void
-  saved: boolean
-  hasProject: boolean
-}) {
-  const [expanded, setExpanded] = useState(true)
-  const [copied, setCopied] = useState(false)
-  // FB-7:用户为本步输入的内容(生成前可填,作为种子并入 prompt)
-  const [userInput, setUserInput] = useState('')
-  // FB-7:AI 输出可编辑(产出后允许用户改了再保存/复制)
-  const [editedOutput, setEditedOutput] = useState('')
-  useEffect(() => { setEditedOutput(result.output || '') }, [result.output])
-  const outText = editedOutput
-
-  const handleCopy = () => {
-    if (!outText) return
-    navigator.clipboard.writeText(outText).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    })
-  }
-
-  const statusIcon = {
-    pending:  <ChevronRight className="w-4 h-4 text-text-muted" />,
-    running:  <Loader2 className="w-4 h-4 text-accent animate-spin" />,
-    done:     <Check className="w-4 h-4 text-success" />,
-    skipped:  <X className="w-4 h-4 text-text-muted" />,
-    failed:   <X className="w-4 h-4 text-error" />,
-  }[result.status]
-
-  const borderClass = isCurrent ? 'border-accent' :
-    result.status === 'done' ? 'border-success/40' :
-    result.status === 'failed' ? 'border-error/40' :
-    'border-border'
-
-  return (
-    <div className={`bg-bg-surface border-2 rounded-xl overflow-hidden ${borderClass}`}>
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center gap-2 p-3 hover:bg-bg-hover"
-      >
-        {statusIcon}
-        <span className="text-text-muted text-xs w-6">{index + 1}.</span>
-        <span className="text-sm font-medium text-text-primary">{step.label}</span>
-        <span className="text-xs text-text-muted">→ {step.promptModuleKey}</span>
-        {step.userConfirmRequired && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning">⏸ 需确认</span>
-        )}
-        <span className="ml-auto text-xs text-text-muted">
-          {result.status === 'done' && `${result.output.length} 字`}
-          {result.status === 'failed' && '失败'}
-          {result.status === 'skipped' && '已跳过'}
-        </span>
-      </button>
-
-      {expanded && (
-        <div className="border-t border-border p-3 space-y-2 bg-bg-base">
-          {step.userHint && (
-            <p className="text-xs text-text-muted">💡 {step.userHint}</p>
-          )}
-          {/* FB-7:用户输入框 — 可预先写本步内容(如一句话故事),生成时会带进 prompt */}
-          <textarea
-            value={userInput}
-            onChange={e => { setUserInput(e.target.value); onUserInputChange(e.target.value) }}
-            rows={2}
-            placeholder="你的输入(可选)：在此写本步内容,AI 会在你写的基础上生成/扩展"
-            className="w-full px-2 py-1.5 bg-bg-surface border border-border rounded text-xs text-text-primary resize-y focus:outline-none focus:border-accent"
-          />
-          {result.status === 'pending' && (
-            <p className="text-xs text-text-muted">待执行</p>
-          )}
-          {result.status === 'running' && (
-            <p className="text-xs text-accent flex items-center gap-1">
-              <Sparkles className="w-3 h-3 animate-pulse" /> AI 生成中...
-            </p>
-          )}
-          {result.status === 'done' && result.tokenUsage && (
-            <div className="text-[10px] text-text-muted">
-              Token: ↑{result.tokenUsage.inputTokens.toLocaleString()} ↓{result.tokenUsage.outputTokens.toLocaleString()}
-            </div>
-          )}
-          {result.status === 'done' && (
-            <>
-              <textarea
-                value={editedOutput}
-                onChange={e => setEditedOutput(e.target.value)}
-                rows={8}
-                className="w-full text-xs text-text-primary font-sans max-h-72 p-2 bg-bg-surface border border-border rounded resize-y focus:outline-none focus:border-accent"
-              />
-              <p className="text-[10px] text-text-muted">AI 输出可直接编辑,保存/复制将使用编辑后的内容。</p>
-            </>
-          )}
-          {result.error && (
-            <p className="text-xs text-error">⚠ {result.error}</p>
-          )}
-          {(result.status === 'done' || result.status === 'failed') && (
-            <div className="flex items-center gap-2 pt-1 flex-wrap">
-              <button
-                onClick={onRetry}
-                className="text-xs text-accent hover:underline"
-              >
-                重新生成
-              </button>
-              {result.status === 'done' && (
-                <>
-                  <span className="text-text-muted">·</span>
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary"
-                  >
-                    {copied ? <Check className="w-3 h-3 text-success" /> : <ClipboardCopy className="w-3 h-3" />}
-                    {copied ? '已复制' : '复制'}
-                  </button>
-                  {step.saveTarget && (
-                    <>
-                      <span className="text-text-muted">·</span>
-                      <button
-                        onClick={() => onSave(outText, step.saveTarget!)}
-                        disabled={saved || !hasProject}
-                        title={!hasProject ? '需先进入项目' : `自动写入 ${targetLabel(step.saveTarget)}`}
-                        className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded ${
-                          saved
-                            ? 'bg-success/15 text-success'
-                            : !hasProject
-                              ? 'text-text-muted opacity-50 cursor-not-allowed'
-                              : 'bg-accent/10 text-accent hover:bg-accent/20'
-                        }`}
-                      >
-                        {saved ? <Check className="w-3 h-3" /> : <Save className="w-3 h-3" />}
-                        {saved ? `已存到 ${targetLabel(step.saveTarget)}` : `保存到 ${targetLabel(step.saveTarget)}`}
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-              {result.status !== 'done' && (
-                <>
-                  <span className="text-text-muted">·</span>
-                  <button
-                    onClick={onSkip}
-                    className="text-xs text-text-secondary hover:underline"
-                  >
-                    跳过此步
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-          {result.status === 'pending' && isCurrent && (
-            <button
-              onClick={onSkip}
-              className="text-xs text-text-secondary hover:underline"
-            >
-              跳过此步
-            </button>
-          )}
         </div>
       )}
     </div>

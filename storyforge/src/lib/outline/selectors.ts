@@ -1,4 +1,5 @@
 import type { OutlineNode } from '../types'
+import { normalizeOutlineNode } from './normalize'
 
 type OutlineLike = Pick<OutlineNode, 'type'> & { parentId?: number | null }
 
@@ -8,6 +9,7 @@ export function isTopLevelVolumeNode(node: OutlineLike): boolean {
 
 export function getTopLevelVolumes(nodes: OutlineNode[]): OutlineNode[] {
   return nodes
+    .map(normalizeOutlineNode)
     .filter(isTopLevelVolumeNode)
     .sort((a, b) => a.order - b.order)
 }

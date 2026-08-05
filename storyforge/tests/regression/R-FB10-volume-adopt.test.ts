@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db } from '../../src/lib/db/schema'
 import { adopt } from '../../src/lib/registry/adopt'
 import { getTopLevelVolumes, isTopLevelVolumeNode } from '../../src/lib/outline/selectors'
+import { useOutlineStore } from '../../src/stores/outline'
 
 async function createProject(): Promise<number> {
   const now = Date.now()
@@ -87,5 +88,39 @@ describe('R-FB10 · 卷级大纲采纳写入', () => {
     expect(r1.written.length + r2.written.length + r3.written.length).toBe(3)
     const vols = (await db.outlineNodes.where('projectId').equals(pid).toArray()).filter(n => n.type === 'volume')
     expect(vols.length).toBe(3)
+  })
+
+  it('adopt 写入 outlineNodes 缺 summary 时使用注册表默认值，避免进入大纲页 trim 崩溃', async () => {
+    const pid = await createProject()
+    const r = await adopt({
+      projectId: pid,
+      target: 'outlineNodes',
+      mode: 'add',
+      data: { parentId: null, type: 'volume', title: '无摘要卷', order: 0 },
+    })
+    expect(r.written.length).toBe(1)
+    const row = await db.outlineNodes.get(r.written[0].id!)
+    expect(row?.summary).toBe('')
+    expect(typeof row?.summary).toBe('string')
+  })
+
+  it('store.loadAll 会治愈本地旧脏节点 summary 缺失，纯点击进入大纲不再读 undefined.trim', async () => {
+    const pid = await createProject()
+    const rawId = await db.outlineNodes.add({
+      projectId: pid,
+      parentId: null,
+      type: 'volume',
+      title: '旧脏数据卷',
+      order: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as any) as number
+
+    await useOutlineStore.getState().loadAll(pid)
+
+    const loaded = useOutlineStore.getState().nodes.find(node => node.id === rawId)
+    expect(loaded?.summary).toBe('')
+    expect(loaded?.summary.trim()).toBe('')
+    expect(loaded?.parentId).toBe(null)
   })
 })

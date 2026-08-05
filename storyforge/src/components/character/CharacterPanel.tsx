@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import {
-  Plus, Sparkles, Trash2, ChevronDown, ChevronRight,
+  Plus, Sparkles, ChevronDown,
 } from 'lucide-react'
-import { InlineInput, InlineTextarea } from '../shared/InlineEdit'
+import { CInput } from '../shared/CompositionInput'
 import { useCharacterStore } from '../../stores/character'
 import { useWorldGroupStore } from '../../stores/world-group'
 import { useAIConfigStore } from '../../stores/ai-config'
@@ -17,8 +17,10 @@ import PromptRunPanel from '../shared/PromptRunPanel'
 import type {
   Project, Character, CharacterMoralAxis, CharacterOrderAxis, CharacterRoleWeight,
 } from '../../lib/types'
-import CharacterStatusPanel from './CharacterStatusPanel'
+import CharacterDimensionPicker from './CharacterDimensionPicker'
+import { CHARACTER_DIMENSIONS, type CharacterDimensionKey } from '../../lib/character/character-dimensions'
 import CharacterAxesPicker from './CharacterAxesPicker'
+import CharacterDetailCard from './CharacterDetailCard'
 import {
   MORAL_AXIS_LABELS,
   ORDER_AXIS_LABELS,
@@ -59,6 +61,9 @@ export default function CharacterPanel({ project, view = 'generator' }: Props) {
     orderAxis: CharacterOrderAxis | null
   }>({ roleWeight: null, moralAxis: null, orderAxis: null })
   const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({})
+  // B：AI 生成时选哪些维度（默认全选；可按戏份预设/增减）
+  const [genDims, setGenDims] = useState<Set<CharacterDimensionKey>>(() => new Set(CHARACTER_DIMENSIONS.map(d => d.key)))
+  const [showDimPicker, setShowDimPicker] = useState(false)
   const [systemOverride, setSystemOverride] = useState<string | null>(null)
   const [userOverride, setUserOverride] = useState<string | null>(null)
   // 多世界：角色世界过滤器（'all' | 'cross' | 世界组 id）
@@ -122,7 +127,16 @@ export default function CharacterPanel({ project, view = 'generator' }: Props) {
     const existing = characters.map(c =>
       `${c.name}（${ROLE_WEIGHT_LABELS[c.roleWeight]} · ${ORDER_AXIS_LABELS[c.orderAxis]}${MORAL_AXIS_LABELS[c.moralAxis]}）`,
     ).join('、')
-    const enrichedHint = [hint, rosterGap].filter(Boolean).join('\n')
+    // B：维度指令——始终告诉 AI 要设计哪些维度(基础提示词只覆盖老字段,新维度靠这里点名才会生成)。
+    // 全选→"完整设计全部"；部分→"只设计这些、其余留空"。走 CHARACTER_DIMENSIONS 单源,不动脆弱的基础模板。
+    const allKeys = CHARACTER_DIMENSIONS.map(d => d.key)
+    const selectedLabels = CHARACTER_DIMENSIONS.filter(d => genDims.has(d.key)).map(d => d.label).join('、')
+    const dimInstruction = genDims.size === 0
+      ? ''
+      : genDims.size < allKeys.length
+        ? `本次只需设计以下维度，其余维度一律留空：${selectedLabels}`
+        : `请尽量完整设计以下全部维度（有内容才写，没有的留空，不要编造硬凑）：${selectedLabels}`
+    const enrichedHint = [hint, rosterGap, dimInstruction].filter(Boolean).join('\n')
     // 多世界：按当前选中/活跃世界读取上下文（此前写死单世界）
     const targetWorld = project.enableMultiWorld
       ? (typeof worldFilter === 'number' ? worldFilter : activeGroupId)
@@ -132,7 +146,7 @@ export default function CharacterPanel({ project, view = 'generator' }: Props) {
       worldGroupId: targetWorld,
       provider: aiConfig.provider,
       model: aiConfig.model,
-      sourceKeys: ['worldview', 'storyCore', 'powerSystem', 'codex', 'characters', 'creativeRules', 'worldRules', 'historical', 'locations'],
+      sourceKeys: ['canonAssertions', 'worldview', 'storyCore', 'powerSystem', 'codex', 'characters', 'creativeRules', 'worldRules', 'historical', 'locations'],
     })
     const worldCtx = assembled.text
     const opts = {
@@ -176,12 +190,29 @@ export default function CharacterPanel({ project, view = 'generator' }: Props) {
               )}
             </div>
             <div className="flex items-center gap-2 flex-1">
-              <input
+              <CInput
                 value={hint}
                 onChange={e => setHint(e.target.value)}
                 placeholder="角色要求（可选）"
                 className="w-48 px-2 py-1.5 bg-bg-surface border border-border rounded text-xs text-text-primary focus:outline-none focus:border-accent"
               />
+              <div className="relative">
+                <button
+                  onClick={() => setShowDimPicker(!showDimPicker)}
+                  className="flex items-center gap-1 px-2.5 py-2 bg-bg-surface text-text-secondary text-xs rounded-md hover:text-accent transition-colors border border-border"
+                  title="选择 AI 这次要设计哪些维度"
+                >
+                  维度 {genDims.size}/{CHARACTER_DIMENSIONS.length} <ChevronDown className="w-3 h-3" />
+                </button>
+                {showDimPicker && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowDimPicker(false)} />
+                    <div className="absolute top-full left-0 mt-1 z-50 bg-bg-surface border border-border rounded-lg shadow-lg p-3 w-[420px]">
+                      <CharacterDimensionPicker selected={genDims} onChange={setGenDims} />
+                    </div>
+                  </>
+                )}
+              </div>
               <button
                 onClick={handleAIGenerate}
                 disabled={ai.isStreaming}
@@ -271,24 +302,24 @@ export default function CharacterPanel({ project, view = 'generator' }: Props) {
             setParsing(false)
             const nameMatch = text.match(/(?:\*\*|#{1,3}\s*|【)([^*#\n【】]{1,20})(?:\*\*|】)/)
             const fallbackName = nameMatch?.[1]?.trim() || 'AI 生成角色'
+            // 落库全部维度（含 A 扩充的 13 维）：维度字段从 CHARACTER_DIMENSIONS 统一回填，
+            // 否则 B 维度勾选器选了新维度、AI 也生成了，却在这里丢失。空串会被 adopt 跳过、不覆盖。
+            const dimData = Object.fromEntries(
+              CHARACTER_DIMENSIONS.map(d => [d.key, (parsed?.[d.key] as string) || '']),
+            )
             const result = await adopt({
               projectId: project.id!,
               worldGroupId: newCharHomeWorld(),
               target: 'characters',
               mode: 'add',
               data: {
-                name:             parsed?.name             || fallbackName,
-                roleWeight:       parsed?.roleWeight       || 'main',
-                moralAxis:        parsed?.moralAxis        || 'neutral',
-                orderAxis:        parsed?.orderAxis        || 'neutral',
-                shortDescription: parsed?.shortDescription || '',
-                appearance:       parsed?.appearance       || '',
-                personality:      parsed?.personality      || '',
-                background:       parsed?.background       || text,
-                motivation:       parsed?.motivation       || '',
-                abilities:        parsed?.abilities        || '',
-                relationships:    parsed?.relationships    || '',
-                arc:              parsed?.arc              || '',
+                name:          parsed?.name          || fallbackName,
+                roleWeight:    parsed?.roleWeight    || 'main',
+                moralAxis:     parsed?.moralAxis     || 'neutral',
+                orderAxis:     parsed?.orderAxis     || 'neutral',
+                relationships: parsed?.relationships || '',
+                ...dimData,
+                background:    parsed?.background     || text,  // 兜底：解析失败也保住全文
               },
             })
             await loadAll(project.id!)
@@ -343,9 +374,11 @@ export default function CharacterPanel({ project, view = 'generator' }: Props) {
             {selectedChar ? (
               <CharacterDetailCard
                 char={selectedChar}
-                charIndex={characters.findIndex(c => c.id === selectedChar.id)}
+                glyphColor={GLYPH_COLORS[characters.findIndex(c => c.id === selectedChar.id) % GLYPH_COLORS.length]}
                 projectId={project.id!}
-                onUpdate={handleUpdate}
+                onUpdateField={handleUpdate}
+                onPatch={patch => updateCharacter(selectedChar.id!, patch)}
+                onReload={() => loadAll(project.id!)}
                 onDelete={() => { deleteCharacter(selectedChar.id!); setSelected(null) }}
                 multiWorld={!!project.enableMultiWorld}
                 worldGroups={groups}
@@ -356,154 +389,6 @@ export default function CharacterPanel({ project, view = 'generator' }: Props) {
               </div>
             )}
           </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── 角色详情卡（design 风格） ────────────────────────────────────
-
-function CharacterDetailCard({
-  char, charIndex, projectId, onUpdate, onDelete, multiWorld, worldGroups,
-}: {
-  char: Character
-  charIndex: number
-  projectId: number
-  onUpdate: (f: keyof Character, v: string) => void
-  onDelete: () => void
-  multiWorld?: boolean
-  worldGroups?: import('../../lib/types').WorldGroup[]
-}) {
-  const { updateCharacter } = useCharacterStore()
-  const [expanded, setExpanded] = useState(true)
-  const glyphColor = GLYPH_COLORS[charIndex % GLYPH_COLORS.length]
-
-  const fields: { key: keyof Character; label: string }[] = [
-    { key: 'appearance',   label: '外貌' },
-    { key: 'personality',  label: '性格' },
-    { key: 'background',   label: '背景故事' },
-    { key: 'motivation',   label: '动机' },
-    { key: 'abilities',    label: '能力' },
-    { key: 'relationships', label: '人物关系' },
-    { key: 'arc',          label: '角色弧' },
-  ]
-
-  return (
-    <div className="space-y-4">
-      {/* 头部：大号首字 + 名字 + 标签 */}
-      <div className="flex items-start gap-4">
-        {/* 大号首字 */}
-        <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-serif font-bold shrink-0 ${glyphColor}`}>
-          {char.name.charAt(0)}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          {/* 角色元信息行 */}
-          <div className="flex items-center gap-1.5 text-xs text-text-muted mb-0.5">
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-border bg-bg-elevated text-text-secondary">
-              {ROLE_WEIGHT_LABELS[char.roleWeight]}
-            </span>
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-border bg-bg-elevated text-text-secondary">
-              {ORDER_AXIS_LABELS[char.orderAxis]}{MORAL_AXIS_LABELS[char.moralAxis]}
-            </span>
-
-            {/* 多世界：归属世界 + 跨世界标记 */}
-            {multiWorld && (
-              <>
-                <select
-                  value={char.isCrossWorld ? 'cross' : (char.homeWorldGroupId ?? '')}
-                  onChange={e => {
-                    if (!char.id) return
-                    const v = e.target.value
-                    if (v === 'cross') {
-                      updateCharacter(char.id, { isCrossWorld: true, homeWorldGroupId: null })
-                    } else {
-                      updateCharacter(char.id, { isCrossWorld: false, homeWorldGroupId: v ? Number(v) : null })
-                    }
-                  }}
-                  className="px-1.5 py-0.5 bg-bg-elevated text-text-secondary text-[10px] rounded border border-border focus:outline-none focus:border-accent cursor-pointer"
-                  title="角色所属世界"
-                >
-                  <option value="cross">🌐 跨世界</option>
-                  {(worldGroups || []).map(g => (
-                    <option key={g.id} value={g.id}>{g.icon || '🌐'} {g.name}</option>
-                  ))}
-                </select>
-              </>
-            )}
-          </div>
-
-          {/* 名字（可编辑） */}
-          <InlineInput
-            value={char.name}
-            onChange={v => onUpdate('name', v)}
-            className="text-2xl font-bold font-serif text-text-primary"
-          />
-
-          {/* 一句话简介（引号样式） */}
-          {char.shortDescription ? (
-            <InlineInput
-              value={char.shortDescription}
-              onChange={v => onUpdate('shortDescription', v)}
-              className="text-sm text-text-secondary mt-1 italic"
-              prefix={"“"}
-              suffix={"”"}
-              placeholder="点击添加一句话简介…"
-            />
-          ) : (
-            <InlineInput
-              value=""
-              onChange={v => onUpdate('shortDescription', v)}
-              className="text-sm text-text-muted mt-1 italic"
-              placeholder="点击添加一句话简介…"
-            />
-          )}
-        </div>
-
-        {/* 操作按钮 */}
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => setExpanded(!expanded)} className="p-1.5 text-text-muted hover:text-text-primary rounded transition-colors">
-            {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
-          <button onClick={onDelete} className="p-1.5 text-text-muted hover:text-error rounded transition-colors">
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      <CharacterAxesPicker
-        roleWeight={char.roleWeight}
-        moralAxis={char.moralAxis}
-        orderAxis={char.orderAxis}
-        onChange={axes => {
-          if (!char.id || !axes.roleWeight || !axes.moralAxis || !axes.orderAxis) return
-          updateCharacter(char.id, axes as Pick<Character, 'roleWeight' | 'moralAxis' | 'orderAxis'>)
-        }}
-        compact
-      />
-
-      {/* Phase 23.1: 动态状态面板 */}
-      <CharacterStatusPanel projectId={projectId} characterName={char.name} />
-
-      {/* 字段列表 — 横排 label: value */}
-      {expanded && (
-        <div className="space-y-0 divide-y divide-border/40">
-          {fields.map(f => {
-            const val = (char[f.key] as string) || ''
-            return (
-              <div key={String(f.key)} className="flex gap-4 py-3 first:pt-0">
-                <span className="w-16 shrink-0 text-xs text-text-muted pt-0.5 text-right">{f.label}</span>
-                <div className="flex-1 min-w-0">
-                  <InlineTextarea
-                    value={val}
-                    onChange={v => onUpdate(f.key, v)}
-                    placeholder={`点击填写${f.label}…`}
-                  />
-                </div>
-              </div>
-            )
-          })}
         </div>
       )}
     </div>

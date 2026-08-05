@@ -3,12 +3,58 @@ import { AIError } from '../types'
 import { createLog, updateLog, type TokenUsage } from './logger'
 import { recordUsage } from './usage-log'
 import { trimMessagesToFit } from './context-budget'
+import { buildOpenAIEndpoint } from './openai-endpoint'
+import { useAIConfigStore } from '../../stores/ai-config'
+import { resolveAIConfigForTask, type AITaskKind } from './task-routing'
 
 /** 调用元信息（用于消耗统计分类） */
 export interface AICallMeta {
   /** 消耗类型标识（moduleKey 或显式 category，如 'chapter.content'） */
   category?: string
   projectId?: number | null
+  /** 调用方显式要求保留的临时生成参数，不参与持久化。 */
+  configOverrides?: Partial<AIConfig>
+  /**
+   * 默认沿用既有生成链的自动裁剪；协议型调用可要求拒绝裁剪，
+   * 避免系统指令、用户目标或工具证据被静默移除后继续执行。
+   */
+  contextOverflowPolicy?: 'trim' | 'reject'
+}
+
+export function resolveRequestConfig(config: AIConfig, meta?: AICallMeta) {
+  const state = useAIConfigStore.getState()
+  return resolveAIConfigForTask({
+    category: meta?.category,
+    requestedConfig: config,
+    globalConfig: state.config,
+    presets: state.presets,
+    routes: state.taskRoutes,
+    explicitOverrides: meta?.configOverrides,
+  })
+}
+
+function warnRouteFallback(resolved: ReturnType<typeof resolveRequestConfig>, meta?: AICallMeta): void {
+  if (resolved.fallbackReason) {
+    console.warn(`[AI] task route fallback (${resolved.fallbackReason}): ${meta?.category ?? 'uncategorized'}`)
+  }
+}
+
+function usageEntry(
+  meta: AICallMeta | undefined,
+  config: AIConfig,
+  taskKind: AITaskKind | null,
+  usage: TokenUsage,
+) {
+  return {
+    projectId: meta?.projectId ?? null,
+    timestamp: Date.now(),
+    category: meta?.category ?? '',
+    provider: config.provider,
+    model: config.model,
+    taskKind: taskKind ?? undefined,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+  }
 }
 
 /** 可变容器，streamChat 写入 usage，调用方读取 */
@@ -16,13 +62,15 @@ export interface StreamResult {
   usage?: TokenUsage
 }
 
+/** 可变容器，chat 写入非流式调用返回的真实 token 用量。 */
+export interface ChatResult {
+  usage?: TokenUsage
+}
+
 /**
  * 根据 provider 构造请求 URL 和 headers
  */
 function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean) {
-  // 标准化 baseUrl：去除尾部斜杠
-  const baseUrl = config.baseUrl.replace(/\/+$/, '')
-
   // 基础请求体：所有 provider 都需要的字段
   const body: Record<string, unknown> = {
     model: config.model,
@@ -33,7 +81,7 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
   // 流式请求时要求返回 token 用量
   // stream_options 仅 OpenAI / DeepSeek / Qwen 等兼容 provider 支持
   // 智谱 GLM / 文心 / Poe / Gemini 等不支持，传了会报参数错误
-  const NO_STREAM_OPTIONS: Set<string> = new Set(['glm', 'wenxin', 'poe', 'gemini', 'ollama'])
+  const NO_STREAM_OPTIONS: Set<string> = new Set(['glm', 'wenxin', 'poe', 'gemini', 'ollama', 'longcat'])
   if (stream && !NO_STREAM_OPTIONS.has(config.provider)) {
     body.stream_options = { include_usage: true }
   }
@@ -58,6 +106,12 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
       body.temperature = Math.min(Math.max(config.temperature, 0.01), 1.0)
     }
     if (config.maxTokens && config.maxTokens > 0) body.max_tokens = config.maxTokens
+  } else if (config.provider === 'longcat') {
+    // LongCat OpenAI 兼容端点：temperature 范围 0~1，且不声明 stream_options。
+    if (config.temperature !== undefined) {
+      body.temperature = Math.min(Math.max(config.temperature, 0), 1.0)
+    }
+    if (config.maxTokens && config.maxTokens > 0) body.max_tokens = config.maxTokens
   } else {
     if (config.temperature !== undefined) body.temperature = config.temperature
     // maxTokens > 0 才传，0 = 不限制（由模型自身决定）
@@ -65,10 +119,10 @@ function buildRequest(config: AIConfig, messages: ChatMessage[], stream: boolean
   }
 
   return {
-    url: `${baseUrl}/chat/completions`,
+    url: buildOpenAIEndpoint(config.baseUrl, 'chat/completions'),
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
+      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
     },
     body: JSON.stringify(body),
   }
@@ -85,9 +139,20 @@ export async function* streamChat(
   result?: StreamResult,
   meta?: AICallMeta,
 ): AsyncGenerator<string> {
+  const resolved = resolveRequestConfig(config, meta)
+  warnRouteFallback(resolved, meta)
+  config = resolved.config
   const trimmed = trimMessagesToFit(messages, config.provider, config.model, config.maxTokens, config.contextWindow)
+  if (trimmed.trimmed && meta?.contextOverflowPolicy === 'reject') {
+    throw new Error(
+      `当前模型上下文窗口不足以容纳完整请求（${trimmed.totalInputTokens}/${trimmed.inputBudget} tokens）；已拒绝静默裁剪。`,
+    )
+  }
   if (trimmed.trimmed) {
     console.warn(`[AI] request messages trimmed to fit context window: ${trimmed.totalInputTokens}/${trimmed.inputBudget} tokens`)
+  }
+  if (!trimmed.protectedEnvelopePreserved) {
+    throw new Error('当前模型上下文窗口无法容纳最低连续性保护块；请降低输出长度或改用更大上下文模型。')
   }
   const req = buildRequest(config, trimmed.messages, true)
 
@@ -154,7 +219,7 @@ export async function* streamChat(
             if (usage) logUpdate.usage = usage
             if (result && usage) result.usage = usage
             updateLog(log.id, logUpdate)
-            if (usage) void recordUsage({ projectId: meta?.projectId ?? null, timestamp: Date.now(), category: meta?.category ?? '', model: config.model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens })
+            if (usage) void recordUsage(usageEntry(meta, config, resolved.taskKind, usage))
             return
           }
           try {
@@ -180,7 +245,7 @@ export async function* streamChat(
     if (usage) logUpdate.usage = usage
     if (result && usage) result.usage = usage
     updateLog(log.id, logUpdate)
-    if (usage) void recordUsage({ projectId: meta?.projectId ?? null, timestamp: Date.now(), category: meta?.category ?? '', model: config.model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens })
+    if (usage) void recordUsage(usageEntry(meta, config, resolved.taskKind, usage))
   } catch (err) {
     if (err instanceof AIError) throw err
     const duration = Date.now() - startTime
@@ -197,10 +262,22 @@ export async function chat(
   config: AIConfig,
   meta?: AICallMeta,
   signal?: AbortSignal,
+  result?: ChatResult,
 ): Promise<string> {
+  const resolved = resolveRequestConfig(config, meta)
+  warnRouteFallback(resolved, meta)
+  config = resolved.config
   const trimmed = trimMessagesToFit(messages, config.provider, config.model, config.maxTokens, config.contextWindow)
+  if (trimmed.trimmed && meta?.contextOverflowPolicy === 'reject') {
+    throw new Error(
+      `当前模型上下文窗口不足以容纳完整请求（${trimmed.totalInputTokens}/${trimmed.inputBudget} tokens）；已拒绝静默裁剪。`,
+    )
+  }
   if (trimmed.trimmed) {
     console.warn(`[AI] request messages trimmed to fit context window: ${trimmed.totalInputTokens}/${trimmed.inputBudget} tokens`)
+  }
+  if (!trimmed.protectedEnvelopePreserved) {
+    throw new Error('当前模型上下文窗口无法容纳最低连续性保护块；请降低输出长度或改用更大上下文模型。')
   }
   const req = buildRequest(config, trimmed.messages, false)
 
@@ -218,14 +295,13 @@ export async function chat(
 
   const json = await response.json()
   if (json.usage) {
-    void recordUsage({
-      projectId: meta?.projectId ?? null,
-      timestamp: Date.now(),
-      category: meta?.category ?? '',
-      model: config.model,
+    const usage = {
       inputTokens: json.usage.prompt_tokens ?? 0,
       outputTokens: json.usage.completion_tokens ?? 0,
-    })
+      totalTokens: json.usage.total_tokens ?? 0,
+    }
+    if (result) result.usage = usage
+    void recordUsage(usageEntry(meta, config, resolved.taskKind, usage))
   }
   return json.choices?.[0]?.message?.content || ''
 }
