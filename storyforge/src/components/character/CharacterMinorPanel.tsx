@@ -3,6 +3,9 @@ import { Plus, Trash2, User } from 'lucide-react'
 import { useCharacterStore } from '../../stores/character'
 import type { Project, Character } from '../../lib/types'
 import { filterCharactersByRoleWeight } from '../../lib/character/character-axes'
+import CharacterDimensionFields from './CharacterDimensionFields'
+import CharacterSupplementAction from './CharacterSupplementAction'
+import { CInput, CTextarea } from '../shared/CompositionInput'
 
 interface Props {
   project: Project
@@ -63,11 +66,17 @@ export default function CharacterMinorPanel({ project }: Props) {
                 <div className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center flex-shrink-0">
                   <User className="w-4 h-4 text-text-secondary" />
                 </div>
-                <input
-                  type="text"
+                <CInput
                   value={c.name}
                   onChange={e => update(c.id!, { name: e.target.value })}
                   className="flex-1 px-2 py-1 bg-bg-base border border-border rounded text-sm font-medium text-text-primary focus:outline-none focus:border-accent"
+                />
+                <CharacterSupplementAction
+                  character={c}
+                  projectId={project.id!}
+                  worldGroupId={c.homeWorldGroupId ?? null}
+                  onDone={() => loadAll(project.id!)}
+                  compact
                 />
                 <button
                   onClick={() => deleteCharacter(c.id!)}
@@ -77,7 +86,7 @@ export default function CharacterMinorPanel({ project }: Props) {
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <textarea
+              <CTextarea
                 value={c.shortDescription}
                 onChange={e => update(c.id!, { shortDescription: e.target.value })}
                 placeholder="一句话简介..."
@@ -86,20 +95,7 @@ export default function CharacterMinorPanel({ project }: Props) {
               />
               {(editing === c.id) ? (
                 <div className="mt-2 space-y-1.5">
-                  <textarea
-                    value={c.personality}
-                    onChange={e => update(c.id!, { personality: e.target.value })}
-                    placeholder="性格..."
-                    rows={2}
-                    className="w-full px-2 py-1 bg-bg-base border border-border rounded text-xs text-text-primary resize-none focus:outline-none focus:border-accent"
-                  />
-                  <textarea
-                    value={c.background}
-                    onChange={e => update(c.id!, { background: e.target.value })}
-                    placeholder="背景..."
-                    rows={2}
-                    className="w-full px-2 py-1 bg-bg-base border border-border rounded text-xs text-text-primary resize-none focus:outline-none focus:border-accent"
-                  />
+                  <CharacterDimensionFields character={c} onChange={patch => update(c.id!, patch)} exclude={['shortDescription']} />
                   <button
                     onClick={() => setEditing(null)}
                     className="text-xs text-accent hover:underline"
@@ -112,7 +108,7 @@ export default function CharacterMinorPanel({ project }: Props) {
                   onClick={() => setEditing(c.id!)}
                   className="mt-2 text-xs text-text-secondary hover:text-accent"
                 >
-                  展开编辑 ▾
+                  展开完整设定 ▾
                 </button>
               )}
             </div>

@@ -6,6 +6,8 @@
  * 映射为友好中文标签展示。
  */
 import { db } from '../db/schema'
+import type { AIProvider } from '../types'
+import type { AITaskKind } from './task-routing'
 
 /** 一条 AI 消耗记录 */
 export interface AIUsageEntry {
@@ -14,7 +16,11 @@ export interface AIUsageEntry {
   timestamp: number
   /** 消耗类型标识（moduleKey 或显式 category，如 'chapter.content'） */
   category: string
+  /** 实际发出请求的 provider；旧记录可能没有。 */
+  provider?: AIProvider
   model: string
+  /** 统一任务路由分类；旧记录和未知 category 可能没有。 */
+  taskKind?: AITaskKind
   inputTokens: number
   outputTokens: number
   /** 计算所得费用（美元） */
@@ -39,9 +45,12 @@ const CATEGORY_RULES: Array<{ test: (k: string) => boolean; meta: CategoryMeta }
   { test: k => k.startsWith('foreshadow.'), meta: { label: '伏笔生成', color: '#6EB0A8' } },
   { test: k => k.startsWith('storyArc') || k.startsWith('story-arc'), meta: { label: '故事线生成', color: '#8BA86E' } },
   { test: k => k.startsWith('state.extract'), meta: { label: '主角状态提取', color: '#C07B7B' } },
+  { test: k => k.startsWith('fact.extract'), meta: { label: '事实抽取(NS-4)', color: '#7B9BC0' } },
+  { test: k => k.startsWith('retrieval.embed'), meta: { label: '语义索引(NS-5)', color: '#6EA8B0' } },
   { test: k => k.startsWith('inventory'), meta: { label: '物品提取', color: '#C09B6E' } },
   { test: k => k.startsWith('relation'), meta: { label: '关系提取', color: '#9B6EB0' } },
   { test: k => k.startsWith('scene.verify'), meta: { label: '场景考证', color: '#6E9BC0' } },
+  { test: k => k.startsWith('agent.'), meta: { label: 'Agent 团队', color: '#6E8FA8' } },
   { test: k => k.startsWith('review') || k.startsWith('readability'), meta: { label: '章节审校', color: '#A88B5E' } },
   { test: k => k.startsWith('codex'), meta: { label: '词条/角色聚合', color: '#5E9BA8' } },
   { test: k => k.startsWith('summary'), meta: { label: '摘要生成', color: '#8B8B8B' } },

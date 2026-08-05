@@ -2,8 +2,7 @@
  * 提示词模板系统类型定义
  *
  * Phase 1 落地范围：把硬编码 prompts 下沉到 IndexedDB。
- * 详见 docs/09-REDESIGN-INTEGRATION-PLAN.md 第三章 与
- *      docs/playbooks/PHASE-01-prompt-infrastructure.md
+ * 历史设计详见 WPS 云文档 storyforge故事熔炉 / 仓库文档迁移_20260708 / archive。
  */
 
 /** 提示词模块标识 — Phase 1 当前用到的全集 */
@@ -19,6 +18,7 @@ export type PromptModuleKey =
   // 章节正文
   | 'chapter.content'
   | 'chapter.continue'
+  | 'chapter.memory'
   | 'chapter.polish'
   | 'chapter.expand'
   | 'chapter.de-ai'
@@ -29,9 +29,30 @@ export type PromptModuleKey =
   | 'geography.image-map-prompt'
   // —— 后续 Phase 启用 ——
   | 'worldview.generate'
+  | 'worldview.worldbuilding'
   | 'story.generate'
+  | 'story.brief'
+  | 'story.ideation'
+  | 'story.positioning'
+  | 'story.core'
+  | 'story.packaging'
   | 'rules.generate'
+  | 'research.method'
+  | 'prompt.operations'
   | 'detail.scene'
+  | 'detail.chapter-planning'
+  | 'character.design'
+  | 'outline.plot'
+  | 'outline.structure'
+  | 'outline.long-form'
+  | 'outline.short-story'
+  | 'outline.serialization'
+  | 'chapter.drafting'
+  | 'chapter.continuity'
+  | 'chapter.line-editing'
+  | 'review.developmental'
+  | 'review.line-editing'
+  | 'review.reader-validation'
   | 'import.parse-character'
   | 'import.parse-worldview'
   | 'import.parse-outline'
@@ -42,6 +63,8 @@ export type PromptModuleKey =
   | 'relation.extract'
   // —— Phase 26.3 角色驱动剧情 ——
   | 'plot.character-driven'
+  // —— STORY-1 / CF-12 角色变更影响分析 ——
+  | 'plot.character-revision'
   // —— Phase 26.4 灵感反推 ——
   | 'inspiration.reverse'
   | 'inspiration.reverse.multiworld'
@@ -54,8 +77,6 @@ export type PromptModuleKey =
   | 'codex.extract'
   // —— C-6 重要地点提取 ——
   | 'location.extract'
-  | 'codex.extract'
-  | 'location.extract'
   // —— Phase 25.5.2-a 故事进程年表 ——
   | 'story-timeline.extract'
   // —— Phase 27.2a 场景考证 ——
@@ -65,6 +86,36 @@ export type PromptModuleKey =
   | 'history.storm'
   // —— FB-5 自适应文风学习 ——
   | 'style.learn'
+  | 'style.calibrate'
+
+export type PromptProjectField =
+  | 'name'
+  | 'genres'
+  | 'description'
+  | 'targetWordCount'
+  | 'lengthMode'
+  | 'serializationMode'
+
+/** 普通 PromptTemplate 的单个变量如何从项目或作者输入获得值。 */
+export interface PromptVariableBinding {
+  variable: string
+  label: string
+  description?: string
+  /** 统一从 CONTEXT_SOURCES 读取；运行时只装配一次，避免重复注入。 */
+  sourceKeys?: string[]
+  /** 从项目元信息派生，不读取故事事实。 */
+  projectField?: PromptProjectField
+  /** 是否允许作者在工作流步骤中补充或修正。 */
+  manual?: boolean
+  required?: boolean
+  placeholder?: string
+}
+
+export interface PromptApplicability {
+  lengthModes?: ('short' | 'medium' | 'long')[]
+  serializationModes?: ('standalone' | 'serial')[]
+  genres?: string[]
+}
 
 /** 模板可调参数定义（Phase 12） */
 export interface PromptParameter {
@@ -134,6 +185,14 @@ export interface PromptTemplate {
   }
   /** 短篇模式标识（短篇 / 中篇 / 长篇）— 影响默认参数 */
   lengthMode?: 'short' | 'medium' | 'long'
+  /** NS-1: 连续性保护块策略。 */
+  continuityMode?: 'inherit' | 'required' | 'off'
+  /** 外部内容资产的稳定编号，只用于普通模板识别，不建立独立运行入口。 */
+  assetId?: string
+  /** 模板变量的声明式字段绑定，由原 WorkflowRunner 统一装配。 */
+  variableBindings?: PromptVariableBinding[]
+  /** 该内容模板适用的篇幅、连载形态或题材。 */
+  applicability?: PromptApplicability
 
   createdAt: number
   updatedAt: number
@@ -171,6 +230,7 @@ export interface PromptVariableContext {
   chapterSummary?: string
   previousChapterEnding?: string
   existingContent?: string
+  chapterText?: string
   // 编辑/润色
   text?: string
   instruction?: string

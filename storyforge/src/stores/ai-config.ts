@@ -1,13 +1,34 @@
 import { create } from 'zustand'
-import type { AIConfig, AIProvider, AIConfigPreset } from '../lib/types'
+import type { AIConfig, AIProvider, AIConfigPreset, EmbeddingConfig } from '../lib/types'
 import { PROVIDER_PRESETS } from '../lib/types'
 import { createLog, updateLog } from '../lib/ai/logger'
 import { nanoid } from '../lib/utils/id'
+import { buildOpenAIEndpoint, normalizeOpenAIBaseUrl } from '../lib/ai/openai-endpoint'
+import {
+  sanitizeAITaskRoutes,
+  type AITaskKind,
+  type AITaskRoutes,
+} from '../lib/ai/task-routing'
+import {
+  sanitizeAgentContextProfiles,
+  type AgentContextProfile,
+  type AgentContextProfiles,
+  type AgentContextTaskKind,
+} from '../lib/agent/context-policy'
+import {
+  sanitizeAgentTeamBudgetProfile,
+  type AgentTeamBudgetProfile,
+} from '../lib/agent/team-budget'
 
 const STORAGE_KEY = 'storyforge-ai-config'
 const PRESETS_KEY = 'storyforge-ai-presets'
 const SESSION_API_KEY = 'storyforge-ai-api-key-session'
 const REMEMBER_API_KEY = 'storyforge-ai-api-key-remember'
+const EMBEDDING_KEY = 'storyforge-embedding-config'
+const EMBEDDING_SESSION_KEY = 'storyforge-embedding-key-session'
+export const TASK_ROUTES_KEY = 'storyforge-ai-task-routes'
+export const AGENT_CONTEXT_PROFILES_KEY = 'storyforge-agent-context-profiles'
+export const AGENT_TEAM_BUDGET_PROFILE_KEY = 'storyforge-agent-team-budget-profile'
 
 const DEFAULT_CONFIG: AIConfig = {
   provider: 'deepseek',
@@ -16,6 +37,31 @@ const DEFAULT_CONFIG: AIConfig = {
   baseUrl: 'https://api.deepseek.com/v1',
   temperature: 0.7,
   maxTokens: 0,
+}
+
+/** NS-5 默认：关闭；隐私首选本地 Ollama + bge-m3（手稿不出本机）。 */
+const DEFAULT_EMBEDDING: EmbeddingConfig = {
+  enabled: false,
+  provider: 'ollama',
+  apiKey: '',
+  baseUrl: 'http://localhost:11434/v1',
+  model: 'bge-m3',
+}
+
+/** embedding 配置加载：key 复用与聊天 key 相同的「记住」开关（不记住→sessionStorage）。 */
+function loadEmbeddingConfig(rememberApiKey: boolean): EmbeddingConfig {
+  let saved: Partial<EmbeddingConfig> = {}
+  try { const raw = localStorage.getItem(EMBEDDING_KEY); if (raw) saved = JSON.parse(raw) } catch { /* ignore */ }
+  const sessionKey = sessionStorage.getItem(EMBEDDING_SESSION_KEY) || ''
+  return { ...DEFAULT_EMBEDDING, ...saved, apiKey: rememberApiKey ? (saved.apiKey || '') : sessionKey }
+}
+
+function persistEmbeddingConfig(cfg: EmbeddingConfig, rememberApiKey: boolean): void {
+  const persisted: EmbeddingConfig = rememberApiKey ? cfg : { ...cfg, apiKey: '' }
+  localStorage.setItem(EMBEDDING_KEY, JSON.stringify(persisted))
+  if (rememberApiKey) sessionStorage.removeItem(EMBEDDING_SESSION_KEY)
+  else if (cfg.apiKey) sessionStorage.setItem(EMBEDDING_SESSION_KEY, cfg.apiKey)
+  else sessionStorage.removeItem(EMBEDDING_SESSION_KEY)
 }
 
 /** 从 localStorage 加载预设列表 */
@@ -32,6 +78,40 @@ function loadPresets(): AIConfigPreset[] {
 
 function savePresets(presets: AIConfigPreset[]) {
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets))
+}
+
+function loadTaskRoutes(): AITaskRoutes {
+  try {
+    const saved = localStorage.getItem(TASK_ROUTES_KEY)
+    return saved ? sanitizeAITaskRoutes(JSON.parse(saved)) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveTaskRoutes(routes: AITaskRoutes): void {
+  localStorage.setItem(TASK_ROUTES_KEY, JSON.stringify(routes))
+}
+
+function loadAgentContextProfiles(): AgentContextProfiles {
+  try {
+    const saved = localStorage.getItem(AGENT_CONTEXT_PROFILES_KEY)
+    return sanitizeAgentContextProfiles(saved ? JSON.parse(saved) : {})
+  } catch {
+    return sanitizeAgentContextProfiles({})
+  }
+}
+
+function saveAgentContextProfiles(profiles: AgentContextProfiles): void {
+  localStorage.setItem(AGENT_CONTEXT_PROFILES_KEY, JSON.stringify(profiles))
+}
+
+function loadAgentTeamBudgetProfile(): AgentTeamBudgetProfile {
+  return sanitizeAgentTeamBudgetProfile(localStorage.getItem(AGENT_TEAM_BUDGET_PROFILE_KEY))
+}
+
+function saveAgentTeamBudgetProfile(profile: AgentTeamBudgetProfile): void {
+  localStorage.setItem(AGENT_TEAM_BUDGET_PROFILE_KEY, profile)
 }
 
 /** 根据 HTTP 状态码和英文错误信息，返回中文解释 */
@@ -134,8 +214,16 @@ interface AIConfigStore {
   config: AIConfig
   rememberApiKey: boolean
   presets: AIConfigPreset[]
+  taskRoutes: AITaskRoutes
+  agentContextProfiles: AgentContextProfiles
+  agentTeamBudgetProfile: AgentTeamBudgetProfile
   /** 当前生效的预设 id（null = 未对应任何预设/已改动） */
   activePresetId: string | null
+  /** 最近一次应用/保存的预设 id；表单改动后仍保留,用于显式覆盖当前预设。 */
+  editingPresetId: string | null
+  /** NS-5 语义检索（embedding）配置 */
+  embedding: EmbeddingConfig
+  setEmbeddingConfig: (partial: Partial<EmbeddingConfig>) => void
   setConfig: (config: Partial<AIConfig>) => void
   setRememberApiKey: (remember: boolean) => void
   switchProvider: (provider: AIProvider) => void
@@ -146,6 +234,9 @@ interface AIConfigStore {
   updatePresetFromCurrent: (id: string) => void
   renamePreset: (id: string, name: string) => void
   deletePreset: (id: string) => void
+  setTaskRoute: (taskKind: AITaskKind, presetId: string | null) => void
+  setAgentContextProfile: (taskKind: AgentContextTaskKind, profile: AgentContextProfile) => void
+  setAgentTeamBudgetProfile: (profile: AgentTeamBudgetProfile) => void
 }
 
 const initial = loadInitialConfig()
@@ -154,7 +245,18 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
   config: initial.config,
   rememberApiKey: initial.rememberApiKey,
   presets: loadPresets(),
+  taskRoutes: loadTaskRoutes(),
+  agentContextProfiles: loadAgentContextProfiles(),
+  agentTeamBudgetProfile: loadAgentTeamBudgetProfile(),
   activePresetId: null,
+  editingPresetId: null,
+  embedding: loadEmbeddingConfig(initial.rememberApiKey),
+
+  setEmbeddingConfig: (partial: Partial<EmbeddingConfig>) => {
+    const next = { ...get().embedding, ...partial }
+    persistEmbeddingConfig(next, get().rememberApiKey)
+    set({ embedding: next })
+  },
 
   setConfig: (partial: Partial<AIConfig>) => {
     const newConfig = { ...get().config, ...partial }
@@ -165,6 +267,7 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
 
   setRememberApiKey: (remember: boolean) => {
     persistConfig(get().config, remember)
+    persistEmbeddingConfig(get().embedding, remember)
     set({ rememberApiKey: remember })
   },
 
@@ -177,7 +280,7 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
     }
     const presets = [...get().presets, preset]
     savePresets(presets)
-    set({ presets, activePresetId: id })
+    set({ presets, activePresetId: id, editingPresetId: id })
     return id
   },
 
@@ -186,7 +289,7 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
     if (!preset) return
     const newConfig = { ...preset.config, apiKey: preset.config.apiKey || get().config.apiKey }
     persistConfig(newConfig, get().rememberApiKey)
-    set({ config: newConfig, activePresetId: id })
+    set({ config: newConfig, activePresetId: id, editingPresetId: id })
   },
 
   updatePresetFromCurrent: (id: string) => {
@@ -195,7 +298,7 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
       config: presetConfig(get().config, get().rememberApiKey),
     } : p)
     savePresets(presets)
-    set({ presets, activePresetId: id })
+    set({ presets, activePresetId: id, editingPresetId: id })
   },
 
   renamePreset: (id: string, name: string) => {
@@ -206,8 +309,43 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
 
   deletePreset: (id: string) => {
     const presets = get().presets.filter(p => p.id !== id)
+    const taskRoutes = Object.fromEntries(
+      Object.entries(get().taskRoutes).filter(([, presetId]) => presetId !== id),
+    ) as AITaskRoutes
     savePresets(presets)
-    set({ presets, activePresetId: get().activePresetId === id ? null : get().activePresetId })
+    saveTaskRoutes(taskRoutes)
+    set({
+      presets,
+      taskRoutes,
+      activePresetId: get().activePresetId === id ? null : get().activePresetId,
+      editingPresetId: get().editingPresetId === id ? null : get().editingPresetId,
+    })
+  },
+
+  setTaskRoute: (taskKind, presetId) => {
+    const taskRoutes = { ...get().taskRoutes }
+    if (presetId && get().presets.some(preset => preset.id === presetId)) {
+      taskRoutes[taskKind] = presetId
+    } else {
+      delete taskRoutes[taskKind]
+    }
+    saveTaskRoutes(taskRoutes)
+    set({ taskRoutes })
+  },
+
+  setAgentContextProfile: (taskKind, profile) => {
+    const agentContextProfiles = sanitizeAgentContextProfiles({
+      ...get().agentContextProfiles,
+      [taskKind]: profile,
+    })
+    saveAgentContextProfiles(agentContextProfiles)
+    set({ agentContextProfiles })
+  },
+
+  setAgentTeamBudgetProfile: profile => {
+    const agentTeamBudgetProfile = sanitizeAgentTeamBudgetProfile(profile)
+    saveAgentTeamBudgetProfile(agentTeamBudgetProfile)
+    set({ agentTeamBudgetProfile })
   },
 
   switchProvider: (provider: AIProvider) => {
@@ -219,15 +357,21 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
       apiKey: provider === get().config.provider ? get().config.apiKey : (preset.apiKey || ''),
     }
     persistConfig(newConfig, get().rememberApiKey)
-    set({ config: newConfig, activePresetId: null })
+    set({ config: newConfig, activePresetId: null, editingPresetId: null })
   },
 
   testConnection: async (): Promise<TestResult> => {
     const { config } = get()
-    // 标准化 baseUrl：去除尾部斜杠
-    const baseUrl = config.baseUrl.replace(/\/+$/, '')
-    const url = `${baseUrl}/chat/completions`
+    const normalized = normalizeOpenAIBaseUrl(config.baseUrl)
+    if (normalized.changed) {
+      const newConfig = { ...config, baseUrl: normalized.baseUrl }
+      persistConfig(newConfig, get().rememberApiKey)
+      set({ config: newConfig, activePresetId: null })
+    }
+    const url = buildOpenAIEndpoint(normalized.baseUrl, 'chat/completions')
     const startTime = Date.now()
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), 15_000)
 
     // 创建日志
     const log = createLog({
@@ -241,9 +385,10 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
     try {
       const response = await fetch(url, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`,
+          ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
         },
         body: JSON.stringify({
           model: config.model,
@@ -256,7 +401,8 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
 
       if (response.ok) {
         updateLog(log.id, { status: 'success', statusCode: response.status, duration, responseBody: bodyText.slice(0, 200) })
-        return { ok: true, message: '✅ 连接成功', statusCode: response.status, duration }
+        const prefix = normalized.warnings.length ? `${normalized.warnings.join(' ')} ` : ''
+        return { ok: true, message: `✅ ${prefix}连接成功`, statusCode: response.status, duration }
       }
 
       // 解析错误信息
@@ -277,10 +423,17 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
       if (response.status === 402) {
         const msg = `${rawErrorMsg}（${cnExplanation}）`
         updateLog(log.id, { status: 'success', statusCode: response.status, duration, responseBody: bodyText.slice(0, 200) })
-        return { ok: true, message: `✅ 连接成功 — ${msg}`, statusCode: response.status, duration }
+        const prefix = normalized.warnings.length ? `${normalized.warnings.join(' ')} ` : ''
+        return { ok: true, message: `✅ ${prefix}连接成功 — ${msg}`, statusCode: response.status, duration }
       }
 
-      const errorMsg = cnExplanation ? `${rawErrorMsg}（${cnExplanation}）` : rawErrorMsg
+      const urlHint = normalized.warnings.length
+        ? `；${normalized.warnings.join(' ')}`
+        : ''
+      const localHint = ['custom', 'ollama'].includes(config.provider)
+        ? '；本地 OpenAI 兼容服务的 Base URL 通常应填到 /v1，例如 LM Studio: http://主机:1234/v1，Ollama: http://localhost:11434/v1'
+        : ''
+      const errorMsg = `${cnExplanation ? `${rawErrorMsg}（${cnExplanation}）` : rawErrorMsg}${urlHint}${localHint}`
 
       updateLog(log.id, { status: 'error', statusCode: response.status, duration, errorMessage: errorMsg, responseBody: bodyText.slice(0, 500) })
       return { ok: false, message: `❌ ${errorMsg}`, statusCode: response.status, duration }
@@ -300,6 +453,8 @@ export const useAIConfigStore = create<AIConfigStore>((set, get) => ({
 
       updateLog(log.id, { status: 'error', duration, errorMessage: errorMsg })
       return { ok: false, message: `❌ ${errorMsg}`, duration }
+    } finally {
+      window.clearTimeout(timeoutId)
     }
   },
 }))

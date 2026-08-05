@@ -3,7 +3,7 @@ import {
   Download, Upload, FileJson, FileText, FileType,
   Loader2, CheckCircle, AlertCircle, FolderOpen, X,
   History, Plus, Trash2, RotateCcw, HardDrive,
-  ShieldAlert,
+  ShieldAlert, Stethoscope,
 } from 'lucide-react'
 import { exportProjectJSON, downloadJSON, importProjectJSON, type ProjectExportData } from '../../lib/export/json-export'
 import { exportProjectMarkdown, exportProjectTXT, downloadTextFile } from '../../lib/export/text-export'
@@ -17,6 +17,8 @@ import CloudBackupCard from './CloudBackupCard'
 import { useToast } from '../shared/Toast'
 import { useDialog } from '../shared/Dialog'
 import type { Project, Snapshot } from '../../lib/types'
+import { buildLocalDiagnosticReport } from '../../lib/diagnostics/local-diagnostic-report'
+import { inspectProjectBackup, type BackupTrustReport } from '../../lib/export/backup-trust'
 
 type Tab = 'export' | 'backup'
 type ExportStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -79,6 +81,7 @@ function ExportTab({ project, onImported }: Props) {
   const [folderName, setFolderName] = useState('')
   const [folderNeedsAuth, setFolderNeedsAuth] = useState(false)
   const [folderBusy, setFolderBusy] = useState(false)
+  const [backupReport, setBackupReport] = useState<BackupTrustReport | null>(null)
 
   // 进面板时把该项目已持久化的绑定读回来；授权仍有效则直接显示已绑定，失效则提示重新授权
   useEffect(() => {
@@ -113,6 +116,9 @@ function ExportTab({ project, onImported }: Props) {
     try {
       show('loading', '正在导入项目...')
       const data: ProjectExportData = JSON.parse(await file.text())
+      const report = inspectProjectBackup(data)
+      setBackupReport(report)
+      if (!report.valid) throw new Error(report.errors.join('；'))
       const newId = await importProjectJSON(data)
       show('success', '导入成功！')
       onImported?.(newId)
@@ -136,6 +142,21 @@ function ExportTab({ project, onImported }: Props) {
       downloadTextFile(txt, `${project.name}_${new Date().toISOString().slice(0, 10)}.txt`)
       show('success', 'TXT 导出成功！')
     } catch (e) { show('error', `导出失败：${(e as Error).message}`) }
+  }
+
+  const handleDownloadDiagnostics = async () => {
+    try {
+      show('loading', '正在整理本地诊断信息...')
+      const report = await buildLocalDiagnosticReport()
+      downloadTextFile(
+        JSON.stringify(report, null, 2),
+        `storyforge-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
+        'application/json',
+      )
+      show('success', '诊断信息已下载，不含作品内容与 API Key。')
+    } catch (e) {
+      show('error', `诊断信息生成失败：${(e as Error).message}`)
+    }
   }
 
   // 绑定文件夹：选目录 → 请求授权 → 持久化句柄 → 立刻写一次
@@ -198,6 +219,9 @@ function ExportTab({ project, onImported }: Props) {
         title="JSON（完整备份）"
         desc="导出包含所有数据的完整备份文件，可用于恢复项目。"
       >
+        <p className="text-[11px] text-text-muted bg-bg-base border border-border rounded px-3 py-2">
+          导入前会检查版本、项目根记录和所有已登记表的结构；预检不通过时不会写入任何项目数据。
+        </p>
         <div className="flex gap-3 flex-wrap">
           <ActionButton onClick={handleExportJSON} disabled={status === 'loading'} variant="accent">
             <Download className="w-4 h-4" /> 导出 JSON
@@ -207,6 +231,7 @@ function ExportTab({ project, onImported }: Props) {
           </ActionButton>
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileSelected} className="hidden" />
         </div>
+        {backupReport && <BackupTrustResult report={backupReport} />}
       </SectionCard>
 
       {/* 云备份（GitHub Gist）—— 清浏览器/换设备都不丢 */}
@@ -275,6 +300,35 @@ function ExportTab({ project, onImported }: Props) {
           </ActionButton>
         )}
       </SectionCard>
+
+      <SectionCard
+        icon={<Stethoscope className="w-5 h-5 text-teal-400" />}
+        title="本地诊断信息"
+        desc="仅包含应用/浏览器版本、数据库表记录数量和本次页面会话的错误位置；不包含作品正文、设定、API Key 或 localStorage 内容，也不会自动上传。"
+      >
+        <ActionButton onClick={handleDownloadDiagnostics} disabled={status === 'loading'} variant="default">
+          <Download className="w-4 h-4" /> 下载诊断信息
+        </ActionButton>
+      </SectionCard>
+    </div>
+  )
+}
+
+function BackupTrustResult({ report }: { report: BackupTrustReport }) {
+  return (
+    <div className={`rounded-lg border px-3 py-2 text-xs ${report.valid
+      ? 'border-green-500/30 bg-green-500/5 text-text-secondary'
+      : 'border-red-500/30 bg-red-500/5 text-red-300'}`}>
+      <div className="flex items-center gap-2 font-medium">
+        {report.valid ? <CheckCircle className="w-3.5 h-3.5 text-green-400" /> : <AlertCircle className="w-3.5 h-3.5" />}
+        {report.valid ? '备份预检通过' : '备份预检未通过'}
+        {report.projectName && <span className="text-text-muted font-normal">· {report.projectName}</span>}
+      </div>
+      {report.valid && (
+        <p className="mt-1 text-text-muted">v{report.version} · {report.presentTables} 张表 · {report.recordCount} 条记录</p>
+      )}
+      {report.errors.map(error => <p key={error} className="mt-1 text-red-300">{error}</p>)}
+      {report.warnings.map(warning => <p key={warning} className="mt-1 text-amber-300">{warning}</p>)}
     </div>
   )
 }

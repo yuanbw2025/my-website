@@ -2,6 +2,7 @@ import type { Worldview, StoryCore, PowerSystem, Character, CreativeRules } from
 import type { HistoricalKeyword, HistoricalKeywordCategory } from '../types/history'
 import { KEYWORD_CATEGORY_LABELS } from '../types/history'
 import { DIMENSION_LABELS, ANALYSIS_DIMENSIONS } from '../types/reference'
+import { ensureLegacyActiveReferenceRun } from '../reference-analysis/legacy-bridge'
 import { loadContextMemo } from '../export/context-snapshot'
 import { db } from '../db/schema'
 import {
@@ -10,6 +11,7 @@ import {
   ORDER_AXIS_LABELS,
   ROLE_WEIGHT_LABELS,
 } from '../character/character-axes'
+import { CHARACTER_DIMENSIONS } from '../character/character-dimensions'
 
 /** 获取已缓存的上下文快照（如果有） */
 export function getContextMemo(projectId: number): string {
@@ -86,13 +88,15 @@ export function formatWorldviewBlock(wv: Worldview | null): string {
     wv.regionDimensions && `重镇/区域分布：${wv.regionDimensions}`,
     wv.mountainsRivers && `山川河流：${wv.mountainsRivers}`,
     wv.climateByRegion && `气候环境：${wv.climateByRegion}`,
-    wv.historyLine && `世界历史：${wv.historyLine}`,
-    wv.worldEvents && `世界大事记：${wv.worldEvents}`,
     wv.naturalResourceOverview && `自然资源：${wv.naturalResourceOverview}`,
     formatNaturalResources(wv.naturalResources),
     wv.races && `种族民族：${wv.races}`,
     wv.factionLayout && `势力分布：${wv.factionLayout}`,
-    wv.politicsEconomyCulture && `政经文化：${wv.politicsEconomyCulture}`,
+    wv.politicsOverview && `政治制度：${wv.politicsOverview}`,
+    wv.economyOverview && `经济制度：${wv.economyOverview}`,
+    wv.cultureOverview && `文化制度：${wv.cultureOverview}`,
+    !wv.politicsOverview && !wv.economyOverview && !wv.cultureOverview &&
+      wv.politicsEconomyCulture && `政经文化（旧版资料）：${wv.politicsEconomyCulture}`,
     wv.internalConflicts && `矛盾冲突：${wv.internalConflicts}`,
     wv.itemDesign && `道具设计：${wv.itemDesign}`,
   ].filter(Boolean)
@@ -202,16 +206,16 @@ export function buildCharacterContext(characters: Character[]): string {
   if (core.length) {
     parts.push('【核心角色（完整信息）】')
     for (const c of core) {
-      // 核心角色:放开字段硬截断,完整注入(源级 token 软上限仍兜底)
+      // 核心角色:从 CHARACTER_DIMENSIONS 单源遍历注入所有已填维度(含 A 扩充的 13 维),
+      // 让设计的 价值观/恐惧/目标/弱点… 真正进入生成上下文。relationships 非维度,单列保留。
+      // 放开字段硬截断,完整注入(源级 token 软上限仍兜底)。
       const details = [
         `${c.name}（${axes(c)}）`,
-        c.shortDescription ? `简介：${c.shortDescription}` : '',
-        c.appearance ? `外貌：${c.appearance}` : '',
-        c.personality ? `性格：${c.personality}` : '',
-        c.background ? `背景：${c.background}` : '',
-        c.motivation ? `动机：${c.motivation}` : '',
-        c.abilities ? `能力：${c.abilities}` : '',
-        c.arc ? `成长弧线：${c.arc}` : '',
+        ...CHARACTER_DIMENSIONS.map(d => {
+          const v = (c[d.key] as string | undefined)?.trim()
+          return v ? `${d.label}：${v}` : ''
+        }),
+        c.relationships?.trim() ? `人物关系：${c.relationships.trim()}` : '',
       ].filter(Boolean).join('；')
       parts.push(details)
     }
@@ -259,10 +263,16 @@ export async function buildRefAnalysisContext(refIds: number[]): Promise<string>
 
   for (const refId of refIds) {
     const ref = await db.references.get(refId)
-    if (!ref || ref.analysisStatus !== 'done') continue
-
+    if (!ref) continue
+    let activeRun = (await db.referenceAnalysisRuns
+      .where('referenceId').equals(refId).toArray())
+      .find(run => run.status === 'active')
+    if (!activeRun && ref.analysisStatus === 'done') {
+      activeRun = await ensureLegacyActiveReferenceRun(refId)
+    }
+    if (!activeRun || activeRun.status !== 'active') continue
     const chunks = await db.referenceChunkAnalysis
-      .where('referenceId').equals(refId)
+      .where('analysisRunId').equals(activeRun.id!)
       .sortBy('chunkIndex')
 
     if (!chunks.length) continue
@@ -305,10 +315,46 @@ export async function buildHistoricalContext(projectId: number, worldGroupId?: n
   const project = await db.projects.get(projectId)
   const filterWorldScope = <T extends { worldGroupId?: number | null }>(rows: T[]): T[] => {
     if (!project?.enableMultiWorld) return rows
-    return rows.filter(row => row.worldGroupId == null || row.worldGroupId === worldGroupId)
+    return rows.filter(row => (row.worldGroupId ?? null) === (worldGroupId ?? null))
   }
 
-  // 1. 历史时间线事件（按年份排序，取关键事件）
+  // 1. 正式历史总述与纪年。多世界必须精确匹配，禁止默认世界资料泄漏到其它世界。
+  const histories = filterWorldScope(await db.histories
+    .where('projectId').equals(projectId)
+    .toArray())
+  const history = histories[0]
+  const overview = history?.overview?.trim()
+  const eraSystem = history?.eraSystem?.trim()
+  if (overview) {
+    const block = `【历史总述】\n${overview}`
+    parts.push(block)
+    charCount += block.length
+  }
+  if (eraSystem && charCount < MAX_CHARS) {
+    const block = `【纪年体系】\n${eraSystem}`
+    parts.push(block)
+    charCount += block.length
+  }
+
+  // 正式历史完全为空时才读取旧 Worldview 历史字段，避免同一语义双份注入。
+  if (!overview && !eraSystem) {
+    const worldviews = filterWorldScope(await db.worldviews
+      .where('projectId').equals(projectId)
+      .toArray())
+    const worldview = worldviews[0]
+    const legacy = [
+      worldview?.historyLine?.trim(),
+      worldview?.worldEvents?.trim() &&
+        `【旧版世界大事记】\n${worldview.worldEvents.trim()}`,
+    ].filter(Boolean).join('\n\n')
+    if (legacy) {
+      const block = `【历史总述（旧版兼容）】\n${legacy}`
+      parts.push(block)
+      charCount += block.length
+    }
+  }
+
+  // 2. 历史时间线事件（按年份排序，取关键事件）
   const events = filterWorldScope(await db.historicalTimelineEvents
     .where('projectId').equals(projectId)
     .sortBy('year'))
@@ -318,7 +364,7 @@ export async function buildHistoricalContext(projectId: number, worldGroupId?: n
     for (const e of events) {
       const marker = e.isHistorical ? '📜史实' : '✨虚构'
       const line = `- ${e.date}（${marker}）：${e.title}${e.description ? `——${e.description.slice(0, 80)}` : ''}`
-      if (charCount + line.length > MAX_CHARS * 0.6) break // 事件最多占 60%
+      if (charCount + line.length > MAX_CHARS) break
       eventLines.push(line)
       charCount += line.length
     }
@@ -327,7 +373,7 @@ export async function buildHistoricalContext(projectId: number, worldGroupId?: n
     }
   }
 
-  // 2. 历史关键词（按分类分组）
+  // 3. 历史关键词（按分类分组）
   const keywords = filterWorldScope(await db.historicalKeywords
     .where('projectId').equals(projectId)
     .toArray())

@@ -17,13 +17,21 @@ import { db } from '../db/schema'
 import { renderPrompt } from '../ai/prompt-engine'
 import { usePromptStore } from '../../stores/prompt'
 import { useAIConfigStore } from '../../stores/ai-config'
+import { getAIConfigRequiredMessage, isAIConfigReady } from '../ai/config-readiness'
 import { useCharacterStore } from '../../stores/character'
 import { useImportSessionStore } from '../../stores/import-session'
 import { useImportStatusStore } from '../../stores/import-status'
 import { extractJSON } from '../ai/adapters/import-adapter'
 import type { AIConfig, Character } from '../types'
+import { resolveRequestConfig } from '../ai/client'
 import { chatWithAbort } from './chat-with-abort'
+import { CHARACTER_DIMENSIONS } from '../character/character-dimensions'
+import { transactionTablesFor } from '../registry/lifecycle'
+
+// 合并保留的角色文字字段：所有维度 + relationships(单源，加维度自动跟随)
+const CHARACTER_MERGE_KEYS = [...CHARACTER_DIMENSIONS.map(d => d.key), 'relationships'] as const
 import { applyCharacterReferenceRemap } from '../registry/character-references'
+import { refreshSettingAssertionSourceStatus } from '../fact-ledger/setting-assertions'
 
 export interface RunCharacterMergeArgs {
   sessionId: number
@@ -68,9 +76,15 @@ export async function runCharacterMerge(args: RunCharacterMergeArgs): Promise<vo
       ...baseConfig,
       maxTokens: Math.max(baseConfig.maxTokens ?? 4096, 4096),
     }
-    if (!config.apiKey) throw new Error('未配置 AI API Key')
+    const meta = {
+      category: 'import.merge-characters',
+      projectId,
+      configOverrides: { maxTokens: config.maxTokens },
+    } as const
+    const effectiveConfig = resolveRequestConfig(config, meta).config
+    if (!isAIConfigReady(effectiveConfig)) throw new Error(getAIConfigRequiredMessage(effectiveConfig))
 
-    const output = await chatWithAbort(messages, config, signal, { category: 'import.merge-characters', projectId })
+    const output = await chatWithAbort(messages, config, signal, meta)
     const parsed = extractJSON(output) as { mergeGroups?: Array<{
       canonical: string
       aliases: string[]
@@ -128,34 +142,30 @@ async function applyMergeGroup(
     return cur ? `${cur}\n\n${e}` : e
   }
 
-  const merged: Partial<Character> = {
-    name: canonical,
-    shortDescription: primary.shortDescription,
-    appearance: primary.appearance,
-    personality: primary.personality,
-    background: primary.background,
-    motivation: primary.motivation,
-    abilities: primary.abilities,
-    relationships: primary.relationships,
-    arc: primary.arc,
+  // 从 CHARACTER_DIMENSIONS 单源构造合并字段(含 A 扩充维度)，主角色为底，其余追加不覆盖
+  const merged: Partial<Character> = { name: canonical }
+  for (const k of CHARACTER_MERGE_KEYS) {
+    (merged as Record<string, unknown>)[k] = (primary as unknown as Record<string, unknown>)[k] || ''
   }
   // 收集别名（写到 relationships 里附记）
   const aliasNote = `（曾用名/别称：${aliases.filter(a => a !== canonical).join('、')}）`
 
   for (const o of others) {
-    merged.shortDescription = append(merged.shortDescription || '', o.shortDescription)
-    merged.appearance = append(merged.appearance || '', o.appearance)
-    merged.personality = append(merged.personality || '', o.personality)
-    merged.background = append(merged.background || '', o.background)
-    merged.motivation = append(merged.motivation || '', o.motivation)
-    merged.abilities = append(merged.abilities || '', o.abilities)
-    merged.relationships = append(merged.relationships || '', o.relationships)
-    merged.arc = append(merged.arc || '', o.arc)
+    for (const k of CHARACTER_MERGE_KEYS) {
+      const cur = String((merged as Record<string, unknown>)[k] || '')
+      ;(merged as Record<string, unknown>)[k] = append(cur, String((o as unknown as Record<string, unknown>)[k] || ''))
+    }
   }
   merged.relationships = append(merged.relationships || '', aliasNote)
 
-  await db.transaction('rw', db.characters, db.characterRelations, db.detailedOutlines, db.stateCards, async () => {
+  await db.transaction('rw', transactionTablesFor('importProject'), async () => {
     await db.characters.update(primary.id!, { ...merged, updatedAt: Date.now() })
+    await refreshSettingAssertionSourceStatus({
+      projectId,
+      table: 'characters',
+      recordId: primary.id!,
+      changedFields: Object.keys(merged),
+    })
     for (const o of others) {
       if (!o.id) continue
       await applyCharacterReferenceRemap({

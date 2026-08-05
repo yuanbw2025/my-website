@@ -34,6 +34,21 @@ jobs:
       - name: 架构铁律(三注册表反模式守护)
         run: npm run check:architecture
 
+      - name: 源码可达性(防孤儿文件回潮)
+        run: npm run check:source-reachability
+
+      - name: 路线图迁移与文档链接完整性
+        run: npm run check:roadmap
+
+      - name: Blueprint 实时规模与代码一致
+        run: npm run check:project-metrics
+
+      - name: 生产依赖漏洞门槛
+        run: npm run check:dependencies
+
+      - name: ESLint 零 warning
+        run: npm run lint
+
       - name: TypeScript 严格类型检查
         run: npx tsc --noEmit
 
@@ -42,3 +57,12 @@ jobs:
 
       - name: 生产构建
         run: npm run build
+
+      - name: 构建产物体积预算
+        run: npm run check:bundle-size
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: 核心用户路径浏览器冒烟
+        run: npm run ci:e2e

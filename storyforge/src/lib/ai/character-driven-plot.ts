@@ -5,43 +5,33 @@
  */
 
 import type { ChatMessage } from '../types'
+import {
+  parseCharacterDrivenPlotVolumes,
+  type CharacterDrivenPlanArc,
+  type CharacterDrivenPlotChapter,
+  type CharacterDrivenPlotVolume,
+} from '../types/character-driven-plan'
 import type { OutlineNode } from '../types/outline'
 import { usePromptStore } from '../../stores/prompt'
 import { renderPrompt } from './prompt-engine'
-import { buildWorldContext } from './context-builder'
-import { buildCodexContext } from './codex-context'
-import { buildWorldRulesContext } from './world-rules-manifest'
-import { useWorldviewStore } from '../../stores/worldview'
 import { useOutlineStore } from '../../stores/outline'
+import { db } from '../db/schema'
+import { assembleContext } from '../registry/assemble-context'
+import {
+  appendSimplifiedChineseOutputConstraint,
+  appendUserConstraint,
+} from './adapters/prompt-guards'
 
 // ── 类型 ────────────────────────────────────────────────────────────────
 
 /** 单个角色的弧光设定（用户填写） */
-export interface CharacterArcInput {
-  characterId: number
-  name: string
-  role: string
-  /** 初始状态描述 */
-  initialState: string
-  /** 目标状态/结局描述 */
-  targetState: string
-}
+export type CharacterArcInput = CharacterDrivenPlanArc
 
 /** AI 输出的章节 */
-export interface PlotChapter {
-  title: string
-  summary: string
-  keyCharacters: string[]
-  arcProgress: string
-}
+export type PlotChapter = CharacterDrivenPlotChapter
 
 /** AI 输出的卷 */
-export interface PlotVolume {
-  volumeTitle: string
-  volumeSummary: string
-  characterArcs: string
-  chapters: PlotChapter[]
-}
+export type PlotVolume = CharacterDrivenPlotVolume
 
 // ── 构建 Prompt ─────────────────────────────────────────────────────────
 
@@ -85,6 +75,20 @@ function buildExistingOutlineSummary(nodes: OutlineNode[]): string {
   return lines.join('\n')
 }
 
+async function resolveContextWorldGroupId(projectId: number): Promise<number | null | undefined> {
+  const active = await db.worldGroups
+    .where('projectId').equals(projectId)
+    .and(g => g.type === 'primary')
+    .first()
+  return active?.id ?? undefined
+}
+
+function extractStoryCoreBlock(contextText: string): string {
+  const match = contextText.match(/【故事核心】[\s\S]*?(?=\n\n【|$)/)
+  const storyCore = match?.[0].replace(/^【故事核心】\n?/, '').trim()
+  return storyCore || contextText.trim()
+}
+
 /**
  * 构建角色驱动剧情生成的 prompt messages
  */
@@ -95,15 +99,22 @@ export async function buildCharacterDrivenPlotPrompt(
   arcs: CharacterArcInput[],
   userHint?: string,
 ): Promise<ChatMessage[]> {
-  const { worldview, storyCore, powerSystem } = useWorldviewStore.getState()
-  const codexCtx = await buildCodexContext(projectId, null)
-  const worldContext = [buildWorldContext(worldview, storyCore, powerSystem), codexCtx].filter(Boolean).join('\n\n')
-  const worldRulesContext = await buildWorldRulesContext(projectId)
-
-  const storyCoreParts: string[] = []
-  if (storyCore?.theme) storyCoreParts.push(`主题：${storyCore.theme}`)
-  if (storyCore?.centralConflict) storyCoreParts.push(`核心冲突：${storyCore.centralConflict}`)
-  if (storyCore?.plotPattern) storyCoreParts.push(`情节模式：${storyCore.plotPattern}`)
+  const worldGroupId = await resolveContextWorldGroupId(projectId)
+  const context = await assembleContext({
+    projectId,
+    worldGroupId,
+    sourceKeys: [
+      'worldview',
+      'storyCore',
+      'powerSystem',
+      'cultivationProgress',
+      'codex',
+      'characters',
+      'worldRules',
+      'existingVolumeOutlines',
+    ],
+  })
+  const storyCoreBlock = extractStoryCoreBlock(context.text)
 
   // 已有大纲结构
   const outlineNodes = useOutlineStore.getState().nodes
@@ -115,15 +126,22 @@ export async function buildCharacterDrivenPlotPrompt(
   const { messages } = renderPrompt(tpl, {
     projectName,
     genres: genre,
-    worldContext: worldContext || '',
-    storyCore: storyCoreParts.join('\n') || '',
+    worldContext: context.text || '',
+    storyCore: storyCoreBlock || '',
     existingOutline,
     characterArcs,
-    worldRulesContext: worldRulesContext || '',
     userHint: userHint || '',
   })
 
-  return messages
+  const aligned = appendUserConstraint(messages, [
+    '【角色驱动与故事主线对齐硬约束】',
+    '若上文存在「故事核心 / 主线 / 一句话故事 / 复线」，角色弧光推演必须服务这条主线，不得另起一套主线。',
+    '每一卷的 volumeSummary 或 characterArcs 必须说明：本卷推动了故事主线的哪一阶段，以及哪些角色转变在其中起作用。',
+    '每一章的 arcProgress 必须写清它推动了哪个角色弧光，并说明它如何推进本卷主线。',
+    '如果角色目标与故事主线存在冲突，不要静默改写主线；请在对应 summary 或 characterArcs 中标注冲突点与调整建议。',
+  ].join('\n'))
+
+  return appendSimplifiedChineseOutputConstraint(aligned)
 }
 
 // ── 解析输出 ─────────────────────────────────────────────────────────────
@@ -138,21 +156,7 @@ export function parsePlotOutput(output: string): PlotVolume[] {
 
   try {
     const parsed = JSON.parse(jsonStr)
-    if (!Array.isArray(parsed)) return []
-
-    return parsed.map((vol: Record<string, unknown>) => ({
-      volumeTitle: String(vol.volumeTitle || vol.title || ''),
-      volumeSummary: String(vol.volumeSummary || vol.summary || ''),
-      characterArcs: String(vol.characterArcs || ''),
-      chapters: Array.isArray(vol.chapters)
-        ? vol.chapters.map((ch: Record<string, unknown>) => ({
-            title: String(ch.title || ''),
-            summary: String(ch.summary || ''),
-            keyCharacters: Array.isArray(ch.keyCharacters) ? ch.keyCharacters.map(String) : [],
-            arcProgress: String(ch.arcProgress || ''),
-          }))
-        : [],
-    })).filter(v => v.volumeTitle)
+    return parseCharacterDrivenPlotVolumes(parsed)
   } catch {
     // JSON 解析失败，尝试正则降级（简单的标题+摘要提取）
     return []

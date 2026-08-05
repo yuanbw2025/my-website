@@ -14,6 +14,8 @@ export type AIProvider =
   | 'modelscope'
   | 'nvidia'
   | 'agnes'
+  | 'longcat'
+  | 'opencode'
   | 'ollama'
   | 'custom'
 
@@ -30,6 +32,19 @@ export interface AIConfig {
    * 设了就以它为准,否则按内置预设、再否则 8K 兜底。0/undefined = 用预设。
    */
   contextWindow?: number
+}
+
+/**
+ * NS-5 · Embedding（语义检索通道）配置。与聊天 AIConfig 分开存——换写作模型不影响向量。
+ * enabled=false（默认）时检索只走关键词通道（优雅降级）。走 OpenAI 兼容 /embeddings 端点。
+ */
+export interface EmbeddingConfig {
+  /** 是否启用语义检索通道（默认 false = 纯关键词，零额外成本/不外传） */
+  enabled: boolean
+  provider: AIProvider
+  apiKey: string
+  baseUrl: string
+  model: string
 }
 
 /** API 配置预设（多套配置一键切换） */
@@ -104,6 +119,19 @@ export const PROVIDER_MODELS: Record<string, { value: string; label: string; des
     { value: 'agnes-1.5-flash', label: 'Agnes 1.5 Flash', desc: '清华系免费·稳定可用·推荐' },
     { value: 'Agnes-2.0-Flash', label: 'Agnes 2.0 Flash', desc: '1M 上下文·部分时段维护中' },
   ],
+  longcat: [
+    { value: 'LongCat-2.0', label: 'LongCat 2.0', desc: '美团 LongCat · OpenAI 兼容 · 1M 上下文' },
+  ],
+  opencode: [
+    { value: 'kimi-k2.7-code', label: 'Kimi K2.7 Code', desc: 'OpenCode Go · chat/completions' },
+    { value: 'kimi-k2.6', label: 'Kimi K2.6', desc: 'OpenCode Go · chat/completions' },
+    { value: 'glm-5.2', label: 'GLM-5.2', desc: 'OpenCode Go · chat/completions' },
+    { value: 'glm-5.1', label: 'GLM-5.1', desc: 'OpenCode Go · chat/completions' },
+    { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', desc: 'OpenCode Go · chat/completions' },
+    { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', desc: 'OpenCode Go · chat/completions' },
+    { value: 'mimo-v2.5-pro', label: 'MiMo-V2.5-Pro', desc: 'OpenCode Go · chat/completions' },
+    { value: 'mimo-v2.5', label: 'MiMo-V2.5', desc: 'OpenCode Go · chat/completions' },
+  ],
 }
 
 /** 提供商预设 */
@@ -163,6 +191,14 @@ export const PROVIDER_PRESETS: Record<string, Partial<AIConfig>> = {
   agnes: {
     baseUrl: 'https://apihub.agnes-ai.com/v1',
     model: 'agnes-1.5-flash',
+  },
+  longcat: {
+    baseUrl: 'https://api.longcat.chat/openai/v1',
+    model: 'LongCat-2.0',
+  },
+  opencode: {
+    baseUrl: 'https://opencode.ai/zen/go/v1',
+    model: 'kimi-k2.7-code',
   },
   ollama: {
     baseUrl: 'http://localhost:11434/v1',

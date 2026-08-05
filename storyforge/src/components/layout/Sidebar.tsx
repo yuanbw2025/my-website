@@ -1,10 +1,11 @@
 import { useState, type ComponentType, type ReactElement } from 'react'
 import { ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Settings } from 'lucide-react'
-import { APP_VERSION } from '../../lib/version'
+import { APP_BUILD_ID } from '../../lib/version'
 import {
-  NAV_TREE, getBranchChain,
+  MODULE_CONTENT_TYPE_DEFINITIONS, NAV_TREE, getBranchChain,
   type SidebarModule, type TreeLeaf, type TreeNode,
 } from './sidebar-tree'
+import ContentTypeBadge from './ContentTypeBadge'
 
 // 重导出供其他组件用（保留旧 import 路径）
 export type { SidebarModule }
@@ -134,7 +135,7 @@ export default function Sidebar({
         </button>
         {!collapsed && (
           <span className="text-[10px] text-text-muted font-mono" title="当前版本号">
-            {APP_VERSION}
+            {APP_BUILD_ID}
           </span>
         )}
         <button
@@ -217,10 +218,11 @@ function NavLeafButton({
   onSelect: (id: SidebarModule) => void
 }) {
   const Icon: ComponentType<{ className?: string }> = leaf.icon
+  const contentTypeDefinition = MODULE_CONTENT_TYPE_DEFINITIONS[leaf.contentType]
   return (
     <button
       onClick={() => onSelect(leaf.id)}
-      title={collapsed ? leaf.label : undefined}
+      title={collapsed ? `${leaf.label} · ${contentTypeDefinition.label}：${contentTypeDefinition.description}` : undefined}
       className={`
         w-full flex items-center gap-2 text-sm transition-colors
         ${collapsed ? 'justify-center px-0 py-2.5' : 'pr-3 py-1.5'}
@@ -232,7 +234,12 @@ function NavLeafButton({
       style={collapsed ? undefined : { paddingLeft: `${12 + depth * 12}px` }}
     >
       <Icon className="w-3.5 h-3.5 shrink-0" />
-      {!collapsed && <span className={depth > 0 ? 'text-[13px]' : ''}>{leaf.label}</span>}
+      {!collapsed && (
+        <>
+          <span className={`min-w-0 truncate ${depth > 0 ? 'text-[13px]' : ''}`}>{leaf.label}</span>
+          <ContentTypeBadge contentType={leaf.contentType} compact />
+        </>
+      )}
     </button>
   )
 }

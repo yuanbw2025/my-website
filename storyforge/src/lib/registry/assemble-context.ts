@@ -6,6 +6,7 @@
 import { estimateTokens, getModelPreset, type ContextLayer, type ContextSegment } from '../ai/context-budget'
 import { CONTEXT_SOURCES, CONTEXT_SOURCE_BY_KEY } from './context-sources'
 import type { AssembleContextInput, AssembleContextResult, ContextSource } from './types'
+import { prepareContinuityContext } from '../ai/chapter-memory/continuity-context'
 
 /** 拿不到模型时的保守默认输入预算(原固定 24K 偏紧,放宽避免内部提前裁) */
 const FALLBACK_INPUT_BUDGET = 48_000
@@ -17,34 +18,60 @@ const LAYERS_BY_TRIM_PRIORITY: ContextLayer[] = ['L3', 'L2', 'L1']
  */
 function deriveInputBudget(input: AssembleContextInput): number {
   if (input.inputBudgetTokens && input.inputBudgetTokens > 0) return input.inputBudgetTokens
+  let modelBudget = FALLBACK_INPUT_BUDGET
   if (input.provider && input.model) {
     const preset = getModelPreset(input.provider, input.model)
     const budget = preset.maxContext - preset.maxOutput - Math.round(preset.maxContext * 0.05)
-    if (budget > 0) return budget
+    if (budget > 0) modelBudget = budget
   }
-  return FALLBACK_INPUT_BUDGET
+  if (input.inputBudgetMaxTokens && input.inputBudgetMaxTokens > 0) {
+    return Math.min(modelBudget, input.inputBudgetMaxTokens)
+  }
+  return modelBudget
 }
 
 export async function assembleContext(input: AssembleContextInput): Promise<AssembleContextResult> {
   const selected = selectSources(input)
+  const inputBudget = deriveInputBudget(input)
+  const needsContinuity = selected.some(source => (
+    source.key === 'previousChapterEnding'
+    || source.key === 'chapterContinuityHandoff'
+    || source.key === 'previousPlanReconciliation'
+    || source.key === 'recentChapterSummaries'
+  ))
+  const resolvedInput: AssembleContextInput = needsContinuity && input.chapterId != null
+    ? {
+        ...input,
+        continuitySnapshot: input.continuitySnapshot ?? await prepareContinuityContext({
+          projectId: input.projectId,
+          chapterId: input.chapterId,
+        }),
+      }
+    : input
   const omitted: string[] = []
   const keyedSegments: { key: string; segment: ContextSegment }[] = []
 
   for (const source of selected) {
-    if (!requirementsMet(source, input)) {
+    if (!requirementsMet(source, resolvedInput)) {
       omitted.push(source.key)
       continue
     }
-    if (source.enabled && !await source.enabled(input)) {
+    if (source.enabled && !await source.enabled(resolvedInput)) {
       omitted.push(source.key)
       continue
     }
-    const content = await source.read(input)
+    const content = await source.read(resolvedInput)
     if (!content.trim()) {
       omitted.push(source.key)
       continue
     }
-    const capped = capBySourceBudget(content, source.budgetTokens)
+    // 单一源也不能突破整个请求预算。L0/protected 只表示不得整段丢弃，
+    // 不表示可以绕过总窗口；截断会留下显式标记并进入 tokens 元数据。
+    const sourceBudgetScale = Number.isFinite(input.sourceBudgetScale)
+      ? Math.max(0.1, Math.min(1, input.sourceBudgetScale!))
+      : 1
+    const scaledSourceBudget = Math.max(64, Math.floor(source.budgetTokens * sourceBudgetScale))
+    const capped = capBySourceBudget(content, Math.min(scaledSourceBudget, inputBudget))
     keyedSegments.push({
       key: source.key,
       segment: {
@@ -52,16 +79,16 @@ export async function assembleContext(input: AssembleContextInput): Promise<Asse
         layer: source.layer,
         content: capped,
         tokens: estimateTokens(capped),
-        trimmable: source.layer !== 'L0',
+        trimmable: source.layer !== 'L0' && !source.protectedFromTrim,
       },
     })
   }
 
   const totalBeforeTrim = keyedSegments.reduce((sum, s) => sum + s.segment.tokens, 0)
-  const inputBudget = deriveInputBudget(input)
   const overBudgetBeforeTrim = totalBeforeTrim > inputBudget
   const { kept, trimmed } = trimToFit(keyedSegments, inputBudget)
   const segments = kept.map(s => s.segment)
+  const totalInputTokens = segments.reduce((sum, s) => sum + s.tokens, 0)
 
   return {
     text: segments.map(s => s.content).join('\n\n'),
@@ -69,9 +96,10 @@ export async function assembleContext(input: AssembleContextInput): Promise<Asse
     included: kept.map(s => s.key),
     omitted,
     trimmed,
-    totalInputTokens: segments.reduce((sum, s) => sum + s.tokens, 0),
+    totalInputTokens,
     inputBudget,
     overBudgetBeforeTrim,
+    overBudgetAfterTrim: totalInputTokens > inputBudget,
   }
 }
 
@@ -84,15 +112,27 @@ function selectSources(input: AssembleContextInput): ContextSource[] {
 
 function requirementsMet(source: ContextSource, input: AssembleContextInput): boolean {
   if (source.requiresWorldGroupId && !Object.prototype.hasOwnProperty.call(input, 'worldGroupId')) return false
+  if (source.requiresSimulationSessionId && input.simulationSessionId == null) return false
   if (source.requiresOutlineNodeId && input.outlineNodeId == null && input.chapterId == null) return false
-  if (source.requiresChapterId && input.chapterId == null) return false
+  if (
+    source.requiresChapterId
+    && input.chapterId == null
+    && !(source.acceptsOutlineNodeAsChapterBoundary && input.outlineNodeId != null)
+  ) return false
   return true
 }
 
 function capBySourceBudget(content: string, budgetTokens: number): string {
   if (!budgetTokens || estimateTokens(content) <= budgetTokens) return content
-  const approxChars = Math.max(100, Math.floor(budgetTokens * 1.4))
-  return `${content.slice(0, approxChars)}\n…（该上下文源已按预算截断）`
+  const marker = '\n…（该上下文源已按预算截断）'
+  let low = 0
+  let high = content.length
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    if (estimateTokens(`${content.slice(0, middle)}${marker}`) <= budgetTokens) low = middle
+    else high = middle - 1
+  }
+  return `${content.slice(0, low)}${marker}`
 }
 
 function trimToFit(
