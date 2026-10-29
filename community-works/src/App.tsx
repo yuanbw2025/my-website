@@ -39,6 +39,61 @@ function Home() {
   </>
 }
 
+function NovelReader({ chapters }: { chapters: PublicWorkDetail['chapters'] }) {
+  const chapterFromHash = () => {
+    const match = window.location.hash.match(/^#chapter-(\d+)$/)
+    const index = match ? Number(match[1]) - 1 : 0
+    return Number.isSafeInteger(index) && index >= 0 && index < chapters.length ? index : 0
+  }
+  const [index, setIndex] = useState(chapterFromHash)
+  useEffect(() => {
+    const onHashChange = () => setIndex(chapterFromHash())
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [chapters.length])
+  const choose = (nextIndex: number) => {
+    if (nextIndex < 0 || nextIndex >= chapters.length) return
+    setIndex(nextIndex)
+    window.history.replaceState(null, '', `#chapter-${nextIndex + 1}`)
+    document.getElementById('chapter-heading')?.scrollIntoView({ block: 'start' })
+  }
+  const chapter = chapters[index]
+  return <>
+    <div className="reader-tools">
+      <label htmlFor="chapter-select">章节目录</label>
+      <select id="chapter-select" value={index} onChange={event => choose(Number(event.target.value))}>
+        {chapters.map((item, chapterIndex) =>
+          <option key={chapterIndex} value={chapterIndex}>{chapterIndex + 1}. {item.title}</option>)}
+      </select>
+      <span role="status">{index + 1} / {chapters.length}</span>
+    </div>
+    <section className="reading-section">
+      <h2 id="chapter-heading">{chapter.title}</h2>
+      {chapter.content.split(/\n+/).map((paragraph, line) => <p key={line}>{paragraph}</p>)}
+    </section>
+    <nav className="reader-pager" aria-label="章节导航">
+      <button type="button" disabled={index === 0} onClick={() => choose(index - 1)}>← 上一章</button>
+      <button type="button" disabled={index === chapters.length - 1} onClick={() => choose(index + 1)}>下一章 →</button>
+    </nav>
+  </>
+}
+
+function AnalysisReader({ detail }: { detail: PublicWorkDetail }) {
+  return <>
+    <nav className="toc" aria-label="分析目录"><h2>分析目录</h2>
+      {detail.dimensions.map(dimension => <a key={dimension.key} href={`#dimension-${dimension.key}`}>{dimension.label}</a>)}
+    </nav>
+    {detail.dimensions.map(dimension =>
+      <section className="reading-section" id={`dimension-${dimension.key}`} key={dimension.key}>
+        <h2>{dimension.label}</h2>
+        {dimension.selected
+          ? dimension.entries.map((entry, index) => <div key={index}><h3>{entry.label}</h3><p>{entry.text}</p></div>)
+          : <p className="muted">作者未选择公开此维度。</p>}
+      </section>)}
+    {detail.authorCommentary && <section className="reading-section"><h2>作者点评</h2><p>{detail.authorCommentary}</p></section>}
+  </>
+}
+
 function Detail({ slug }: { slug: string }) {
   const [detail, setDetail] = useState<PublicWorkDetail | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -52,7 +107,18 @@ function Detail({ slug }: { slug: string }) {
     }).catch(error => { if (error instanceof DOMException && error.name === 'AbortError') return; setState('error') })
     return () => controller.abort()
   }, [slug])
-  return <main id="main-content" className="detail-shell"><a className="back-link" href="/community-works/">← 返回作品集</a>{state === 'loading' && <p role="status">正在读取作品…</p>}{state === 'error' && <p role="alert">作品暂时不可访问，可能已下架或尚未通过审核。</p>}{state === 'ready' && detail && <article><p className="eyebrow">{detail.kind === 'novel' ? 'ORIGINAL FICTION' : 'BOOK ANALYSIS'}</p><h1>{detail.title}</h1><p className="byline">{detail.authorName} · {detail.language}</p><p className="lead">{detail.description}</p>{detail.kind === 'novel' ? <><nav className="toc" aria-label="章节目录"><h2>目录</h2>{detail.chapters?.map((chapter, index) => <a key={index} href={`#chapter-${index + 1}`}>{chapter.title}</a>)}</nav>{detail.chapters?.map((chapter, index) => <section className="reading-section" id={`chapter-${index + 1}`} key={index}><h2>{chapter.title}</h2>{chapter.content.split(/\n+/).map((paragraph, line) => <p key={line}>{paragraph}</p>)}</section>)}</> : <><nav className="toc" aria-label="分析目录"><h2>分析目录</h2>{detail.dimensions?.map(dimension => <a key={dimension.key} href={`#dimension-${dimension.key}`}>{dimension.label}</a>)}</nav>{detail.dimensions?.map(dimension => <section className="reading-section" id={`dimension-${dimension.key}`} key={dimension.key}><h2>{dimension.label}</h2>{dimension.selected ? dimension.entries.map((entry, index) => <div key={index}><h3>{entry.label}</h3><p>{entry.text}</p></div>) : <p className="muted">作者未选择公开此维度。</p>}</section>)}{detail.authorCommentary && <section className="reading-section"><h2>作者点评</h2><p>{detail.authorCommentary}</p></section>}</>}</article>}</main>
+  return <main id="main-content" className="detail-shell">
+    <a className="back-link" href="/community-works/">← 返回作品集</a>
+    {state === 'loading' && <p role="status">正在读取作品…</p>}
+    {state === 'error' && <p role="alert">作品暂时不可访问，可能已下架或尚未通过审核。</p>}
+    {state === 'ready' && detail && <article>
+      <p className="eyebrow">{detail.kind === 'novel' ? 'ORIGINAL FICTION' : 'BOOK ANALYSIS'}</p>
+      <h1>{detail.title}</h1>
+      <p className="byline">{detail.authorName} · {detail.language}</p>
+      <p className="lead">{detail.description}</p>
+      {detail.kind === 'novel' ? <NovelReader chapters={detail.chapters} /> : <AnalysisReader detail={detail} />}
+    </article>}
+  </main>
 }
 
 export function App() {
