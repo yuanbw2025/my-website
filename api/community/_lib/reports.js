@@ -5,7 +5,7 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const slug = /^[a-z0-9-]{1,100}$/
 const reasons = new Set(['child_safety', 'sexual_violence', 'violence_threat', 'hate', 'privacy', 'copyright', 'illegal_trade', 'other'])
 
-function settings() {
+export function settings() {
   const raw = process.env.COMMUNITY_SUPABASE_URL
   const publishable = process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY
   const secret = process.env.COMMUNITY_SUPABASE_SECRET_KEY
@@ -17,7 +17,7 @@ function settings() {
   } catch { return null }
 }
 
-async function uidFromToken(config, authorization, fetcher) {
+export async function uidFromToken(config, authorization, fetcher) {
   if (!/^Bearer [A-Za-z0-9._-]{40,}$/.test(authorization ?? '')) return null
   const user = await fetcher(new URL('/auth/v1/user', config.base), {
     headers: { apikey: config.publishable, Authorization: authorization },
@@ -28,7 +28,7 @@ async function uidFromToken(config, authorization, fetcher) {
   return typeof body?.id === 'string' && uuid.test(body.id) ? body.id : null
 }
 
-async function adminJson(config, path, options, fetcher) {
+export async function adminJson(config, path, options, fetcher) {
   const upstream = await fetcher(new URL(path, config.base), {
     ...options,
     headers: { apikey: config.secret, Accept: 'application/json', 'Content-Type': 'application/json',
@@ -39,13 +39,13 @@ async function adminJson(config, path, options, fetcher) {
   return upstream.json()
 }
 
-async function reviewer(config, uid, fetcher) {
+export async function reviewer(config, uid, fetcher) {
   const members = await adminJson(config,
     `/rest/v1/community_reviewers?select=uid&uid=eq.${uid}&active=eq.true&limit=1`, {}, fetcher)
   return Array.isArray(members) && members.length === 1
 }
 
-async function smallJson(request, maxBytes) {
+export async function smallJson(request, maxBytes) {
   if (Number(request.headers.get('content-length') ?? 0) > maxBytes) return null
   if (!request.body) return null
   const reader = request.body.getReader()

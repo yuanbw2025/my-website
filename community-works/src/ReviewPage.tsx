@@ -7,6 +7,13 @@ type ReviewItem = { id: string; kind: 'novel' | 'book-analysis'; status: string;
   sha256: string; created_at: string; public_pen_name: string }
 type ReportItem = { id: string; publication_id: string; reason_code: string;
   details: string; status: string; created_at: string }
+type CommentItem = { id: string; publication_id: string; author_uid: string;
+  display_name: string; body: string; status: string; created_at: string }
+type CommentReportItem = { id: string; comment_id: string; reason_code: string;
+  details: string; status: string; created_at: string }
+type AppealItem = { id: string; submission_id: string; owner_uid: string;
+  revision_sha256: string; community_submissions: { kind: 'novel' | 'book-analysis' };
+  from_status: string; reason: string; status: string; created_at: string }
 type Snapshot = Record<string, unknown>
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -23,6 +30,9 @@ async function privateJson(path: string, token: string, options: RequestInit = {
 function ReviewWorkspace({ session }: { session: Session }) {
   const [queue, setQueue] = useState<ReviewItem[]>([])
   const [reports, setReports] = useState<ReportItem[]>([])
+  const [comments, setComments] = useState<CommentItem[]>([])
+  const [commentReports, setCommentReports] = useState<CommentReportItem[]>([])
+  const [appeals, setAppeals] = useState<AppealItem[]>([])
   const [selected, setSelected] = useState<ReviewItem | null>(null)
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [chapterIndex, setChapterIndex] = useState(0)
@@ -32,17 +42,29 @@ function ReviewWorkspace({ session }: { session: Session }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [reportDecision, setReportDecision] = useState('')
+  const [commentDecision, setCommentDecision] = useState('')
+  const [commentReportDecision, setCommentReportDecision] = useState('')
+  const [appealDecision, setAppealDecision] = useState('')
 
   const refresh = async () => {
     setState('loading')
     try {
-      const [workResponse, reportResponse] = await Promise.all([
+      const [workResponse, reportResponse, commentResponse, commentReportResponse, appealResponse] = await Promise.all([
         privateJson('/api/community/v1/review', session.access_token),
         privateJson('/api/community/v1/reports?scope=queue', session.access_token),
-      ]) as [{ items?: ReviewItem[] }, { items?: ReportItem[] }]
-      if (!Array.isArray(workResponse?.items) || !Array.isArray(reportResponse?.items)) throw new Error('队列格式无效')
+        privateJson('/api/community/v1/comments?scope=queue', session.access_token),
+        privateJson('/api/community/v1/comment-reports?scope=queue', session.access_token),
+        privateJson('/api/community/v1/appeals?scope=queue', session.access_token),
+      ]) as [{ items?: ReviewItem[] }, { items?: ReportItem[] }, { items?: CommentItem[] },
+        { items?: CommentReportItem[] }, { items?: AppealItem[] }]
+      if (!Array.isArray(workResponse?.items) || !Array.isArray(reportResponse?.items) ||
+          !Array.isArray(commentResponse?.items) || !Array.isArray(commentReportResponse?.items) ||
+          !Array.isArray(appealResponse?.items)) throw new Error('队列格式无效')
       setQueue(workResponse.items.filter(item => uuid.test(item.id)))
       setReports(reportResponse.items.filter(item => uuid.test(item.id)))
+      setComments(commentResponse.items.filter(item => uuid.test(item.id)))
+      setCommentReports(commentReportResponse.items.filter(item => uuid.test(item.id)))
+      setAppeals(appealResponse.items.filter(item => uuid.test(item.id)))
       setState('ready')
     } catch { setState('error') }
   }
@@ -103,6 +125,47 @@ function ReviewWorkspace({ session }: { session: Session }) {
     finally { setBusy(false) }
   }
 
+  const decideComment = async (commentId: string, decision: string) => {
+    if (busy) return
+    setBusy(true); setCommentDecision('')
+    try {
+      const result = await privateJson('/api/community/v1/comment-decision', session.access_token, {
+        method: 'POST', body: JSON.stringify({ commentId, decision,
+          reasonCode: decision === 'approve' ? 'reviewed_content' : 'policy_violation', privateNote }),
+      }) as { status?: string }
+      setCommentDecision(`评论已处理：${result.status ?? '已处理'}`)
+      await refresh()
+    } catch (error) { setCommentDecision(error instanceof Error ? error.message : '评论处理失败') }
+    finally { setBusy(false) }
+  }
+
+  const decideCommentReport = async (reportId: string, decision: string) => {
+    if (busy) return
+    setBusy(true); setCommentReportDecision('')
+    try {
+      const result = await privateJson('/api/community/v1/comment-report-decision', session.access_token, {
+        method: 'POST', body: JSON.stringify({ reportId, decision,
+          reasonCode: decision === 'take_down' ? 'confirmed_harm' : 'report_reviewed', privateNote }),
+      }) as { status?: string }
+      setCommentReportDecision(`评论举报已处理：${result.status ?? '已处理'}`)
+      await refresh()
+    } catch (error) { setCommentReportDecision(error instanceof Error ? error.message : '评论举报处理失败') }
+    finally { setBusy(false) }
+  }
+
+  const decideAppeal = async (appealId: string, decision: string) => {
+    if (busy || !privateNote.trim()) { setAppealDecision('处理申诉需要填写具体审核意见。'); return }
+    setBusy(true); setAppealDecision('')
+    try {
+      const result = await privateJson('/api/community/v1/appeal-decision', session.access_token, {
+        method: 'POST', body: JSON.stringify({ appealId, decision, reviewerNote: privateNote.trim() }),
+      }) as { status?: string }
+      setAppealDecision(`申诉已处理：${result.status ?? '已处理'}`)
+      await refresh()
+    } catch (error) { setAppealDecision(error instanceof Error ? error.message : '申诉处理失败') }
+    finally { setBusy(false) }
+  }
+
   const chapters = snapshot?.kind === 'novel' ? snapshot.chapters as Array<{ title: string; content: string }> : []
   const dimensions = snapshot?.kind === 'book-analysis' ? snapshot.dimensions as Array<{
     key: string; selected: boolean; entries: Array<{ label: string; text: string }>
@@ -112,6 +175,9 @@ function ReviewWorkspace({ session }: { session: Session }) {
     <p className="eyebrow">PRIVATE REVIEW / STORYFORGE</p><h1>作品审核</h1>
     <p>此处仅供获授权的审核员使用。每个决定绑定当前修订的 SHA-256，发布需要单独启用服务端开关。</p>
     <button type="button" onClick={() => void refresh()}>刷新待办</button>
+    <label className="review-note">内部审核备注（适用于下面的处理动作）
+      <textarea value={privateNote} onChange={event => setPrivateNote(event.target.value)} maxLength={2000} />
+    </label>
     {state === 'loading' && <p role="status">正在读取待办…</p>}
     {state === 'error' && <p role="alert">审核服务不可用或账号没有审核权限。</p>}
     {message && <p role="status">{message}</p>}
@@ -132,6 +198,46 @@ function ReviewWorkspace({ session }: { session: Session }) {
             <button type="button" disabled={busy} onClick={() => void decideReport(report.id, 'take_down')}>下架作品</button>
           </div></article>)}
         {reportDecision && <p role="status">{reportDecision}</p>}
+      </section>
+      <section><h2>评论待审（{comments.length}）</h2>
+        {comments.length === 0 && <p>当前没有待审评论。</p>}
+        {comments.map(comment => <article className="review-list-item" key={comment.id}>
+          <strong>{comment.display_name}</strong><p className="review-manuscript">{comment.body}</p>
+          <small>作品 {comment.publication_id} · 评论 {comment.id}</small>
+          <div className="review-actions">
+            <button type="button" disabled={busy} onClick={() => void decideComment(comment.id, 'approve')}>批准评论</button>
+            <button type="button" disabled={busy} onClick={() => void decideComment(comment.id, 'reject')}>拒绝评论</button>
+          </div>
+        </article>)}
+        {commentDecision && <p role="status">{commentDecision}</p>}
+      </section>
+      <section><h2>评论举报（{commentReports.length}）</h2>
+        {commentReports.length === 0 && <p>当前没有评论举报。</p>}
+        {commentReports.map(report => <article className="review-list-item" key={report.id}>
+          <strong>{report.reason_code}</strong><p>{report.details}</p><small>评论 {report.comment_id}</small>
+          <div className="review-actions">
+            <button type="button" disabled={busy} onClick={() => void decideCommentReport(report.id, 'dismiss')}>驳回举报</button>
+            <button type="button" disabled={busy} onClick={() => void decideCommentReport(report.id, 'take_down')}>下架评论</button>
+          </div>
+        </article>)}
+        {commentReportDecision && <p role="status">{commentReportDecision}</p>}
+      </section>
+      <section><h2>作者申诉（{appeals.length}）</h2>
+        {appeals.length === 0 && <p>当前没有待处理申诉。</p>}
+        {appeals.map(appeal => <article className="review-list-item" key={appeal.id}>
+          <strong>{appeal.from_status} · 作品 {appeal.submission_id}</strong>
+          <p className="review-manuscript">{appeal.reason}</p>
+          <div className="review-actions">
+            <button type="button" disabled={busy} onClick={() => void open({
+              id: appeal.submission_id, kind: appeal.community_submissions.kind,
+              sha256: appeal.revision_sha256, status: appeal.from_status,
+              created_at: appeal.created_at, public_pen_name: '',
+            })}>查看原稿</button>
+            <button type="button" disabled={busy || !privateNote.trim()} onClick={() => void decideAppeal(appeal.id, 'upheld')}>支持申诉</button>
+            <button type="button" disabled={busy || !privateNote.trim()} onClick={() => void decideAppeal(appeal.id, 'denied')}>驳回申诉</button>
+          </div>
+        </article>)}
+        {appealDecision && <p role="status">{appealDecision}</p>}
       </section>
     </div>}
     {selected && <section className="review-detail"><h2>审核投稿 {selected.id}</h2>

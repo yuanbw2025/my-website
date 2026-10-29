@@ -24,7 +24,7 @@ export default {
     try {
       const url = new URL('/rest/v1/community_submissions', base)
       if (url.protocol !== 'https:') return reply(503, { error: 'status_unavailable' })
-      url.searchParams.set('select', 'id,kind,status,created_at,updated_at')
+      url.searchParams.set('select', 'id,kind,status,sha256,created_at,updated_at')
       url.searchParams.set(id ? 'id' : 'upload_session_id', `eq.${id ?? sessionId}`)
       url.searchParams.set('limit', '1')
       const upstream = await fetch(url, {
@@ -36,9 +36,10 @@ export default {
       if (!Array.isArray(rows) || rows.length > 1) return reply(502, { error: 'invalid_status_data' })
       if (!rows.length) return reply(404, { error: 'submission_not_found' })
       const row = rows[0]
-      if (!uuid.test(row.id) || (id && row.id !== id) || typeof row.status !== 'string') return reply(502, { error: 'invalid_status_data' })
+      if (!uuid.test(row.id) || (id && row.id !== id) || typeof row.status !== 'string' ||
+          !/^[0-9a-f]{64}$/.test(row.sha256 ?? '')) return reply(502, { error: 'invalid_status_data' })
       return reply(200, { submissionId: row.id, kind: row.kind, status: row.status,
-        createdAt: row.created_at, updatedAt: row.updated_at })
+        sha256: row.sha256, createdAt: row.created_at, updatedAt: row.updated_at })
     } catch { return reply(503, { error: 'status_unavailable' }) }
   },
 }

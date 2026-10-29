@@ -144,3 +144,122 @@ test('upload allocation enforces owner idempotency and the daily cap inside one 
     assert.equal((await db.query('select count(*)::integer as total from public.community_upload_sessions')).rows[0].total, 10)
   } finally { await db.close() }
 })
+
+test('comments stay private until independent approval and disappear when the work is taken down', async () => {
+  const db = await database()
+  try {
+    await transition(db, 'begin_review')
+    await transition(db, 'approve')
+    await transition(db, 'publish', { kind: 'novel', title: '公开小说', description: '', language: 'zh-CN',
+      body: { chapters: [{ title: '第一章', content: '内容' }] },
+      toc: { chapters: [{ title: '第一章' }] } })
+    const key = '00000000-0000-4000-8000-000000000020'
+    const file = (content = '认真讨论作品') => db.query(`select public.community_file_comment(
+      $1::uuid, $2, $3::uuid, '读者', $4) as id`, [reporter, slug, key, content])
+    const id = (await file()).rows[0].id
+    assert.equal((await file()).rows[0].id, id)
+    await assert.rejects(file('另一条内容'), /idempotency_conflict/)
+    await db.exec('set role anon')
+    assert.deepEqual((await db.query('select public.community_read_comments($1, 0, 50) as items', [slug])).rows[0].items, [])
+    await db.exec('reset role')
+    await db.query(`insert into public.community_reviewers(uid, role, active)
+      values ($1, 'reviewer', true)`, [reporter])
+    await assert.rejects(db.query(`select public.community_review_comment(
+      $1::uuid, $2::uuid, 'approve', 'reviewed')`, [reporter, id]), /self_review_forbidden/)
+    assert.equal((await db.query(`select public.community_review_comment(
+      $1::uuid, $2::uuid, 'approve', 'reviewed') as status`, [reviewer, id])).rows[0].status, 'approved')
+    await db.exec('set role anon')
+    const visible = (await db.query('select public.community_read_comments($1, 0, 50) as items', [slug])).rows[0].items
+    assert.equal(visible.length, 1)
+    assert.equal(visible[0].body, '认真讨论作品')
+    await assert.rejects(db.query(`select public.community_file_comment(
+      $1::uuid, $2, $3::uuid, '读者', '越权')`, [reporter, slug, key]), /permission denied/)
+    await db.exec('reset role')
+    await transition(db, 'take_down')
+    await db.exec('set role anon')
+    assert.deepEqual((await db.query('select public.community_read_comments($1, 0, 50) as items', [slug])).rows[0].items, [])
+  } finally { await db.close() }
+})
+
+test('a reported comment can be removed only through an audited reviewer transaction', async () => {
+  const db = await database()
+  try {
+    await transition(db, 'begin_review')
+    await transition(db, 'approve')
+    await transition(db, 'publish', { kind: 'novel', title: '公开小说', description: '', language: 'zh-CN',
+      body: { chapters: [{ title: '第一章', content: '内容' }] },
+      toc: { chapters: [{ title: '第一章' }] } })
+    const comment = (await db.query(`select public.community_file_comment(
+      $1::uuid, $2, $3::uuid, '读者', '一条待处理评论') as id`,
+    [owner, slug, '00000000-0000-4000-8000-000000000021'])).rows[0].id
+    await db.query(`select public.community_review_comment(
+      $1::uuid, $2::uuid, 'approve', 'reviewed')`, [reviewer, comment])
+    const report = (await db.query(`select public.community_file_comment_report(
+      $1::uuid, $2::uuid, 'child_safety', '请复核') as id`, [reporter, comment])).rows[0].id
+    assert.equal((await db.query(`select public.community_file_comment_report(
+      $1::uuid, $2::uuid, 'child_safety', '重复') as id`, [reporter, comment])).rows[0].id, report)
+    await db.exec('set role anon')
+    await assert.rejects(db.query('select * from public.community_comment_reports'), /permission denied/)
+    await db.exec('reset role')
+    await db.query(`insert into public.community_reviewers(uid, role, active)
+      values ($1, 'reviewer', true)`, [reporter])
+    await assert.rejects(db.query(`select public.community_review_comment_report(
+      $1::uuid, $2::uuid, 'take_down', 'confirmed_harm')`, [reporter, report]), /self_report_review_forbidden/)
+    assert.equal((await db.query(`select public.community_review_comment_report(
+      $1::uuid, $2::uuid, 'take_down', 'confirmed_harm') as status`,
+    [reviewer, report])).rows[0].status, 'actioned')
+    await db.exec('set role anon')
+    assert.deepEqual((await db.query('select public.community_read_comments($1, 0, 50) as items', [slug])).rows[0].items, [])
+    await db.exec('reset role')
+    assert.equal((await db.query(`select count(*)::integer as total from public.community_comment_events
+      where comment_id = $1 and decision = 'take_down'`, [comment])).rows[0].total, 1)
+  } finally { await db.close() }
+})
+
+test('author withdrawal atomically hides a published work; appeal never republishes by itself', async () => {
+  const db = await database()
+  try {
+    await transition(db, 'begin_review')
+    await transition(db, 'approve')
+    await transition(db, 'publish', { kind: 'novel', title: '公开小说', description: '', language: 'zh-CN',
+      body: { chapters: [{ title: '第一章', content: '内容' }] },
+      toc: { chapters: [{ title: '第一章' }] } })
+    await assert.rejects(db.query(`select public.community_owner_withdraw(
+      $1::uuid, $2::uuid, $3)`, [reporter, submission, hash]), /submission_not_found/)
+    await assert.rejects(db.query(`select public.community_owner_withdraw(
+      $1::uuid, $2::uuid, $3)`, [owner, submission, 'b'.repeat(64)]), /revision_mismatch/)
+    assert.equal((await db.query(`select public.community_owner_withdraw(
+      $1::uuid, $2::uuid, $3) as status`, [owner, submission, hash])).rows[0].status, 'withdrawn')
+    await db.exec('set role anon')
+    assert.equal((await db.query('select count(*)::integer as total from public.community_publications')).rows[0].total, 0)
+    await db.exec('reset role')
+    assert.equal((await db.query(`select count(*)::integer as total from public.community_owner_events
+      where submission_id = $1`, [submission])).rows[0].total, 1)
+    await assert.rejects(db.query(`select public.community_file_appeal(
+      $1::uuid, $2::uuid, $3, '复核')`, [owner, submission, hash]), /appeal_not_allowed/)
+  } finally { await db.close() }
+})
+
+test('appeal is private, revision-bound, and needs an independent reviewer decision', async () => {
+  const db = await database()
+  try {
+    await transition(db, 'begin_review')
+    await transition(db, 'reject')
+    await assert.rejects(db.query(`select public.community_file_appeal(
+      $1::uuid, $2::uuid, $3, '复核')`, [reporter, submission, hash]), /submission_not_found/)
+    const appeal = (await db.query(`select public.community_file_appeal(
+      $1::uuid, $2::uuid, $3, '请重新检查') as id`, [owner, submission, hash])).rows[0].id
+    assert.equal((await db.query(`select public.community_file_appeal(
+      $1::uuid, $2::uuid, $3, '重试') as id`, [owner, submission, hash])).rows[0].id, appeal)
+    await db.exec('set role anon')
+    await assert.rejects(db.query('select * from public.community_appeals'), /permission denied/)
+    await db.exec('reset role')
+    await db.query(`insert into public.community_reviewers(uid, role, active)
+      values ($1, 'reviewer', true)`, [owner])
+    await assert.rejects(db.query(`select public.community_review_appeal(
+      $1::uuid, $2::uuid, 'upheld', '复核确认')`, [owner, appeal]), /self_review_forbidden/)
+    assert.equal((await db.query(`select public.community_review_appeal(
+      $1::uuid, $2::uuid, 'upheld', '复核确认') as status`, [reviewer, appeal])).rows[0].status, 'upheld')
+    assert.equal((await db.query('select status from public.community_submissions where id = $1', [submission])).rows[0].status, 'rejected')
+  } finally { await db.close() }
+})

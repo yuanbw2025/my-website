@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { apiRoot, loadJson, loadTextParts, parseChapterPage, parseDetail, parseEntryPage, parseList, type PublicDimension, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
 import { ReviewPage } from './ReviewPage'
+import { Comments } from './Comments'
+import { MySubmissions } from './MySubmissions'
 
 function Header() {
   return <header className="site-header">
     <a className="brand" href="/community-works/" aria-label="社区作品集首页"><span className="brand-mark">S</span><span>StoryForge <strong>社区作品集</strong></span></a>
-    <nav aria-label="主要导航"><a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
+    <nav aria-label="主要导航"><a href="/community-works/me">我的投稿</a> · <a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
   </header>
 }
 
@@ -201,6 +203,7 @@ function Detail({ slug }: { slug: string }) {
       {detail.kind === 'novel'
         ? <NovelReader slug={slug} initialChapters={detail.chapters} chapterCount={detail.chapterCount} />
         : <AnalysisReader slug={slug} detail={detail} />}
+      <Comments slug={slug} />
     </article>}
   </main>
 }
@@ -208,5 +211,6 @@ function Detail({ slug }: { slug: string }) {
 export function App() {
   const match = window.location.pathname.match(/^\/community-works\/work\/([a-z0-9-]{1,100})\/?$/)
   const review = /^\/community-works\/review\/?$/.test(window.location.pathname)
-  return <><a className="skip-link" href="#main-content">跳到正文</a><Header />{review ? <ReviewPage /> : match ? <Detail slug={match[1]} /> : <Home />}<footer><span>StoryForge 社区作品集</span><span>只展示作者主动投稿且审核通过的版本</span></footer></>
+  const mine = /^\/community-works\/me\/?$/.test(window.location.pathname)
+  return <><a className="skip-link" href="#main-content">跳到正文</a><Header />{review ? <ReviewPage /> : mine ? <MySubmissions /> : match ? <Detail slug={match[1]} /> : <Home />}<footer><span>StoryForge 社区作品集</span><span>只展示作者主动投稿且审核通过的版本</span></footer></>
 }

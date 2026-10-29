@@ -78,13 +78,14 @@ test('unknown submission result can be reconciled by the private upload session'
   globalThis.fetch = async (url, options) => {
     assert.equal(url.searchParams.get('upload_session_id'), `eq.${id}`)
     assert.equal(options.headers.Authorization, token)
-    return Response.json([{ id, kind: 'novel', status: 'submitted' }])
+    return Response.json([{ id, kind: 'novel', status: 'submitted', sha256: 'a'.repeat(64) }])
   }
   try {
     const result = await statusRoute.fetch(new Request(`https://example.vercel.app/api/community/v1/submission-status?sessionId=${id}`, {
       headers: { Origin: origin, Authorization: token },
     }))
     assert.equal(result.status, 200)
-    assert.deepEqual(await result.json(), { submissionId: id, kind: 'novel', status: 'submitted' })
+    assert.deepEqual(await result.json(), { submissionId: id, kind: 'novel', status: 'submitted',
+      sha256: 'a'.repeat(64) })
   } finally { globalThis.fetch = originalFetch }
 })
