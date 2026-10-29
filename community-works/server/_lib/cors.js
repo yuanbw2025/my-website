@@ -4,7 +4,11 @@ import { response } from './catalog.js'
 export function privateCors(request, methods) {
   const origin = request.headers.get('origin')
   const allowed = (process.env.COMMUNITY_ALLOWED_ORIGINS ?? '').split(',').map(value => value.trim()).filter(Boolean)
-  if (origin && !allowed.includes(origin)) return { early: response(403, { error: 'origin_not_allowed' }) }
+  // The gallery calls its own API from deployment-specific Vercel preview hosts.
+  // Cross-origin clients still require an exact configured origin.
+  if (origin && origin !== new URL(request.url).origin && !allowed.includes(origin)) {
+    return { early: response(403, { error: 'origin_not_allowed' }) }
+  }
   const apply = result => {
     if (origin) {
       result.headers.set('Access-Control-Allow-Origin', origin)

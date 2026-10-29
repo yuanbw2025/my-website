@@ -18,6 +18,20 @@ test('private routes reject unlisted browser origins before side effects', async
   assert.equal((await submissionRoute.fetch(request)).status, 403)
 })
 
+test('gallery same-origin preflight works on its exact preview host without widening cross-origin access', async () => {
+  process.env.COMMUNITY_ALLOWED_ORIGINS = origin
+  const previewOrigin = 'https://yuanbw-preview.example.vercel.app'
+  const preflight = await uploadRoute.fetch(new Request(`${previewOrigin}/api/community/v1/upload-sessions`, {
+    method: 'OPTIONS', headers: { Origin: previewOrigin },
+  }))
+  assert.equal(preflight.status, 204)
+  assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), previewOrigin)
+  const foreign = await uploadRoute.fetch(new Request(`${previewOrigin}/api/community/v1/upload-sessions`, {
+    method: 'OPTIONS', headers: { Origin: 'https://hostile.example' },
+  }))
+  assert.equal(foreign.status, 403)
+})
+
 test('allowed origin receives a bounded preflight response', async () => {
   process.env.COMMUNITY_ALLOWED_ORIGINS = origin
   const request = new Request('https://example.vercel.app/api/community/v1/upload-sessions', {
