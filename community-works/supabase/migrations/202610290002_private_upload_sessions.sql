@@ -2,7 +2,10 @@
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('community-intake', 'community-intake', false, 33554432,
   array['application/json', 'application/vnd.storyforge.community-snapshot+json'])
-on conflict (id) do nothing;
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 create table if not exists public.community_upload_sessions (
   id uuid primary key default gen_random_uuid(),

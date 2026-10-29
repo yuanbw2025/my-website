@@ -15,7 +15,7 @@ npm run build
 
 ## 数据与权限
 
-1. 依次应用 `supabase/migrations/` 中的迁移。`community-intake` 桶必须保持私有；公开目录的 RLS 只允许读取 `published`。上传会话由 `community_allocate_upload_session` 在数据库事务内按作者与幂等键分配，每天最多 10 次；返回状态可用同一上传会话 ID 查询，避免网络回执不明时重复投稿。
+1. 依次应用 `supabase/migrations/` 中的迁移。迁移会把专用 `community-intake` 桶设为私有并收紧文件大小与 MIME 类型，部署后仍须读回桶设置和对象策略；公开目录的 RLS 只允许读取 `published`。上传会话由 `community_allocate_upload_session` 在数据库事务内按作者与幂等键分配，每天最多 10 次；返回状态可用同一上传会话 ID 查询，避免网络回执不明时重复投稿。
 2. Vercel 环境中设置服务端 `COMMUNITY_SUPABASE_URL`、`COMMUNITY_SUPABASE_PUBLISHABLE_KEY`、`COMMUNITY_SUPABASE_SECRET_KEY`、`COMMUNITY_ALLOWED_ORIGINS`；只有前两项的公开值另外以 `VITE_COMMUNITY_SUPABASE_URL`、`VITE_COMMUNITY_SUPABASE_PUBLISHABLE_KEY` 供页面构建。**绝不**给 secret key 使用 `VITE_` 前缀。`COMMUNITY_ALLOWED_ORIGINS` 必须按实际部署逐项列出 StoryForge 网页 origin、桌面客户端固定的 `http://localhost:17831`、Android 客户端的 `https://localhost`；不要用 `*`。预览和正式环境分别配置，不能让预览版使用正式库。`COMMUNITY_ACCEPTING_SUBMISSIONS=1` 才分配上传目标；默认暂停。
 3. Supabase Edge Functions `verify-submission` 与 `review-submission` 需要 `COMMUNITY_PUBLISHABLE_KEY` 和 `COMMUNITY_SECRET_KEY` 私有环境变量。前者同样需要 `COMMUNITY_ACCEPTING_SUBMISSIONS=1` 才定稿，后者需要单独设置 `COMMUNITY_PUBLISH_ENABLED=1` 才公开。`supabase/config.toml` 关闭平台级旧 JWT 检查；函数内部使用用户 JWT 向 Auth 服务重新验明身份，再检查审核员成员表。
 4. 投稿文件由客户端直传私有对象存储。Vercel 只处理小型控制请求。Edge Function 重新计算完整字节 SHA-256、校验所选内容白名单，再创建仅作者可查状态的 `submitted` 记录。上传完成或创建投稿均不会自动公开。

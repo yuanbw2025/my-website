@@ -13,7 +13,7 @@ const upload = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
 const hash = 'a'.repeat(64)
 const slug = `work-${submission.replaceAll('-', '')}`
 
-async function database() {
+async function database({ existingPublicBucket = false } = {}) {
   const db = new PGlite()
   await db.exec(`
     create role anon;
@@ -29,6 +29,11 @@ async function database() {
     $$;
     grant usage on schema public to anon, authenticated, service_role;
   `)
+  if (existingPublicBucket) {
+    await db.query(`insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)
+      values ('community-intake', 'community-intake', true, 100000000,
+        array['text/plain'])`)
+  }
   for (const name of readdirSync(migrationDirectory).filter(name => name.endsWith('.sql')).sort()) {
     await db.exec(readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8'))
   }
@@ -46,6 +51,19 @@ async function database() {
     [submission, owner, upload, `${owner}/${upload}/${submission}/snapshot.json`, hash])
   return db
 }
+
+test('migration forces a pre-existing community intake bucket private and bounded', async () => {
+  const db = await database({ existingPublicBucket: true })
+  try {
+    const { rows } = await db.query(`select public, file_size_limit, allowed_mime_types
+      from storage.buckets where id = 'community-intake'`)
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0].public, false)
+    assert.equal(Number(rows[0].file_size_limit), 33554432)
+    assert.deepEqual(rows[0].allowed_mime_types,
+      ['application/json', 'application/vnd.storyforge.community-snapshot+json'])
+  } finally { await db.close() }
+})
 
 async function transition(db, action, publication = null, actor = reviewer, revision = hash) {
   return db.query(`select public.community_review_transition(
