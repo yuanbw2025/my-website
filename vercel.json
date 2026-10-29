@@ -3,6 +3,10 @@
   "outputDirectory": "public",
   "rewrites": [
     {
+      "source": "/api/community/v1/publications/:slug",
+      "destination": "/api/community/v1/publication?slug=:slug"
+    },
+    {
       "source": "/infiniteskill/(.*)",
       "destination": "/infiniteskill/index.html"
     },
@@ -25,6 +29,10 @@
     {
       "source": "/storyforge/(.*)",
       "destination": "/storyforge/index.html"
+    },
+    {
+      "source": "/community-works/work/(.*)",
+      "destination": "/community-works/index.html"
     },
     {
       "source": "/novel-game/(.*)",
