@@ -55,6 +55,10 @@
       "destination": "/community-works/index.html"
     },
     {
+      "source": "/community-works/policy",
+      "destination": "/community-works/index.html"
+    },
+    {
       "source": "/novel-game/(.*)",
       "destination": "/novel-game/index.html"
     },

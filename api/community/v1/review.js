@@ -1,5 +1,6 @@
 import { response } from '../_lib/catalog.js'
 import { privateCors } from '../_lib/cors.js'
+import { boundedText } from '../_lib/bounded-text.js'
 
 /** Small control proxy. The private 32 MiB manuscript never crosses Vercel Functions. */
 export default {
@@ -23,8 +24,8 @@ export default {
     if (Number(request.headers.get('content-length') ?? 0) > 8192) return reply(413, { error: 'request_too_large' })
     let payload
     if (request.method === 'POST') {
-      try { payload = await request.text() } catch { return reply(400, { error: 'invalid_request' }) }
-      if (new TextEncoder().encode(payload).byteLength > 8192) return reply(413, { error: 'request_too_large' })
+      try { payload = await boundedText(request, 8192) } catch { return reply(400, { error: 'invalid_request' }) }
+      if (payload === null) return reply(413, { error: 'request_too_large' })
     }
     try {
       const url = new URL('/functions/v1/review-submission', base)

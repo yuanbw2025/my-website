@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import uploadRoute from '../../api/community/v1/upload-sessions.js'
 import submissionRoute from '../../api/community/v1/submissions.js'
 import statusRoute from '../../api/community/v1/submission-status.js'
+import reviewRoute from '../../api/community/v1/review.js'
 
 const token = `Bearer ${'x'.repeat(80)}`
 const origin = 'https://storyforge-lab.com'
@@ -48,6 +49,28 @@ test('submission proxy forwards only small authenticated control data', async ()
     assert.equal(result.status, 201)
     assert.equal(result.headers.get('Access-Control-Allow-Origin'), origin)
     assert.equal((await result.json()).status, 'submitted')
+  } finally { globalThis.fetch = originalFetch }
+})
+
+test('submission and review proxies stop oversized streaming bodies before forwarding', async () => {
+  process.env.COMMUNITY_ALLOWED_ORIGINS = origin
+  process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'
+  process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test'
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () => { throw new Error('must not forward oversized body') }
+  const body = size => new ReadableStream({ start(controller) {
+    controller.enqueue(new TextEncoder().encode('x'.repeat(size)))
+    controller.close()
+  } })
+  try {
+    const submission = new Request('https://example.vercel.app/api/community/v1/submissions', {
+      method: 'POST', headers: { Origin: origin, Authorization: token }, body: body(4097), duplex: 'half',
+    })
+    assert.equal((await submissionRoute.fetch(submission)).status, 413)
+    const review = new Request(`https://example.vercel.app/api/community/v1/review?id=${id}`, {
+      method: 'POST', headers: { Origin: origin, Authorization: token }, body: body(8193), duplex: 'half',
+    })
+    assert.equal((await reviewRoute.fetch(review)).status, 413)
   } finally { globalThis.fetch = originalFetch }
 })
 

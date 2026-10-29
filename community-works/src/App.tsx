@@ -3,6 +3,7 @@ import { apiRoot, loadJson, loadTextParts, parseChapterPage, parseDetail, parseE
 import { ReviewPage } from './ReviewPage'
 import { Comments } from './Comments'
 import { MySubmissions } from './MySubmissions'
+import { PolicyPage } from './PolicyPage'
 
 function Header() {
   return <header className="site-header">
@@ -212,5 +213,6 @@ export function App() {
   const match = window.location.pathname.match(/^\/community-works\/work\/([a-z0-9-]{1,100})\/?$/)
   const review = /^\/community-works\/review\/?$/.test(window.location.pathname)
   const mine = /^\/community-works\/me\/?$/.test(window.location.pathname)
-  return <><a className="skip-link" href="#main-content">跳到正文</a><Header />{review ? <ReviewPage /> : mine ? <MySubmissions /> : match ? <Detail slug={match[1]} /> : <Home />}<footer><span>StoryForge 社区作品集</span><span>只展示作者主动投稿且审核通过的版本</span></footer></>
+  const policy = /^\/community-works\/policy\/?$/.test(window.location.pathname)
+  return <><a className="skip-link" href="#main-content">跳到正文</a><Header />{review ? <ReviewPage /> : mine ? <MySubmissions /> : policy ? <PolicyPage /> : match ? <Detail slug={match[1]} /> : <Home />}<footer><span>StoryForge 社区作品集</span><a href="/community-works/policy">内容与审核规则</a><span>只展示作者主动投稿且审核通过的版本</span></footer></>
 }
