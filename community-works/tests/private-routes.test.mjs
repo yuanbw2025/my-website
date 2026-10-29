@@ -69,3 +69,22 @@ test('owner status route returns no other submission when RLS gives an empty res
     assert.equal((await result.json()).error, 'submission_not_found')
   } finally { globalThis.fetch = originalFetch }
 })
+
+test('unknown submission result can be reconciled by the private upload session', async () => {
+  process.env.COMMUNITY_ALLOWED_ORIGINS = origin
+  process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'
+  process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test'
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url.searchParams.get('upload_session_id'), `eq.${id}`)
+    assert.equal(options.headers.Authorization, token)
+    return Response.json([{ id, kind: 'novel', status: 'submitted' }])
+  }
+  try {
+    const result = await statusRoute.fetch(new Request(`https://example.vercel.app/api/community/v1/submission-status?sessionId=${id}`, {
+      headers: { Origin: origin, Authorization: token },
+    }))
+    assert.equal(result.status, 200)
+    assert.deepEqual(await result.json(), { submissionId: id, kind: 'novel', status: 'submitted' })
+  } finally { globalThis.fetch = originalFetch }
+})

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { response } from './catalog.js'
 
 const MAX_BYTES = 32 * 1024 * 1024
@@ -26,25 +25,17 @@ async function userFromRequest(request, config, fetcher) {
   return typeof user?.id === 'string' && /^[0-9a-f-]{36}$/.test(user.id) ? user.id : null
 }
 
-async function readRows(config, path, fetcher) {
-  const url = new URL(`/rest/v1/${path}`, config.base)
-  const result = await fetcher(url, { headers: { apikey: config.secret, Accept: 'application/json' }, signal: AbortSignal.timeout(8000) })
-  if (!result.ok) throw new Error('private_database_unavailable')
-  return result.json()
-}
-
-async function createRow(config, row, fetcher) {
-  const url = new URL('/rest/v1/community_upload_sessions', config.base)
+async function allocate(config, ownerUid, input, fetcher) {
+  const url = new URL('/rest/v1/rpc/community_allocate_upload_session', config.base)
   const result = await fetcher(url, {
     method: 'POST',
-    headers: { apikey: config.secret, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-    body: JSON.stringify(row),
+    headers: { apikey: config.secret, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_owner_uid: ownerUid, p_idempotency_key: input.idempotencyKey,
+      p_kind: input.kind, p_sha256: input.sha256, p_byte_length: input.byteLength }),
     signal: AbortSignal.timeout(8000),
   })
   if (!result.ok) throw new Error('private_database_unavailable')
-  const rows = await result.json()
-  if (!Array.isArray(rows) || rows.length !== 1) throw new Error('private_database_unavailable')
-  return rows[0]
+  return result.json()
 }
 
 async function signTarget(config, path, fetcher) {
@@ -114,29 +105,16 @@ export async function createUploadSession(request, fetcher = fetch) {
   }
 
   try {
-    const ownerFilter = encodeURIComponent(userId)
-    const idemFilter = encodeURIComponent(input.idempotencyKey)
-    const existing = await readRows(config,
-      `community_upload_sessions?select=*&owner_uid=eq.${ownerFilter}&idempotency_key=eq.${idemFilter}&limit=1`, fetcher)
-    let row = Array.isArray(existing) ? existing[0] : null
-    if (row && (row.kind !== input.kind || row.sha256 !== input.sha256 || row.byte_length !== input.byteLength)) {
-      return response(409, { error: 'idempotency_conflict' })
+    const row = await allocate(config, userId, input, fetcher)
+    if (row?.error === 'daily_upload_limit') return response(429, { error: row.error })
+    if (['idempotency_conflict', 'upload_session_expired_or_used'].includes(row?.error)) {
+      return response(409, { error: row.error })
     }
-    if (!row) {
-      const since = encodeURIComponent(new Date(Date.now() - 86400000).toISOString())
-      const recent = await readRows(config,
-        `community_upload_sessions?select=id&owner_uid=eq.${ownerFilter}&created_at=gte.${since}&limit=11`, fetcher)
-      if (!Array.isArray(recent)) throw new Error('private_database_unavailable')
-      if (recent.length >= 10) return response(429, { error: 'daily_upload_limit' })
-      const id = randomUUID()
-      row = await createRow(config, {
-        id, owner_uid: userId, idempotency_key: input.idempotencyKey, kind: input.kind,
-        object_path: `${userId}/${id}/snapshot.json`, sha256: input.sha256,
-        byte_length: input.byteLength, expires_at: new Date(Date.now() + 3600000).toISOString(),
-      }, fetcher)
-    }
-    if (new Date(row.expires_at).getTime() <= Date.now() || row.status !== 'created') {
-      return response(409, { error: 'upload_session_expired_or_used' })
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(row?.id ?? '') ||
+        row.owner_uid !== userId || row.kind !== input.kind || row.sha256 !== input.sha256 ||
+        row.byte_length !== input.byteLength || row.object_path !== `${userId}/${row.id}/snapshot.json` ||
+        row.status !== 'created' || Date.parse(row.expires_at) <= Date.now()) {
+      throw new Error('private_database_unavailable')
     }
     const target = await signTarget(config, row.object_path, fetcher)
     return response(201, {

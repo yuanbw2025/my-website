@@ -120,3 +120,27 @@ test('a report is private, deduplicated, and its review can atomically remove a 
     assert.equal((await db.query('select status from public.community_submissions where id = $1', [submission])).rows[0].status, 'taken_down')
   } finally { await db.close() }
 })
+
+test('upload allocation enforces owner idempotency and the daily cap inside one database transaction', async () => {
+  const db = await database()
+  try {
+    await db.exec('set role authenticated')
+    await assert.rejects(db.query(`select public.community_allocate_upload_session(
+      $1::uuid, $2::uuid, 'novel', $3, 100)`, [owner, upload, hash]), /permission denied/)
+    await db.exec('reset role')
+    const allocate = (key, digest = hash) => db.query(`select public.community_allocate_upload_session(
+      $1::uuid, $2::uuid, 'novel', $3, 100) as result`, [owner, key, digest])
+    const old = (await allocate(upload)).rows[0].result
+    assert.equal(old.id, upload)
+    assert.equal((await allocate(upload, 'b'.repeat(64))).rows[0].result.error, 'idempotency_conflict')
+    for (let index = 1; index <= 9; index++) {
+      const key = `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`
+      const row = (await allocate(key)).rows[0].result
+      assert.equal(row.owner_uid, owner)
+      assert.equal(row.object_path, `${owner}/${row.id}/snapshot.json`)
+    }
+    const eleventh = (await allocate('00000000-0000-4000-8000-000000000010')).rows[0].result
+    assert.equal(eleventh.error, 'daily_upload_limit')
+    assert.equal((await db.query('select count(*)::integer as total from public.community_upload_sessions')).rows[0].total, 10)
+  } finally { await db.close() }
+})

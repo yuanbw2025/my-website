@@ -7,8 +7,11 @@ export default {
     if (cors.early) return cors.early
     const reply = (status, body) => cors.apply(response(status, body))
     if (request.method !== 'GET') return reply(405, { error: 'method_not_allowed' })
-    const id = new URL(request.url).searchParams.get('id')
-    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) {
+    const query = new URL(request.url).searchParams
+    const id = query.get('id')
+    const sessionId = query.get('sessionId')
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    if ((Boolean(id) === Boolean(sessionId)) || !uuid.test(id ?? sessionId ?? '')) {
       return reply(400, { error: 'invalid_submission_id' })
     }
     const base = process.env.COMMUNITY_SUPABASE_URL
@@ -22,7 +25,7 @@ export default {
       const url = new URL('/rest/v1/community_submissions', base)
       if (url.protocol !== 'https:') return reply(503, { error: 'status_unavailable' })
       url.searchParams.set('select', 'id,kind,status,created_at,updated_at')
-      url.searchParams.set('id', `eq.${id}`)
+      url.searchParams.set(id ? 'id' : 'upload_session_id', `eq.${id ?? sessionId}`)
       url.searchParams.set('limit', '1')
       const upstream = await fetch(url, {
         headers: { apikey: key, Authorization: authorization, Accept: 'application/json' },
@@ -33,7 +36,7 @@ export default {
       if (!Array.isArray(rows) || rows.length > 1) return reply(502, { error: 'invalid_status_data' })
       if (!rows.length) return reply(404, { error: 'submission_not_found' })
       const row = rows[0]
-      if (row.id !== id || typeof row.status !== 'string') return reply(502, { error: 'invalid_status_data' })
+      if (!uuid.test(row.id) || (id && row.id !== id) || typeof row.status !== 'string') return reply(502, { error: 'invalid_status_data' })
       return reply(200, { submissionId: row.id, kind: row.kind, status: row.status,
         createdAt: row.created_at, updatedAt: row.updated_at })
     } catch { return reply(503, { error: 'status_unavailable' }) }

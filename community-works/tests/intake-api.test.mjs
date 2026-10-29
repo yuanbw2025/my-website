@@ -4,6 +4,7 @@ import { createUploadSession } from '../../api/community/_lib/intake.js'
 
 const ownerId = '11111111-1111-4111-8111-111111111111'
 const idempotencyKey = '22222222-2222-4222-8222-222222222222'
+const uploadId = '33333333-3333-4333-8333-333333333333'
 const manifest = { kind: 'novel', sha256: 'a'.repeat(64), byteLength: 1024, idempotencyKey }
 
 function request(body = manifest, headers = {}) {
@@ -64,11 +65,12 @@ test('one authenticated manifest gets a private signed target without manuscript
       return Response.json({ id: ownerId })
     }
     assert.equal(options.headers.apikey, 'sb_secret_test')
-    if (url.pathname === '/rest/v1/community_upload_sessions' && options.method === 'POST') {
+    if (url.pathname === '/rest/v1/rpc/community_allocate_upload_session' && options.method === 'POST') {
       inserted = JSON.parse(options.body)
-      return Response.json([{ ...inserted, status: 'created' }])
+      return Response.json({ id: uploadId, owner_uid: ownerId, kind: manifest.kind,
+        object_path: `${ownerId}/${uploadId}/snapshot.json`, sha256: manifest.sha256,
+        byte_length: manifest.byteLength, status: 'created', expires_at: new Date(Date.now() + 3600000).toISOString() })
     }
-    if (url.pathname === '/rest/v1/community_upload_sessions') return Response.json([])
     if (url.pathname.startsWith('/storage/v1/object/upload/sign/community-intake/')) {
       assert.equal(options.body, '{}')
       return Response.json({ url: `${url.pathname}?token=signed-token` })
@@ -77,8 +79,9 @@ test('one authenticated manifest gets a private signed target without manuscript
   })
   assert.equal(result.status, 201)
   const data = await result.json()
-  assert.equal(inserted.owner_uid, ownerId)
-  assert.equal(inserted.object_path.startsWith(`${ownerId}/`), true)
+  assert.equal(inserted.p_owner_uid, ownerId)
+  assert.equal(inserted.p_idempotency_key, idempotencyKey)
+  assert.equal(inserted.p_sha256, manifest.sha256)
   assert.equal(data.sha256, manifest.sha256)
   assert.equal(data.byteLength, manifest.byteLength)
   assert.equal(data.signedUrl.startsWith('https://example.supabase.co/storage/v1/object/upload/sign/community-intake/'), true)
@@ -89,8 +92,19 @@ test('same idempotency key cannot point to different content', async () => {
   setup()
   const result = await createUploadSession(request(), async url => {
     if (url.pathname === '/auth/v1/user') return Response.json({ id: ownerId })
-    return Response.json([{ kind: 'novel', sha256: 'b'.repeat(64), byte_length: 1024 }])
+    return Response.json({ error: 'idempotency_conflict' })
   })
   assert.equal(result.status, 409)
   assert.equal((await result.json()).error, 'idempotency_conflict')
+})
+
+test('server honors the atomic per-user daily allocation bound', async () => {
+  setup()
+  const result = await createUploadSession(request(), async url => {
+    if (url.pathname === '/auth/v1/user') return Response.json({ id: ownerId })
+    assert.equal(url.pathname, '/rest/v1/rpc/community_allocate_upload_session')
+    return Response.json({ error: 'daily_upload_limit' })
+  })
+  assert.equal(result.status, 429)
+  assert.equal((await result.json()).error, 'daily_upload_limit')
 })
