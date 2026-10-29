@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createUploadSession } from '../../api/community/_lib/intake.js'
+import { createUploadSession } from '../server/_lib/intake.js'
 
 const ownerId = '11111111-1111-4111-8111-111111111111'
 const idempotencyKey = '22222222-2222-4222-8222-222222222222'

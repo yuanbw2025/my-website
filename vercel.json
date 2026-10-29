@@ -4,19 +4,23 @@
   "rewrites": [
     {
       "source": "/api/community/v1/publications/:slug",
-      "destination": "/api/community/v1/publication?slug=:slug"
+      "destination": "/api/community?route=publication&slug=:slug"
     },
     {
       "source": "/api/community/v1/publications/:slug/toc",
-      "destination": "/api/community/v1/publication-toc?slug=:slug"
+      "destination": "/api/community?route=publication-toc&slug=:slug"
     },
     {
       "source": "/api/community/v1/publications/:slug/part",
-      "destination": "/api/community/v1/publication-part?slug=:slug"
+      "destination": "/api/community?route=publication-part&slug=:slug"
     },
     {
       "source": "/api/community/v1/submissions/:id/status",
-      "destination": "/api/community/v1/submission-status?id=:id"
+      "destination": "/api/community?route=submission-status&id=:id"
+    },
+    {
+      "source": "/api/community/v1/:route",
+      "destination": "/api/community?route=:route"
     },
     {
       "source": "/infiniteskill/(.*)",

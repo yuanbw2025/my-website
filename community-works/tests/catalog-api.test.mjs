@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readCatalog, readPart, readTocPage } from '../../api/community/_lib/catalog.js'
+import { readCatalog, readPart, readTocPage } from '../server/_lib/catalog.js'
 
 const row = {
   slug: 'approved-story', kind: 'novel', title: '公开作品', description: '简介',

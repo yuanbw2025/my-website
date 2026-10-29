@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { handleComments, handleCommentDecision, handleCommentReports, handleCommentReportDecision } from '../../api/community/_lib/comments.js'
+import { handleComments, handleCommentDecision, handleCommentReports, handleCommentReportDecision } from '../server/_lib/comments.js'
 
 const uid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const commentId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { handleMySubmissions, handleSubmissionAction, handleAppeals, handleAppealDecision } from '../../api/community/_lib/owner.js'
+import { handleMySubmissions, handleSubmissionAction, handleAppeals, handleAppealDecision } from '../server/_lib/owner.js'
 
 const uid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const submissionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'

@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import uploadRoute from '../../api/community/v1/upload-sessions.js'
-import submissionRoute from '../../api/community/v1/submissions.js'
-import statusRoute from '../../api/community/v1/submission-status.js'
-import reviewRoute from '../../api/community/v1/review.js'
+import uploadRoute from '../server/v1/upload-sessions.js'
+import submissionRoute from '../server/v1/submissions.js'
+import statusRoute from '../server/v1/submission-status.js'
+import reviewRoute from '../server/v1/review.js'
 
 const token = `Bearer ${'x'.repeat(80)}`
 const origin = 'https://storyforge-lab.com'

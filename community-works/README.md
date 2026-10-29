@@ -11,7 +11,7 @@ npm test
 npm run build
 ```
 
-根目录 `build.mjs` 负责将本子应用的构建输出复制到 `public/community-works/`，Vercel 的定向 rewrite 只覆盖作品详情与投稿状态路径。API Functions 位于仓库根目录 `api/community/`。
+根目录 `build.mjs` 负责将本子应用的构建输出复制到 `public/community-works/`，Vercel 的定向 rewrite 覆盖作品详情、投稿状态及其余版本化 API 路径。仓库根目录只有 `api/community.js` 一个 Vercel Function 入口，处理代码留在本目录的 `server/`；以单入口路由避免把每个辅助模块都计算为独立 Functions。
 
 ## 数据与权限
 

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { handleReports, handleReportDecision } from '../../api/community/_lib/reports.js'
+import { handleReports, handleReportDecision } from '../server/_lib/reports.js'
 
 const uid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const reportId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
