@@ -1,7 +1,7 @@
 -- Intake metadata is private. A signed Storage upload alone never publishes a work.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('community-intake', 'community-intake', false, 33554432,
-  array['application/vnd.storyforge.community-snapshot+json'])
+  array['application/json', 'application/vnd.storyforge.community-snapshot+json'])
 on conflict (id) do nothing;
 
 create table if not exists public.community_upload_sessions (

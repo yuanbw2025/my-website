@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && tsc --noEmit --strict --target ES2022 --lib ES2022,DOM --module ESNext --moduleResolution bundler --allowImportingTsExtensions supabase/functions/_shared/deno-types.d.ts supabase/functions/_shared/snapshot.ts supabase/functions/verify-submission/index.ts && vite build",
     "preview": "vite preview",
     "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },

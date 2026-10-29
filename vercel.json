@@ -7,6 +7,10 @@
       "destination": "/api/community/v1/publication?slug=:slug"
     },
     {
+      "source": "/api/community/v1/submissions/:id/status",
+      "destination": "/api/community/v1/submission-status?id=:id"
+    },
+    {
       "source": "/infiniteskill/(.*)",
       "destination": "/infiniteskill/index.html"
     },
