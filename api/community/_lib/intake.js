@@ -92,6 +92,7 @@ async function smallJsonBody(request) {
 /** No manuscript bytes pass through this function. It only allocates one private signed target. */
 export async function createUploadSession(request, fetcher = fetch) {
   if (request.method !== 'POST') return response(405, { error: 'method_not_allowed' })
+  if (process.env.COMMUNITY_ACCEPTING_SUBMISSIONS !== '1') return response(503, { error: 'intake_paused' })
   const config = settings()
   if (!config) return response(503, { error: 'intake_unavailable' })
   if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {

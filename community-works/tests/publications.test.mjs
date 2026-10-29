@@ -19,21 +19,25 @@ test('malformed list data fails closed instead of silently dropping rows', () =>
 })
 
 test('novel detail requires chapters and excludes unknown private fields', () => {
-  const detail = parseDetail({ ...card, chapters: [{ title: '第一章', content: '正文' }],
-    dimensions: [], authorCommentary: '', rawPrompt: 'private' })
-  assert.equal(detail?.chapters[0].content, '正文')
+  const detail = parseDetail({ ...card, toc: { kind: 'novel', total: 1,
+    items: [{ index: 0, title: '第一章' }], hasAuthorCommentary: false }, rawPrompt: 'private' })
+  assert.equal(detail?.chapters[0].title, '第一章')
   assert.equal('rawPrompt' in detail, false)
-  assert.equal(parseDetail({ ...card, chapters: [], dimensions: [], authorCommentary: '' }), null)
+  assert.equal(parseDetail({ ...card, toc: { kind: 'novel', total: 1, items: [] } }), null)
 })
 
 test('book analysis detail requires exactly 13 safe dimensions', () => {
-  const dimensions = Array.from({ length: 13 }, (_, index) => ({ key: `d${index}`, label: `维度 ${index}`,
-    selected: index === 0, entries: index === 0 ? [{ label: '条目', text: '分析' }] : [] }))
-  const detail = parseDetail({ ...card, kind: 'book-analysis', chapters: [], dimensions,
-    authorCommentary: '我的经验' })
+  const dimensions = Array.from({ length: 13 }, (_, index) => ({ index, key: `d${index}`, label: `维度 ${index}`,
+    selected: index === 0, entryCount: index === 0 ? 1 : 0 }))
+  const detail = parseDetail({ ...card, kind: 'book-analysis', toc: {
+    kind: 'book-analysis', total: 13, items: dimensions, hasAuthorCommentary: true,
+  } })
   assert.equal(detail?.dimensions.length, 13)
-  assert.equal(parseDetail({ ...card, kind: 'book-analysis', chapters: [], dimensions: dimensions.slice(1),
-    authorCommentary: '' }), null)
-  assert.equal(parseDetail({ ...card, kind: 'book-analysis', chapters: [], dimensions: dimensions.map((value, index) =>
-    index === 1 ? { ...value, entries: [{ label: '泄漏', text: '正文' }] } : value), authorCommentary: '' }), null)
+  assert.equal(parseDetail({ ...card, kind: 'book-analysis', toc: {
+    kind: 'book-analysis', total: 12, items: dimensions.slice(1), hasAuthorCommentary: false,
+  } }), null)
+  assert.equal(parseDetail({ ...card, kind: 'book-analysis', toc: {
+    kind: 'book-analysis', total: 13, items: dimensions.map((value, index) =>
+      index === 1 ? { ...value, entryCount: 1 } : value), hasAuthorCommentary: false,
+  } }), null)
 })

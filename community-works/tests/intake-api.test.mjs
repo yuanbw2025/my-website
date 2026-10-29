@@ -15,16 +15,26 @@ function request(body = manifest, headers = {}) {
 }
 
 function setup() {
+  process.env.COMMUNITY_ACCEPTING_SUBMISSIONS = '1'
   process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'
   process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test'
   process.env.COMMUNITY_SUPABASE_SECRET_KEY = 'sb_secret_test'
 }
 
 test('intake stays closed without server-only configuration', async () => {
+  setup()
   const previous = process.env.COMMUNITY_SUPABASE_SECRET_KEY
   delete process.env.COMMUNITY_SUPABASE_SECRET_KEY
   assert.equal((await createUploadSession(request())).status, 503)
   if (previous !== undefined) process.env.COMMUNITY_SUPABASE_SECRET_KEY = previous
+})
+
+test('intake remains paused until the operator explicitly opens it', async () => {
+  setup()
+  delete process.env.COMMUNITY_ACCEPTING_SUBMISSIONS
+  const result = await createUploadSession(request(), async () => { throw new Error('should not contact backend') })
+  assert.equal(result.status, 503)
+  assert.equal((await result.json()).error, 'intake_paused')
 })
 
 test('intake refuses unauthenticated and invalid metadata before allocating storage', async () => {

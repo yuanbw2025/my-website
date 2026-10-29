@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readCatalog } from '../../api/community/_lib/catalog.js'
+import { readCatalog, readPart, readTocPage } from '../../api/community/_lib/catalog.js'
 
 const row = {
   slug: 'approved-story', kind: 'novel', title: '公开作品', description: '简介',
@@ -34,15 +34,35 @@ test('catalog uses public key, published filter, and bounded output', async () =
 })
 
 test('detail cannot let body override approved catalog identity or leak extras', async () => {
-  const result = await readCatalog({ slug: 'approved-story' }, async (url) => {
+  const result = await readCatalog({ slug: 'approved-story' }, async (url, options) => {
+    if (url.pathname.endsWith('/rpc/community_read_toc_page')) {
+      assert.equal(options.headers.Authorization, undefined)
+      return new Response(JSON.stringify({ kind: 'novel', total: 1,
+        items: [{ index: 0, title: '第一章' }], hasAuthorCommentary: false }), { status: 200 })
+    }
     assert.equal(url.searchParams.get('slug'), 'eq.approved-story')
+    assert.equal(url.searchParams.get('select')?.includes('body'), false)
     return new Response(JSON.stringify([row]), { status: 200 })
   })
   assert.equal(result.status, 200)
   const detail = await result.json()
   assert.equal(detail.slug, 'approved-story')
-  assert.equal(detail.chapters[0].content, '正文')
+  assert.equal(detail.toc.items[0].title, '第一章')
   assert.equal('rawPrompt' in detail, false)
+})
+
+test('public text is read as bounded approved slices, not a whole manuscript response', async () => {
+  const result = await readPart({ slug: 'approved-story', section: '0', entry: '0', part: '1' },
+    async (url, options) => {
+      assert.equal(url.pathname, '/rest/v1/rpc/community_read_part')
+      assert.equal(options.headers.Authorization, undefined)
+      assert.equal(JSON.parse(options.body).p_part_index, 1)
+      return new Response(JSON.stringify({ text: '第二段', hasMore: false }), { status: 200 })
+    })
+  assert.equal(result.status, 200)
+  assert.equal((await result.json()).text, '第二段')
+  assert.equal((await readPart({ slug: 'approved-story', section: '0', entry: '0', part: '1001' })).status, 400)
+  assert.equal((await readTocPage({ slug: 'approved-story', section: '-1', offset: '0', limit: '101' })).status, 400)
 })
 
 test('unpublished or missing detail is never returned from an empty public read', async () => {

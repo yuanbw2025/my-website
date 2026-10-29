@@ -21,6 +21,60 @@ function config() {
   }
 }
 
+function boundedInteger(value, maximum) {
+  return typeof value === 'string' && /^(0|[1-9]\d{0,7})$/.test(value) &&
+    Number(value) <= maximum ? Number(value) : null
+}
+
+async function rpc(path, args, fetcher) {
+  const settings = config()
+  if (!settings) return response(503, { error: 'catalog_unavailable' })
+  try {
+    const upstream = await fetcher(new URL(`/rest/v1/rpc/${path}`, settings.base), {
+      method: 'POST',
+      headers: { apikey: settings.key, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(args), signal: AbortSignal.timeout(8000),
+    })
+    if (!upstream.ok) return response(503, { error: 'catalog_unavailable' })
+    const body = await upstream.json()
+    if (body === null) return response(404, { error: 'work_not_found' })
+    return response(200, body)
+  } catch { return response(503, { error: 'catalog_unavailable' }) }
+}
+
+export async function readTocPage({ slug, section, offset, limit }, fetcher = fetch) {
+  if (!/^[a-z0-9-]{1,100}$/.test(slug ?? '')) return response(400, { error: 'invalid_slug' })
+  const sectionIndex = section === '-1' ? -1 : boundedInteger(section, 12)
+  const start = boundedInteger(offset, 10000000)
+  const pageSize = boundedInteger(limit, 100)
+  if (sectionIndex === null || start === null || pageSize === null || pageSize < 1) {
+    return response(400, { error: 'invalid_page' })
+  }
+  return rpc('community_read_toc_page', {
+    p_slug: slug, p_section_index: sectionIndex, p_offset: start, p_limit: pageSize,
+  }, fetcher)
+}
+
+export async function readPart({ slug, section, entry, part }, fetcher = fetch) {
+  if (!/^[a-z0-9-]{1,100}$/.test(slug ?? '')) return response(400, { error: 'invalid_slug' })
+  const sectionIndex = boundedInteger(section, 10000000)
+  const entryIndex = boundedInteger(entry, 10000000)
+  const partIndex = boundedInteger(part, 1000)
+  if (sectionIndex === null || entryIndex === null || partIndex === null) {
+    return response(400, { error: 'invalid_part' })
+  }
+  const result = await rpc('community_read_part', {
+    p_slug: slug, p_section_index: sectionIndex,
+    p_entry_index: entryIndex, p_part_index: partIndex,
+  }, fetcher)
+  if (result.status !== 200) return result
+  let body
+  try { body = await result.json() } catch { return response(502, { error: 'invalid_part_data' }) }
+  if (!body || typeof body.text !== 'string' || body.text.length > 1000000 ||
+      typeof body.hasMore !== 'boolean') return response(502, { error: 'invalid_part_data' })
+  return response(200, body)
+}
+
 function safeText(value, limit) {
   return typeof value === 'string' && value.length <= limit
 }
@@ -49,9 +103,7 @@ export async function readCatalog({ slug, kind, q } = {}, fetcher = fetch) {
   if (q !== undefined && (typeof q !== 'string' || q.length > 100)) return response(400, { error: 'invalid_query' })
 
   const url = new URL('/rest/v1/community_publications', settings.base)
-  url.searchParams.set('select', slug
-    ? 'slug,kind,title,description,author_name,updated_at,language,body'
-    : 'slug,kind,title,description,author_name,updated_at,language')
+  url.searchParams.set('select', 'slug,kind,title,description,author_name,updated_at,language')
   // This filter is defense in depth. RLS is the actual read boundary.
   url.searchParams.set('status', 'eq.published')
   if (slug) url.searchParams.set('slug', `eq.${slug}`)
@@ -74,12 +126,14 @@ export async function readCatalog({ slug, kind, q } = {}, fetcher = fetch) {
   const cards = rows.map(cardFromRow)
   if (cards.some(card => !card)) return response(502, { error: 'invalid_catalog_data' })
   if (!slug) return response(200, { items: cards })
-  const body = rows[0].body
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return response(502, { error: 'invalid_catalog_data' })
-  return response(200, {
-    ...cards[0],
-    chapters: body.chapters,
-    dimensions: body.dimensions,
-    authorCommentary: body.authorCommentary,
-  })
+  const tocResponse = await readTocPage({ slug, section: '-1', offset: '0', limit: '100' }, fetcher)
+  if (tocResponse.status !== 200) return response(503, { error: 'catalog_unavailable' })
+  let toc
+  try { toc = await tocResponse.json() } catch { return response(502, { error: 'invalid_catalog_data' }) }
+  if (!toc || toc.kind !== cards[0].kind || !Number.isSafeInteger(toc.total) ||
+      toc.total < 1 || !Array.isArray(toc.items) || toc.items.length > 100 ||
+      toc.items.length !== Math.min(toc.total, 100)) {
+    return response(502, { error: 'invalid_catalog_data' })
+  }
+  return response(200, { ...cards[0], toc })
 }

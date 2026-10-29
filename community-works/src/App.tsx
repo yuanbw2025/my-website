@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { apiRoot, loadJson, parseDetail, parseList, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
+import { apiRoot, loadJson, loadTextParts, parseChapterPage, parseDetail, parseEntryPage, parseList, type PublicDimension, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
 
 function Header() {
   return <header className="site-header">
@@ -39,58 +39,139 @@ function Home() {
   </>
 }
 
-function NovelReader({ chapters }: { chapters: PublicWorkDetail['chapters'] }) {
+function TextParts({ slug, section, entry }: { slug: string; section: number; entry: number }) {
+  const [text, setText] = useState('')
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
+  useEffect(() => {
+    const controller = new AbortController()
+    setText('')
+    setState('loading')
+    loadTextParts(slug, section, entry, controller.signal).then(value => {
+      setText(value)
+      setState('ready')
+    }).catch(error => {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setState('error')
+    })
+    return () => controller.abort()
+  }, [slug, section, entry])
+  if (state === 'loading') return <p role="status">正在读取正文…</p>
+  if (state === 'error') return <p role="alert">正文暂时无法读取，请稍后重试。</p>
+  return <>{text.split(/\n+/).map((paragraph, line) => <p key={line}>{paragraph}</p>)}</>
+}
+
+function NovelReader({ slug, initialChapters, chapterCount }: {
+  slug: string; initialChapters: PublicWorkDetail['chapters']; chapterCount: number
+}) {
   const chapterFromHash = () => {
     const match = window.location.hash.match(/^#chapter-(\d+)$/)
     const index = match ? Number(match[1]) - 1 : 0
-    return Number.isSafeInteger(index) && index >= 0 && index < chapters.length ? index : 0
+    return Number.isSafeInteger(index) && index >= 0 && index < chapterCount ? index : 0
   }
   const [index, setIndex] = useState(chapterFromHash)
+  const [chapters, setChapters] = useState(initialChapters)
+  const [nextOffset, setNextOffset] = useState(initialChapters.length)
+  const [directoryError, setDirectoryError] = useState(false)
+  const readPage = async (offset: number, signal?: AbortSignal) => {
+    const page = await loadJson(`${apiRoot}/${slug}/toc?section=-1&offset=${offset}&limit=100`, signal ?? new AbortController().signal)
+    const parsed = parseChapterPage(page, offset)
+    if (!parsed) throw new Error('章节目录无效')
+    setChapters(current => [...new Map([...current, ...parsed].map(item => [item.index, item])).values()].sort((a, b) => a.index - b.index))
+    return parsed
+  }
   useEffect(() => {
     const onHashChange = () => setIndex(chapterFromHash())
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-  }, [chapters.length])
+  }, [chapterCount])
+  useEffect(() => {
+    if (chapters.some(item => item.index === index)) return
+    const controller = new AbortController()
+    readPage(Math.floor(index / 100) * 100, controller.signal).catch(error => {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) setDirectoryError(true)
+    })
+    return () => controller.abort()
+  }, [index, chapters, slug])
   const choose = (nextIndex: number) => {
-    if (nextIndex < 0 || nextIndex >= chapters.length) return
+    if (nextIndex < 0 || nextIndex >= chapterCount) return
     setIndex(nextIndex)
     window.history.replaceState(null, '', `#chapter-${nextIndex + 1}`)
     document.getElementById('chapter-heading')?.scrollIntoView({ block: 'start' })
   }
-  const chapter = chapters[index]
+  const chapter = chapters.find(item => item.index === index)
   return <>
     <div className="reader-tools">
       <label htmlFor="chapter-select">章节目录</label>
       <select id="chapter-select" value={index} onChange={event => choose(Number(event.target.value))}>
+        {!chapter && <option value={index}>第 {index + 1} 章</option>}
         {chapters.map((item, chapterIndex) =>
-          <option key={chapterIndex} value={chapterIndex}>{chapterIndex + 1}. {item.title}</option>)}
+          <option key={chapterIndex} value={item.index}>{item.index + 1}. {item.title}</option>)}
       </select>
-      <span role="status">{index + 1} / {chapters.length}</span>
+      <span role="status">{index + 1} / {chapterCount}</span>
+      {nextOffset < chapterCount && <button type="button" onClick={() => {
+        readPage(nextOffset).then(page => setNextOffset(nextOffset + page.length)).catch(() => setDirectoryError(true))
+      }}>加载更多目录</button>}
     </div>
+    {directoryError && <p role="alert">目录暂时无法读取。</p>}
     <section className="reading-section">
-      <h2 id="chapter-heading">{chapter.title}</h2>
-      {chapter.content.split(/\n+/).map((paragraph, line) => <p key={line}>{paragraph}</p>)}
+      <h2 id="chapter-heading">{chapter?.title ?? `第 ${index + 1} 章`}</h2>
+      <TextParts slug={slug} section={index} entry={0} />
     </section>
     <nav className="reader-pager" aria-label="章节导航">
       <button type="button" disabled={index === 0} onClick={() => choose(index - 1)}>← 上一章</button>
-      <button type="button" disabled={index === chapters.length - 1} onClick={() => choose(index + 1)}>下一章 →</button>
+      <button type="button" disabled={index === chapterCount - 1} onClick={() => choose(index + 1)}>下一章 →</button>
     </nav>
   </>
 }
 
-function AnalysisReader({ detail }: { detail: PublicWorkDetail }) {
+function AnalysisEntry({ slug, dimensionIndex, index, label }: { slug: string; dimensionIndex: number; index: number; label: string }) {
+  const [open, setOpen] = useState(false)
+  return <details onToggle={event => setOpen(event.currentTarget.open)}>
+    <summary>{label}</summary>
+    {open && <TextParts slug={slug} section={dimensionIndex} entry={index} />}
+  </details>
+}
+
+function AnalysisDimension({ slug, dimension }: { slug: string; dimension: PublicDimension }) {
+  const [open, setOpen] = useState(false)
+  const [entries, setEntries] = useState<Array<{ index: number; label: string }>>([])
+  const [state, setState] = useState<'ready' | 'loading' | 'error'>('ready')
+  const loadMore = () => {
+    if (state === 'loading' || entries.length >= dimension.entryCount) return
+    setState('loading')
+    loadJson(`${apiRoot}/${slug}/toc?section=${dimension.index}&offset=${entries.length}&limit=100`, new AbortController().signal)
+      .then(value => {
+        const page = parseEntryPage(value, entries.length, dimension.entryCount)
+        if (!page) throw new Error('分析目录无效')
+        setEntries(current => [...current, ...page])
+        setState('ready')
+      }).catch(() => setState('error'))
+  }
+  return <section className="reading-section" id={`dimension-${dimension.key}`}>
+    <h2>{dimension.label}</h2>
+    {!dimension.selected && <p className="muted">作者未选择公开此维度。</p>}
+    {dimension.selected && dimension.entryCount === 0 && <p className="muted">所选范围在此维度没有内容。</p>}
+    {dimension.selected && dimension.entryCount > 0 && <>
+      <button type="button" onClick={() => { setOpen(value => !value); if (!open && !entries.length) loadMore() }}>
+        {open ? '收起分析' : `展开分析（${dimension.entryCount} 条）`}
+      </button>
+      {open && <>
+        {entries.map(entry => <AnalysisEntry key={entry.index} slug={slug} dimensionIndex={dimension.index} {...entry} />)}
+        {entries.length < dimension.entryCount && state !== 'loading' && <button type="button" onClick={loadMore}>加载更多条目</button>}
+        {state === 'loading' && <p role="status">正在读取分析目录…</p>}
+        {state === 'error' && <p role="alert">分析目录暂时无法读取。</p>}
+      </>}
+    </>}
+  </section>
+}
+
+function AnalysisReader({ slug, detail }: { slug: string; detail: PublicWorkDetail }) {
   return <>
     <nav className="toc" aria-label="分析目录"><h2>分析目录</h2>
       {detail.dimensions.map(dimension => <a key={dimension.key} href={`#dimension-${dimension.key}`}>{dimension.label}</a>)}
     </nav>
-    {detail.dimensions.map(dimension =>
-      <section className="reading-section" id={`dimension-${dimension.key}`} key={dimension.key}>
-        <h2>{dimension.label}</h2>
-        {dimension.selected
-          ? dimension.entries.map((entry, index) => <div key={index}><h3>{entry.label}</h3><p>{entry.text}</p></div>)
-          : <p className="muted">作者未选择公开此维度。</p>}
-      </section>)}
-    {detail.authorCommentary && <section className="reading-section"><h2>作者点评</h2><p>{detail.authorCommentary}</p></section>}
+    {detail.dimensions.map(dimension => <AnalysisDimension key={dimension.key} slug={slug} dimension={dimension} />)}
+    {detail.hasAuthorCommentary && <section className="reading-section"><h2>作者点评</h2><TextParts slug={slug} section={13} entry={0} /></section>}
   </>
 }
 
@@ -116,7 +197,9 @@ function Detail({ slug }: { slug: string }) {
       <h1>{detail.title}</h1>
       <p className="byline">{detail.authorName} · {detail.language}</p>
       <p className="lead">{detail.description}</p>
-      {detail.kind === 'novel' ? <NovelReader chapters={detail.chapters} /> : <AnalysisReader detail={detail} />}
+      {detail.kind === 'novel'
+        ? <NovelReader slug={slug} initialChapters={detail.chapters} chapterCount={detail.chapterCount} />
+        : <AnalysisReader slug={slug} detail={detail} />}
     </article>}
   </main>
 }

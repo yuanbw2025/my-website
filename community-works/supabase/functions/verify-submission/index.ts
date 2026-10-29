@@ -40,8 +40,29 @@ async function ownerFromToken(base: URL, publishable: string, authorization: str
   return typeof user?.id === 'string' && uuid.test(user.id) ? user.id : null
 }
 
+async function readBounded(body: ReadableStream<Uint8Array> | null, maximum: number): Promise<Uint8Array> {
+  if (!body) throw new Error('empty_body')
+  const reader = body.getReader()
+  const chunks: Uint8Array[] = []
+  let length = 0
+  try {
+    while (true) {
+      const next = await reader.read()
+      if (next.done) break
+      length += next.value.byteLength
+      if (length > maximum) throw new Error('body_too_large')
+      chunks.push(next.value)
+    }
+  } finally { await reader.cancel().catch(() => {}) }
+  const bytes = new Uint8Array(length)
+  let offset = 0
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength }
+  return bytes
+}
+
 Deno.serve(async request => {
   if (request.method !== 'POST') return answer(405, { error: 'method_not_allowed' })
+  if (Deno.env.get('COMMUNITY_ACCEPTING_SUBMISSIONS') !== '1') return answer(503, { error: 'intake_paused' })
   const config = credentials()
   if (!config) return answer(503, { error: 'submission_unavailable' })
   let ownerUid: string | null
@@ -50,7 +71,9 @@ Deno.serve(async request => {
   if (!ownerUid) return answer(401, { error: 'authentication_required' })
   if (Number(request.headers.get('content-length') ?? 0) > 4096) return answer(413, { error: 'request_too_large' })
   let input: Record<string, unknown>
-  try { input = await request.json() } catch { return answer(400, { error: 'invalid_request' }) }
+  try {
+    input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await readBounded(request.body, 4096)))
+  } catch { return answer(400, { error: 'invalid_request' }) }
   if (!input || !uuid.test(String(input.sessionId ?? '')) || input.rightsConfirmed !== true ||
       !['all-rights-reserved', 'cc-by-4.0'].includes(String(input.license ?? '')) ||
       typeof input.publicPenName !== 'string' || !input.publicPenName.trim() || input.publicPenName.length > 120) {
@@ -82,7 +105,7 @@ Deno.serve(async request => {
     })
     if (storage.status === 404) return answer(409, { error: 'upload_not_complete' })
     if (!storage.ok) throw new Error('storage_unavailable')
-    const bytes = new Uint8Array(await storage.arrayBuffer())
+    const bytes = await readBounded(storage.body, maxBytes)
     if (bytes.byteLength !== session.byte_length || bytes.byteLength > maxBytes) {
       return answer(422, { error: 'snapshot_length_mismatch' })
     }

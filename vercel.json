@@ -7,6 +7,14 @@
       "destination": "/api/community/v1/publication?slug=:slug"
     },
     {
+      "source": "/api/community/v1/publications/:slug/toc",
+      "destination": "/api/community/v1/publication-toc?slug=:slug"
+    },
+    {
+      "source": "/api/community/v1/publications/:slug/part",
+      "destination": "/api/community/v1/publication-part?slug=:slug"
+    },
+    {
       "source": "/api/community/v1/submissions/:id/status",
       "destination": "/api/community/v1/submission-status?id=:id"
     },

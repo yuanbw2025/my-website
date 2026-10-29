@@ -11,16 +11,18 @@ export interface PublicWorkCard {
 }
 
 export interface PublicDimension {
+  index: number
   key: string
   label: string
   selected: boolean
-  entries: Array<{ label: string; text: string }>
+  entryCount: number
 }
 
 export interface PublicWorkDetail extends PublicWorkCard {
-  chapters: Array<{ title: string; content: string }>
+  chapterCount: number
+  chapters: Array<{ index: number; title: string }>
   dimensions: PublicDimension[]
-  authorCommentary: string
+  hasAuthorCommentary: boolean
 }
 
 export const apiRoot = '/api/community/v1/publications'
@@ -61,41 +63,71 @@ export function parseList(value: unknown): PublicWorkCard[] {
   return cards as PublicWorkCard[]
 }
 
-function parseEntries(value: unknown): Array<{ label: string; text: string }> | null {
-  if (!Array.isArray(value) || value.length > 10000) return null
-  const entries: Array<{ label: string; text: string }> = []
-  for (const raw of value) {
-    const entry = record(raw)
-    if (!entry || !text(entry.label, 300) || !text(entry.text, 2_000_000)) return null
-    entries.push({ label: entry.label, text: entry.text })
+export function parseDetail(value: unknown): PublicWorkDetail | null {
+  const card = parseCard(value)
+  const data = record(value)
+  const toc = data && record(data.toc)
+  if (!card || !toc || toc.kind !== card.kind || !Number.isSafeInteger(toc.total) ||
+      (toc.total as number) < 1 || !Array.isArray(toc.items) || toc.items.length > 100 ||
+      toc.items.length !== Math.min(toc.total as number, 100)) return null
+  if (card.kind === 'novel') {
+    const chapters = parseChapterPage(toc, 0)
+    return chapters ? { ...card, chapterCount: toc.total as number, chapters, dimensions: [], hasAuthorCommentary: false } : null
+  }
+  if (toc.total !== 13) return null
+  const dimensions: PublicDimension[] = []
+  for (const [index, raw] of toc.items.entries()) {
+    const item = record(raw)
+    if (!item || item.index !== index || !text(item.key, 100) || !text(item.label, 300) ||
+        typeof item.selected !== 'boolean' || !Number.isSafeInteger(item.entryCount) ||
+        (item.entryCount as number) < 0 || (!item.selected && item.entryCount !== 0)) return null
+    dimensions.push({ index, key: item.key, label: item.label, selected: item.selected, entryCount: item.entryCount as number })
+  }
+  if (typeof toc.hasAuthorCommentary !== 'boolean') return null
+  return { ...card, chapterCount: 0, chapters: [], dimensions, hasAuthorCommentary: toc.hasAuthorCommentary }
+}
+
+export function parseChapterPage(value: unknown, offset: number): Array<{ index: number; title: string }> | null {
+  const page = record(value)
+  if (!page || page.kind !== 'novel' || !Number.isSafeInteger(page.total) ||
+      !Array.isArray(page.items) || page.items.length > 100 ||
+      page.items.length !== Math.min(Math.max((page.total as number) - offset, 0), 100)) return null
+  const chapters: Array<{ index: number; title: string }> = []
+  for (const [position, raw] of page.items.entries()) {
+    const item = record(raw)
+    if (!item || item.index !== offset + position || !text(item.title, 300)) return null
+    chapters.push({ index: item.index as number, title: item.title })
+  }
+  return chapters
+}
+
+export function parseEntryPage(value: unknown, offset: number, expectedTotal: number): Array<{ index: number; label: string }> | null {
+  const page = record(value)
+  if (!page || page.kind !== 'book-analysis' || page.total !== expectedTotal ||
+      !Array.isArray(page.items) || page.items.length > 100 ||
+      page.items.length !== Math.min(Math.max(expectedTotal - offset, 0), 100)) return null
+  const entries: Array<{ index: number; label: string }> = []
+  for (const [position, raw] of page.items.entries()) {
+    const item = record(raw)
+    if (!item || item.index !== offset + position || !text(item.label, 300)) return null
+    entries.push({ index: item.index as number, label: item.label })
   }
   return entries
 }
 
-export function parseDetail(value: unknown): PublicWorkDetail | null {
-  const card = parseCard(value)
-  const data = record(value)
-  if (!card || !data || !Array.isArray(data.chapters) || !Array.isArray(data.dimensions) ||
-      data.chapters.length > 10000 || data.dimensions.length > 13 ||
-      !text(data.authorCommentary, 100_000)) return null
-  const chapters: PublicWorkDetail['chapters'] = []
-  for (const raw of data.chapters) {
-    const chapter = record(raw)
-    if (!chapter || !text(chapter.title, 300) || !text(chapter.content, 2_000_000)) return null
-    chapters.push({ title: chapter.title, content: chapter.content })
+export async function loadTextParts(slug: string, section: number, entry: number, signal: AbortSignal): Promise<string> {
+  const parts: string[] = []
+  let totalLength = 0
+  for (let part = 0; part <= 1000; part++) {
+    const value = record(await loadJson(`${apiRoot}/${slug}/part?section=${section}&entry=${entry}&part=${part}`, signal))
+    if (!value || !text(value.text, 1_000_000) || typeof value.hasMore !== 'boolean') throw new Error('作品内容无效')
+    totalLength += value.text.length
+    if (totalLength > 32 * 1024 * 1024) throw new Error('作品内容超出预算')
+    parts.push(value.text)
+    if (!value.hasMore) return parts.join('')
+    if (!value.text) throw new Error('作品内容不完整')
   }
-  const dimensions: PublicDimension[] = []
-  for (const raw of data.dimensions) {
-    const dimension = record(raw)
-    if (!dimension || !text(dimension.key, 100) || !text(dimension.label, 300) ||
-        typeof dimension.selected !== 'boolean') return null
-    const entries = parseEntries(dimension.entries)
-    if (!entries || (!dimension.selected && entries.length > 0)) return null
-    dimensions.push({ key: dimension.key, label: dimension.label, selected: dimension.selected, entries })
-  }
-  if (card.kind === 'novel' && (!chapters.length || dimensions.length)) return null
-  if (card.kind === 'book-analysis' && (chapters.length || dimensions.length !== 13)) return null
-  return { ...card, chapters, dimensions, authorCommentary: data.authorCommentary }
+  throw new Error('作品内容分段过多')
 }
 
 export async function loadJson(url: string, signal: AbortSignal): Promise<unknown> {
