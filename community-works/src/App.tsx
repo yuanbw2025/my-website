@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiRoot, loadJson, loadTextParts, parseChapterPage, parseDetail, parseEntryPage, parseList, type PublicDimension, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
+import { ReviewPage } from './ReviewPage'
 
 function Header() {
   return <header className="site-header">
@@ -206,5 +207,6 @@ function Detail({ slug }: { slug: string }) {
 
 export function App() {
   const match = window.location.pathname.match(/^\/community-works\/work\/([a-z0-9-]{1,100})\/?$/)
-  return <><a className="skip-link" href="#main-content">跳到正文</a><Header />{match ? <Detail slug={match[1]} /> : <Home />}<footer><span>StoryForge 社区作品集</span><span>只展示作者主动投稿且审核通过的版本</span></footer></>
+  const review = /^\/community-works\/review\/?$/.test(window.location.pathname)
+  return <><a className="skip-link" href="#main-content">跳到正文</a><Header />{review ? <ReviewPage /> : match ? <Detail slug={match[1]} /> : <Home />}<footer><span>StoryForge 社区作品集</span><span>只展示作者主动投稿且审核通过的版本</span></footer></>
 }

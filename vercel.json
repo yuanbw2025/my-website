@@ -47,6 +47,10 @@
       "destination": "/community-works/index.html"
     },
     {
+      "source": "/community-works/review",
+      "destination": "/community-works/index.html"
+    },
+    {
       "source": "/novel-game/(.*)",
       "destination": "/novel-game/index.html"
     },
