@@ -73,7 +73,7 @@ test('one authenticated manifest gets a private signed target without manuscript
     }
     if (url.pathname.startsWith('/storage/v1/object/upload/sign/community-intake/')) {
       assert.equal(options.body, '{}')
-      return Response.json({ url: `${url.pathname}?token=signed-token` })
+      return Response.json({ url: `${url.pathname.slice('/storage/v1'.length)}?token=signed-token` })
     }
     throw new Error(`unexpected request ${url}`)
   })
@@ -85,7 +85,26 @@ test('one authenticated manifest gets a private signed target without manuscript
   assert.equal(data.sha256, manifest.sha256)
   assert.equal(data.byteLength, manifest.byteLength)
   assert.equal(data.signedUrl.startsWith('https://example.supabase.co/storage/v1/object/upload/sign/community-intake/'), true)
+  assert.equal(new URL(data.signedUrl).searchParams.get('token'), data.token)
   assert.equal(JSON.stringify(data).includes('sb_secret_test'), false)
+})
+
+test('signed target must be the exact allocated object even if Storage returns an unexpected path', async () => {
+  setup()
+  const result = await createUploadSession(request(), async url => {
+    if (url.pathname === '/auth/v1/user') return Response.json({ id: ownerId })
+    if (url.pathname === '/rest/v1/rpc/community_allocate_upload_session') {
+      return Response.json({ id: uploadId, owner_uid: ownerId, kind: manifest.kind,
+        object_path: `${ownerId}/${uploadId}/snapshot.json`, sha256: manifest.sha256,
+        byte_length: manifest.byteLength, status: 'created', expires_at: new Date(Date.now() + 3600000).toISOString() })
+    }
+    if (url.pathname.startsWith('/storage/v1/object/upload/sign/')) {
+      return Response.json({ url: `/object/upload/sign/community-intake/${ownerId}/${uploadId}/other.json?token=signed-token` })
+    }
+    throw new Error(`unexpected request ${url}`)
+  })
+  assert.equal(result.status, 503)
+  assert.equal((await result.json()).error, 'intake_unavailable')
 })
 
 test('same idempotency key cannot point to different content', async () => {

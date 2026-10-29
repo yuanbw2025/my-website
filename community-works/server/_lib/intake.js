@@ -48,13 +48,20 @@ async function signTarget(config, path, fetcher) {
   })
   if (!result.ok) throw new Error('storage_unavailable')
   const body = await result.json()
+  // Storage returns a path relative to its /storage/v1 base, as in storage-js.
+  // Reconstruct from the exact allocated object path, never from an upstream URL.
   if (typeof body?.url !== 'string') throw new Error('storage_unavailable')
-  const signedUrl = new URL(body.url, config.base)
-  if (signedUrl.origin !== config.base.origin || !signedUrl.pathname.startsWith(`/storage/v1/object/upload/sign/${BUCKET}/`)) {
+  const returned = new URL(body.url, 'https://storage.invalid')
+  const expectedPath = `/object/upload/sign/${BUCKET}/${path}`
+  const tokens = returned.searchParams.getAll('token')
+  if (returned.origin !== 'https://storage.invalid' || returned.pathname !== expectedPath ||
+      returned.hash || [...returned.searchParams.keys()].some(key => key !== 'token') ||
+      tokens.length !== 1 || !tokens[0] || tokens[0].length > 4096) {
     throw new Error('storage_unavailable')
   }
-  const token = signedUrl.searchParams.get('token')
-  if (!token) throw new Error('storage_unavailable')
+  const token = tokens[0]
+  const signedUrl = new URL(`/storage/v1${expectedPath}`, config.base)
+  signedUrl.searchParams.set('token', token)
   return { signedUrl: signedUrl.toString(), token }
 }
 
