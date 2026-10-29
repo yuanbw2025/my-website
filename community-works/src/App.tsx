@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { apiRoot, loadJson, loadTextParts, parseChapterPage, parseDetail, parseEntryPage, parseList, type PublicDimension, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
+import { useEffect, useRef, useState } from 'react'
+import { apiRoot, loadJson, loadTextParts, parseChapterPage, parseDetail, parseEntryPage, parseListPage, type PublicDimension, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
 import { ReviewPage } from './ReviewPage'
 import { Comments } from './Comments'
 import { MySubmissions } from './MySubmissions'
@@ -17,18 +17,65 @@ function Home() {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<PublicWorkCard[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [nextOffset, setNextOffset] = useState<number | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [moreError, setMoreError] = useState(false)
+  const moreController = useRef<AbortController | null>(null)
+  const pageVersion = useRef(0)
   useEffect(() => {
     const controller = new AbortController()
+    const version = ++pageVersion.current
+    moreController.current?.abort()
+    moreController.current = null
+    setItems([])
+    setNextOffset(null)
+    setLoadingMore(false)
+    setMoreError(false)
     setState('loading')
     const params = new URLSearchParams()
     if (kind !== 'all') params.set('kind', kind)
     if (query.trim()) params.set('q', query.trim())
+    params.set('offset', '0')
     loadJson(`${apiRoot}?${params}`, controller.signal).then(data => {
-      setItems(parseList(data))
+      if (version !== pageVersion.current) return
+      const page = parseListPage(data, 0)
+      setItems(page.items)
+      setNextOffset(page.nextOffset)
       setState('ready')
-    }).catch(error => { if (error instanceof DOMException && error.name === 'AbortError') return; setState('error') })
-    return () => controller.abort()
+    }).catch(error => {
+      if (version !== pageVersion.current || (error instanceof DOMException && error.name === 'AbortError')) return
+      setState('error')
+    })
+    return () => { controller.abort(); moreController.current?.abort() }
   }, [kind, query])
+
+  const loadMore = () => {
+    if (nextOffset === null || loadingMore) return
+    const version = pageVersion.current
+    const offset = nextOffset
+    const controller = new AbortController()
+    moreController.current = controller
+    setLoadingMore(true)
+    setMoreError(false)
+    const params = new URLSearchParams()
+    if (kind !== 'all') params.set('kind', kind)
+    if (query.trim()) params.set('q', query.trim())
+    params.set('offset', String(offset))
+    loadJson(`${apiRoot}?${params}`, controller.signal).then(data => {
+      if (version !== pageVersion.current) return
+      const page = parseListPage(data, offset)
+      setItems(current => {
+        const seen = new Set(current.map(item => item.slug))
+        return [...current, ...page.items.filter(item => !seen.has(item.slug))]
+      })
+      setNextOffset(page.nextOffset)
+    }).catch(error => {
+      if (version !== pageVersion.current || (error instanceof DOMException && error.name === 'AbortError')) return
+      setMoreError(true)
+    }).finally(() => {
+      if (version === pageVersion.current) { setLoadingMore(false); moreController.current = null }
+    })
+  }
 
   return <>
     <section className="hero"><p className="eyebrow">STORYFORGE / COMMUNITY WORKS</p><h1>让写下的故事，<br /><em>遇见更多读者。</em></h1><p>这里收录作者自愿分享、经过审核的原创小说和拆书分析。每一篇作品都来自作者明确选择的公开版本。</p></section>
@@ -39,6 +86,8 @@ function Home() {
       {state === 'error' && <div className="feedback" role="alert"><strong>暂时无法读取作品集</strong><p>请稍后再试。投稿和审核服务尚未开放时，这里不会显示示例作品。</p></div>}
       {state === 'ready' && items.length === 0 && <div className="feedback"><strong>还没有符合条件的公开作品</strong><p>作品经作者确认并审核通过后会出现在这里。</p></div>}
       {state === 'ready' && items.length > 0 && <div className="work-grid">{items.map(item => <a className="work-card" key={item.slug} href={`/community-works/work/${item.slug}`}><span className="kind-tag">{item.kind === 'novel' ? '原创小说' : '拆书分析'}</span><h3>{item.title}</h3><p>{item.description}</p><div className="card-foot"><span>{item.authorName}</span><span>阅读作品 ↗</span></div></a>)}</div>}
+      {state === 'ready' && moreError && <p className="feedback" role="alert">更多作品暂时无法读取，请重试。</p>}
+      {state === 'ready' && nextOffset !== null && <button className="load-more" type="button" disabled={loadingMore} onClick={loadMore}>{loadingMore ? '正在加载…' : '加载更多作品'}</button>}
     </main>
   </>
 }

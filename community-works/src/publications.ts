@@ -55,12 +55,16 @@ export function parseCard(value: unknown): PublicWorkCard | null {
   }
 }
 
-export function parseList(value: unknown): PublicWorkCard[] {
+export function parseListPage(value: unknown, offset: number): { items: PublicWorkCard[]; nextOffset: number | null } {
   const data = record(value)
-  if (!data || !Array.isArray(data.items) || data.items.length > 100) throw new Error('作品集返回了无效列表')
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000000 || !data ||
+      !Array.isArray(data.items) || data.items.length > 50 ||
+      (data.nextOffset !== null && (data.items.length !== 50 || data.nextOffset !== offset + 50))) {
+    throw new Error('作品集返回了无效列表')
+  }
   const cards = data.items.map(parseCard)
   if (cards.some(card => !card)) throw new Error('作品集返回了无效作品')
-  return cards as PublicWorkCard[]
+  return { items: cards as PublicWorkCard[], nextOffset: data.nextOffset as number | null }
 }
 
 export function parseDetail(value: unknown): PublicWorkDetail | null {

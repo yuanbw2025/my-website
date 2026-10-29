@@ -22,7 +22,9 @@ test('catalog uses public key, published filter, and bounded output', async () =
   process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test'
   const result = await readCatalog({}, async (url, options) => {
     assert.equal(url.searchParams.get('status'), 'eq.published')
-    assert.equal(url.searchParams.get('limit'), '50')
+    assert.equal(url.searchParams.get('limit'), '51')
+    assert.equal(url.searchParams.get('offset'), '0')
+    assert.equal(url.searchParams.get('order'), 'published_at.desc,id.desc')
     assert.equal(options.headers.apikey, 'sb_publishable_test')
     assert.equal(options.headers.Authorization, undefined)
     return new Response(JSON.stringify([row]), { status: 200 })
@@ -30,7 +32,33 @@ test('catalog uses public key, published filter, and bounded output', async () =
   assert.equal(result.status, 200)
   const data = await result.json()
   assert.equal(data.items.length, 1)
+  assert.equal(data.nextOffset, null)
   assert.equal('body' in data.items[0], false)
+})
+
+test('catalog pages past fifty published works without exposing an unbounded response', async () => {
+  process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'
+  process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test'
+  const rows = Array.from({ length: 51 }, (_, index) => ({ ...row, slug: `story-${index}` }))
+  const first = await readCatalog({}, async url => {
+    assert.equal(url.searchParams.get('offset'), '0')
+    assert.equal(url.searchParams.get('limit'), '51')
+    return Response.json(rows)
+  })
+  assert.equal(first.status, 200)
+  const firstPage = await first.json()
+  assert.equal(firstPage.items.length, 50)
+  assert.equal(firstPage.nextOffset, 50)
+  assert.equal(firstPage.items.some(item => item.slug === 'story-50'), false)
+  const second = await readCatalog({ offset: '50' }, async url => {
+    assert.equal(url.searchParams.get('offset'), '50')
+    return Response.json([rows[50]])
+  })
+  const secondPage = await second.json()
+  assert.equal(secondPage.items[0].slug, 'story-50')
+  assert.equal(secondPage.nextOffset, null)
+  assert.equal((await readCatalog({ offset: '-1' })).status, 400)
+  assert.equal((await readCatalog({ offset: '10000001' })).status, 400)
 })
 
 test('detail cannot let body override approved catalog identity or leak extras', async () => {

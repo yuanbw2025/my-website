@@ -95,12 +95,14 @@ function cardFromRow(row) {
   }
 }
 
-export async function readCatalog({ slug, kind, q } = {}, fetcher = fetch) {
+export async function readCatalog({ slug, kind, q, offset = '0' } = {}, fetcher = fetch) {
   const settings = config()
   if (!settings) return response(503, { error: 'catalog_unavailable' })
   if (slug !== undefined && !/^[a-z0-9-]{1,100}$/.test(slug)) return response(400, { error: 'invalid_slug' })
   if (kind !== undefined && !['novel', 'book-analysis'].includes(kind)) return response(400, { error: 'invalid_kind' })
   if (q !== undefined && (typeof q !== 'string' || q.length > 100)) return response(400, { error: 'invalid_query' })
+  const start = slug ? 0 : boundedInteger(offset, 10000000)
+  if (start === null) return response(400, { error: 'invalid_page' })
 
   const url = new URL('/rest/v1/community_publications', settings.base)
   url.searchParams.set('select', 'slug,kind,title,description,author_name,updated_at,language')
@@ -109,8 +111,11 @@ export async function readCatalog({ slug, kind, q } = {}, fetcher = fetch) {
   if (slug) url.searchParams.set('slug', `eq.${slug}`)
   if (kind) url.searchParams.set('kind', `eq.${kind}`)
   if (q?.trim()) url.searchParams.set('or', `(title.ilike.*${q.trim().replace(/[*,.()\\]/g, '')}*,author_name.ilike.*${q.trim().replace(/[*,.()\\]/g, '')}*)`)
-  url.searchParams.set('limit', slug ? '1' : '50')
-  if (!slug) url.searchParams.set('order', 'published_at.desc')
+  url.searchParams.set('limit', slug ? '1' : '51')
+  if (!slug) {
+    url.searchParams.set('offset', String(start))
+    url.searchParams.set('order', 'published_at.desc,id.desc')
+  }
 
   let upstream
   try {
@@ -121,11 +126,11 @@ export async function readCatalog({ slug, kind, q } = {}, fetcher = fetch) {
   if (!upstream.ok) return response(503, { error: 'catalog_unavailable' })
   let rows
   try { rows = await upstream.json() } catch { return response(502, { error: 'invalid_catalog_data' }) }
-  if (!Array.isArray(rows) || rows.length > (slug ? 1 : 50)) return response(502, { error: 'invalid_catalog_data' })
+  if (!Array.isArray(rows) || rows.length > (slug ? 1 : 51)) return response(502, { error: 'invalid_catalog_data' })
   if (slug && rows.length === 0) return response(404, { error: 'work_not_found' })
   const cards = rows.map(cardFromRow)
   if (cards.some(card => !card)) return response(502, { error: 'invalid_catalog_data' })
-  if (!slug) return response(200, { items: cards })
+  if (!slug) return response(200, { items: cards.slice(0, 50), nextOffset: rows.length === 51 ? start + 50 : null })
   const tocResponse = await readTocPage({ slug, section: '-1', offset: '0', limit: '100' }, fetcher)
   if (tocResponse.status !== 200) return response(503, { error: 'catalog_unavailable' })
   let toc

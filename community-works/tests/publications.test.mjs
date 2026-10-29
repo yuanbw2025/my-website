@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { parseCard, parseDetail, parseList } from '../src/publications.ts'
+import { parseCard, parseDetail, parseListPage } from '../src/publications.ts'
 
 const card = {
   slug: 'first-story', kind: 'novel', title: '第一部小说', description: '简介',
@@ -9,12 +9,14 @@ const card = {
 
 test('valid approved cards are accepted without carrying extra private fields', () => {
   assert.deepEqual(parseCard({ ...card, ownerId: 'private-id' }), card)
-  assert.deepEqual(parseList({ items: [card] }), [card])
+  assert.deepEqual(parseListPage({ items: [card], nextOffset: null }, 0), { items: [card], nextOffset: null })
 })
 
 test('malformed list data fails closed instead of silently dropping rows', () => {
-  assert.throws(() => parseList({ items: [card, { ...card, slug: '../private' }] }))
-  assert.throws(() => parseList({ items: {} }))
+  assert.throws(() => parseListPage({ items: [card, { ...card, slug: '../private' }], nextOffset: null }, 0))
+  assert.throws(() => parseListPage({ items: {} }, 0))
+  assert.throws(() => parseListPage({ items: [card], nextOffset: 50 }, 0))
+  assert.throws(() => parseListPage({ items: [card] }, 0))
   assert.equal(parseCard({ ...card, title: '<script>x</script>', slug: '../x' }), null)
 })
 
