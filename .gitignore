@@ -2,6 +2,8 @@
 */node_modules/
 */dist/
 *.tsbuildinfo
+community-works/supabase/.temp/
+supabase/.temp/
 
 # 备份目录
 infiniteskill_backup/
@@ -19,3 +21,5 @@ _reference/
 # 编辑器
 .vscode/
 .idea/
+.vercel
+.env*

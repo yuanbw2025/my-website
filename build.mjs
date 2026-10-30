@@ -76,6 +76,11 @@ execSync('VITE_BASE_PATH=/awesome-gpt-image-2/ npm run build', { cwd: join(ROOT,
 console.log('✅ AI Visual Patterns built successfully.');
 
 // Step 9: Assemble public/ directory
+console.log('\n🔨 Building StoryForge Community Works...');
+execSync('npm ci', { cwd: join(ROOT, 'community-works'), stdio: 'inherit' });
+execSync('npm run build', { cwd: join(ROOT, 'community-works'), stdio: 'inherit' });
+console.log('✅ StoryForge Community Works built successfully.');
+
 console.log('\n📦 Assembling portal output...');
 
 mkdirSync(join(ROOT, 'public'), { recursive: true });
@@ -85,6 +90,7 @@ mkdirSync(join(ROOT, 'public', 'ai-slides'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'ai-presentation'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'cyber-flying-sword'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'storyforge'), { recursive: true });
+mkdirSync(join(ROOT, 'public', 'community-works'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'novel-game'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'awesome-gpt-image-2'), { recursive: true });
 mkdirSync(join(ROOT, 'public', 'wechat-plugin'), { recursive: true });
@@ -158,6 +164,14 @@ cpSync(
   { recursive: true }
 );
 console.log('  ✓ Copied storyforge/dist → public/storyforge/');
+
+// Copy the isolated community-works build without touching the existing showcase.
+cpSync(
+  join(ROOT, 'community-works', 'dist'),
+  join(ROOT, 'public', 'community-works'),
+  { recursive: true }
+);
+console.log('  ✓ Copied community-works/dist → public/community-works/');
 
 // Copy novel-game build output
 cpSync(
