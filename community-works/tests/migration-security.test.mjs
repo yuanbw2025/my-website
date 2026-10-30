@@ -71,6 +71,26 @@ test('migration creates a private Storage bucket and locks down an older public 
   } finally { await fresh.close() }
 })
 
+test('hosted Data API grants only the direct community service operations', async () => {
+  const db = await database()
+  try {
+    const { rows } = await db.query(`select
+      has_table_privilege('service_role', 'public.community_upload_sessions', 'SELECT') as session_read,
+      has_table_privilege('service_role', 'public.community_upload_sessions', 'UPDATE') as session_update,
+      has_table_privilege('service_role', 'public.community_submissions', 'INSERT') as submission_insert,
+      has_table_privilege('service_role', 'public.community_reviewers', 'SELECT') as reviewer_read,
+      has_table_privilege('service_role', 'public.community_publications', 'SELECT') as catalog_read,
+      has_table_privilege('service_role', 'public.community_publications', 'UPDATE') as catalog_write,
+      has_table_privilege('anon', 'public.community_submissions', 'SELECT') as anon_submission_read,
+      has_table_privilege('authenticated', 'public.community_reviewers', 'SELECT') as author_reviewer_read`)
+    assert.deepEqual(rows[0], {
+      session_read: true, session_update: true, submission_insert: true,
+      reviewer_read: true, catalog_read: true, catalog_write: false,
+      anon_submission_read: false, author_reviewer_read: false,
+    })
+  } finally { await db.close() }
+})
+
 test('orphan cleanup migration records purged objects without deleting submission history', async () => {
   const db = await database()
   try {
