@@ -14,10 +14,14 @@ export function r2Config() {
     client: new AwsClient({ service: 's3', region: 'auto', accessKeyId, secretAccessKey }) }
 }
 
+export function r2ObjectUrl(config, path) {
+  if (!objectPath.test(path)) throw new Error('invalid_object_path')
+  return new URL(`/${config.bucket}/${path}`, config.origin)
+}
+
 /** The URL authorizes one PUT of one allocated object; the bytes never enter Vercel. */
 export async function signR2Put(config, path) {
-  if (!objectPath.test(path)) throw new Error('invalid_object_path')
-  const url = new URL(`/${config.bucket}/${path}`, config.origin)
+  const url = r2ObjectUrl(config, path)
   url.searchParams.set('X-Amz-Expires', '900')
   const signed = await config.client.sign(new Request(url, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -29,4 +33,11 @@ export async function signR2Put(config, path) {
     throw new Error('r2_signing_failed')
   }
   return result.toString()
+}
+
+export async function deleteR2Object(config, path) {
+  const result = await config.client.fetch(r2ObjectUrl(config, path), {
+    method: 'DELETE', signal: AbortSignal.timeout(10000),
+  })
+  if (!result.ok && result.status !== 404) throw new Error('r2_delete_failed')
 }

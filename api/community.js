@@ -1,5 +1,6 @@
 import appealDecision from '../community-works/server/v1/appeal-decision.js'
 import appeals from '../community-works/server/v1/appeals.js'
+import cleanup from '../community-works/server/v1/cleanup.js'
 import commentDecision from '../community-works/server/v1/comment-decision.js'
 import commentReportDecision from '../community-works/server/v1/comment-report-decision.js'
 import commentReports from '../community-works/server/v1/comment-reports.js'
@@ -21,6 +22,7 @@ import uploadSessions from '../community-works/server/v1/upload-sessions.js'
 const routes = Object.freeze({
   'appeal-decision': appealDecision,
   appeals,
+  cleanup,
   'comment-decision': commentDecision,
   'comment-report-decision': commentReportDecision,
   'comment-reports': commentReports,

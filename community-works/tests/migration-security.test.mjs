@@ -70,6 +70,18 @@ test('migration locks down an old Storage bucket and does not create one for R2 
   } finally { await fresh.close() }
 })
 
+test('orphan cleanup migration records purged objects without deleting submission history', async () => {
+  const db = await database()
+  try {
+    const result = await db.query(`update public.community_upload_sessions
+      set status = 'expired', purged_at = now() where id = $1 returning id, purged_at`, [upload])
+    assert.equal(result.rows[0].id, upload)
+    assert.ok(result.rows[0].purged_at)
+    const submissions = await db.query('select id from public.community_submissions where upload_session_id = $1', [upload])
+    assert.equal(submissions.rows[0].id, submission)
+  } finally { await db.close() }
+})
+
 async function transition(db, action, publication = null, actor = reviewer, revision = hash) {
   return db.query(`select public.community_review_transition(
     $1::uuid, $2::uuid, $3::text, $4::text, 'reviewed_content', '', $5::jsonb) as status`,
