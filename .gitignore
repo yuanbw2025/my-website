@@ -2,6 +2,7 @@
 */node_modules/
 */dist/
 *.tsbuildinfo
+community-works/supabase/.temp/
 
 # 备份目录
 infiniteskill_backup/
