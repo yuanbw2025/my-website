@@ -1,11 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { reviewerToken } from './reviewer-token.mjs'
 import { handleMySubmissions, handleSubmissionAction, handleAppeals, handleAppealDecision } from '../server/_lib/owner.js'
 
 const uid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const submissionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const appealId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
-const token = `Bearer ${'a'.repeat(48)}`
+const token = reviewerToken(uid)
 const sha256 = 'b'.repeat(64)
 function configured() {
   process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'

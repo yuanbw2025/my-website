@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AuthGate } from './auth'
+import { ReviewerGate } from './ReviewerGate'
 import { validPublicSnapshotV1 } from '../supabase/functions/_shared/snapshot'
 
 type ReviewItem = { id: string; kind: 'novel' | 'book-analysis'; status: string;
@@ -278,5 +279,7 @@ function ReviewWorkspace({ session }: { session: Session }) {
 }
 
 export function ReviewPage() {
-  return <AuthGate>{session => <ReviewWorkspace session={session} />}</AuthGate>
+  return <AuthGate>{session => <ReviewerGate session={session}>
+    {verified => <ReviewWorkspace session={verified} />}
+  </ReviewerGate>}</AuthGate>
 }

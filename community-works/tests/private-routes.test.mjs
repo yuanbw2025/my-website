@@ -88,6 +88,31 @@ test('submission and review proxies stop oversized streaming bodies before forwa
   } finally { globalThis.fetch = originalFetch }
 })
 
+test('reviewer eligibility is an authenticated read-only preflight', async () => {
+  process.env.COMMUNITY_ALLOWED_ORIGINS = origin
+  process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'
+  process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test'
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url.pathname, '/functions/v1/review-submission')
+    assert.equal(url.searchParams.get('scope'), 'eligibility')
+    assert.equal(options.method, 'GET')
+    assert.equal(options.headers.Authorization, token)
+    return Response.json({ reviewer: true })
+  }
+  try {
+    const eligible = await reviewRoute.fetch(new Request('https://example.vercel.app/api/community/v1/review?scope=eligibility', {
+      headers: { Origin: origin, Authorization: token },
+    }))
+    assert.equal(eligible.status, 200)
+    assert.deepEqual(await eligible.json(), { reviewer: true })
+    const mixed = await reviewRoute.fetch(new Request(`https://example.vercel.app/api/community/v1/review?scope=eligibility&id=${id}`, {
+      headers: { Origin: origin, Authorization: token },
+    }))
+    assert.equal(mixed.status, 400)
+  } finally { globalThis.fetch = originalFetch }
+})
+
 test('owner status route returns no other submission when RLS gives an empty result', async () => {
   process.env.COMMUNITY_ALLOWED_ORIGINS = origin
   process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'

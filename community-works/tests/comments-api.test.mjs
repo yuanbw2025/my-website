@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { handleComments, handleCommentDecision, handleCommentReports, handleCommentReportDecision } from '../server/_lib/comments.js'
+import { reviewerToken } from './reviewer-token.mjs'
 
 const uid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const commentId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
-const token = `Bearer ${'a'.repeat(48)}`
+const token = reviewerToken(uid)
 function configured() {
   process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'
   process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test'

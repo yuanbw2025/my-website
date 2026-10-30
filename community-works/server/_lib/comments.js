@@ -43,7 +43,7 @@ export async function handleComments(request, fetcher = fetch) {
   if (!uid) return reply(401, { error: 'authentication_required' })
   try {
     if (request.method === 'GET') {
-      if (!await reviewer(config, uid, fetcher)) return reply(403, { error: 'reviewer_required' })
+      if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) return reply(403, { error: 'reviewer_required' })
       const items = await adminJson(config,
         '/rest/v1/community_comments?select=id,publication_id,author_uid,display_name,body,status,created_at&status=eq.pending&order=created_at.asc&limit=50', {}, fetcher)
       if (!Array.isArray(items) || items.length > 50) throw new Error('invalid_queue')
@@ -90,7 +90,7 @@ export async function handleCommentDecision(request, fetcher = fetch) {
     return reply(400, { error: 'invalid_decision' })
   }
   try {
-    if (!await reviewer(config, uid, fetcher)) return reply(403, { error: 'reviewer_required' })
+    if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) return reply(403, { error: 'reviewer_required' })
     const status = await adminJson(config, '/rest/v1/rpc/community_review_comment', {
       method: 'POST', body: JSON.stringify({
         p_actor_uid: uid, p_comment_id: body.commentId, p_decision: body.decision,
@@ -116,7 +116,7 @@ export async function handleCommentReports(request, fetcher = fetch) {
   try {
     if (request.method === 'GET') {
       if (new URL(request.url).searchParams.get('scope') !== 'queue') return reply(400, { error: 'invalid_scope' })
-      if (!await reviewer(config, uid, fetcher)) return reply(403, { error: 'reviewer_required' })
+      if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) return reply(403, { error: 'reviewer_required' })
       const items = await adminJson(config,
         '/rest/v1/community_comment_reports?select=id,comment_id,reason_code,details,status,created_at&status=eq.open&order=created_at.asc&limit=50', {}, fetcher)
       if (!Array.isArray(items) || items.length > 50) throw new Error('invalid_queue')
@@ -158,7 +158,7 @@ export async function handleCommentReportDecision(request, fetcher = fetch) {
     return reply(400, { error: 'invalid_decision' })
   }
   try {
-    if (!await reviewer(config, uid, fetcher)) return reply(403, { error: 'reviewer_required' })
+    if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) return reply(403, { error: 'reviewer_required' })
     const status = await adminJson(config, '/rest/v1/rpc/community_review_comment_report', {
       method: 'POST', body: JSON.stringify({ p_actor_uid: uid, p_report_id: body.reportId,
         p_decision: body.decision, p_reason_code: body.reasonCode, p_private_note: body.privateNote }),

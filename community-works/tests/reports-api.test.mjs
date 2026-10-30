@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { handleReports, handleReportDecision } from '../server/_lib/reports.js'
+import { handleReports, handleReportDecision, reviewerSessionAal2 } from '../server/_lib/reports.js'
+import { reviewerToken } from './reviewer-token.mjs'
 
 const uid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const reportId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
-const token = `Bearer ${'a'.repeat(48)}`
+const token = reviewerToken(uid)
 
 function configured() {
   process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'
@@ -66,4 +67,33 @@ test('only an active reviewer can decide a report', async () => {
   })
   assert.equal(allowed.status, 200)
   assert.equal((await allowed.json()).status, 'actioned')
+})
+
+test('a verified first-factor session cannot enter the reviewer queue or decide a report', async () => {
+  configured()
+  let membershipReads = 0
+  const fetcher = async url => {
+    if (url.pathname === '/auth/v1/user') return Response.json({ id: uid })
+    membershipReads++
+    throw new Error('first-factor session must stop before reviewer lookup')
+  }
+  const firstFactor = reviewerToken(uid, 'aal1')
+  const queue = await handleReports(new Request('https://example.com/api/community/v1/reports?scope=queue', {
+    headers: { Authorization: firstFactor },
+  }), fetcher)
+  assert.equal(queue.status, 403)
+  const decision = await handleReportDecision(new Request('https://example.com/api/community/v1/report-decision', {
+    method: 'POST', headers: { Authorization: firstFactor },
+    body: JSON.stringify({ reportId, decision: 'take_down', reasonCode: 'confirmed_harm', privateNote: '' }),
+  }), fetcher)
+  assert.equal(decision.status, 403)
+  assert.equal(membershipReads, 0)
+})
+
+test('reviewer sessions reject a mismatched subject, expired token, and malformed claims', () => {
+  assert.equal(reviewerSessionAal2(reviewerToken(uid), uid), true)
+  assert.equal(reviewerSessionAal2(reviewerToken(uid), reportId), false)
+  assert.equal(reviewerSessionAal2(reviewerToken(uid, 'aal1'), uid), false)
+  assert.equal(reviewerSessionAal2(reviewerToken(uid, 'aal2', 1), uid), false)
+  assert.equal(reviewerSessionAal2('Bearer a.b.c', uid), false)
 })

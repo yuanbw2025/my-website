@@ -1,4 +1,5 @@
 import { validPublicSnapshotV1 } from '../_shared/snapshot.ts'
+import { secondFactorVerified } from '../_shared/reviewer-session.ts'
 
 const maxSnapshotBytes = 32 * 1024 * 1024
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -32,7 +33,7 @@ async function json(base: URL, secret: string, path: string, options: RequestIni
   return response.json()
 }
 
-async function reviewerUid(base: URL, publishable: string, secret: string, authorization: string): Promise<string | null> {
+async function activeReviewerUid(base: URL, publishable: string, secret: string, authorization: string): Promise<string | null> {
   if (!/^Bearer [A-Za-z0-9._-]{40,}$/.test(authorization)) return null
   const response = await fetch(new URL('/auth/v1/user', base), {
     headers: { apikey: publishable, Authorization: authorization }, signal: AbortSignal.timeout(8000),
@@ -130,10 +131,16 @@ Deno.serve(async request => {
   if (!config) return answer(503, { error: 'moderation_unavailable' })
   let actor: string | null
   try {
-    actor = await reviewerUid(config.base, config.publishable, config.secret,
+    actor = await activeReviewerUid(config.base, config.publishable, config.secret,
       request.headers.get('authorization') ?? '')
   } catch { return answer(503, { error: 'reviewer_auth_unavailable' }) }
   if (!actor) return answer(403, { error: 'reviewer_required' })
+  if (request.method === 'GET' && new URL(request.url).searchParams.get('scope') === 'eligibility') {
+    return answer(200, { reviewer: true })
+  }
+  if (!secondFactorVerified(request.headers.get('authorization') ?? '', actor)) {
+    return answer(403, { error: 'second_factor_required' })
+  }
 
   try {
     const submissionId = new URL(request.url).searchParams.get('submissionId')

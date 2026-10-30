@@ -1,6 +1,6 @@
 import { response } from './catalog.js'
 import { privateCors } from './cors.js'
-import { settings, uidFromToken, adminJson, smallJson } from './reports.js'
+import { settings, uidFromToken, adminJson, smallJson, reviewer } from './reports.js'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const digest = /^[0-9a-f]{64}$/
@@ -78,9 +78,9 @@ export async function handleAppeals(request, fetcher = fetch) {
     try {
       const queue = new URL(request.url).searchParams.get('scope') === 'queue'
       if (queue) {
-        const members = await adminJson(config,
-          `/rest/v1/community_reviewers?select=uid&uid=eq.${uid}&active=eq.true&limit=1`, {}, fetcher)
-        if (!Array.isArray(members) || members.length !== 1) return reply(403, { error: 'reviewer_required' })
+        if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) {
+          return reply(403, { error: 'reviewer_required' })
+        }
         const items = await adminJson(config,
           '/rest/v1/community_appeals?select=id,submission_id,owner_uid,revision_sha256,from_status,reason,status,created_at,community_submissions!inner(kind)&status=eq.open&order=created_at.asc&limit=50', {}, fetcher)
         if (!Array.isArray(items) || items.length > 50) throw new Error('invalid_data')
@@ -111,9 +111,9 @@ export async function handleAppealDecision(request, fetcher = fetch) {
       return reply(400, { error: 'invalid_decision' })
     }
     try {
-      const members = await adminJson(config,
-        `/rest/v1/community_reviewers?select=uid&uid=eq.${uid}&active=eq.true&limit=1`, {}, fetcher)
-      if (!Array.isArray(members) || members.length !== 1) return reply(403, { error: 'reviewer_required' })
+      if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) {
+        return reply(403, { error: 'reviewer_required' })
+      }
       const status = await adminJson(config, '/rest/v1/rpc/community_review_appeal', {
         method: 'POST', body: JSON.stringify({ p_actor_uid: uid, p_appeal_id: body.appealId,
           p_decision: body.decision, p_reviewer_note: body.reviewerNote }),

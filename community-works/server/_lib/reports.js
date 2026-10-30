@@ -39,7 +39,19 @@ export async function adminJson(config, path, options, fetcher) {
   return upstream.json()
 }
 
-export async function reviewer(config, uid, fetcher) {
+/** Called only after Auth has validated this exact bearer token via /auth/v1/user. */
+export function reviewerSessionAal2(authorization, uid) {
+  const match = /^Bearer [A-Za-z0-9_-]{1,8192}\.([A-Za-z0-9_-]{1,8192})\.[A-Za-z0-9_-]{1,8192}$/.exec(authorization ?? '')
+  if (!match) return false
+  try {
+    const payload = JSON.parse(atob(match[1].replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - match[1].length % 4) % 4)))
+    return payload?.sub === uid && payload?.aal === 'aal2' && payload?.role === 'authenticated' &&
+      Number.isSafeInteger(payload?.exp) && payload.exp > Date.now() / 1000
+  } catch { return false }
+}
+
+export async function reviewer(config, uid, authorization, fetcher) {
+  if (!reviewerSessionAal2(authorization, uid)) return false
   const members = await adminJson(config,
     `/rest/v1/community_reviewers?select=uid&uid=eq.${uid}&active=eq.true&limit=1`, {}, fetcher)
   return Array.isArray(members) && members.length === 1
@@ -94,7 +106,7 @@ export async function handleReports(request, fetcher = fetch) {
         return reply(200, { items })
       }
       if (scope !== 'queue') return reply(400, { error: 'invalid_scope' })
-      if (!await reviewer(config, uid, fetcher)) return reply(403, { error: 'reviewer_required' })
+      if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) return reply(403, { error: 'reviewer_required' })
       const items = await adminJson(config,
         '/rest/v1/community_reports?select=id,publication_id,reason_code,details,status,created_at&status=in.(open,escalated)&order=created_at.asc&limit=50', {}, fetcher)
       return reply(200, { items })
@@ -135,7 +147,7 @@ export async function handleReportDecision(request, fetcher = fetch) {
     return reply(400, { error: 'invalid_decision' })
   }
   try {
-    if (!await reviewer(config, uid, fetcher)) return reply(403, { error: 'reviewer_required' })
+    if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) return reply(403, { error: 'reviewer_required' })
     const status = await adminJson(config, '/rest/v1/rpc/community_review_report', {
       method: 'POST', body: JSON.stringify({ p_actor_uid: uid, p_report_id: body.reportId,
         p_decision: body.decision, p_reason_code: body.reasonCode,

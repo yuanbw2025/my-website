@@ -17,6 +17,10 @@ export default {
       return reply(401, { error: 'authentication_required' })
     }
     const submissionId = new URL(request.url).searchParams.get('id')
+    const scope = new URL(request.url).searchParams.get('scope')
+    if (scope && (scope !== 'eligibility' || request.method !== 'GET' || submissionId)) {
+      return reply(400, { error: 'invalid_scope' })
+    }
     if (submissionId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(submissionId)) {
       return reply(400, { error: 'invalid_submission_id' })
     }
@@ -31,6 +35,7 @@ export default {
       const url = new URL('/functions/v1/review-submission', base)
       if (url.protocol !== 'https:' || url.username || url.password) return reply(503, { error: 'moderation_unavailable' })
       if (submissionId) url.searchParams.set('submissionId', submissionId)
+      if (scope) url.searchParams.set('scope', scope)
       const upstream = await fetch(url, {
         method: request.method,
         headers: { apikey: key, Authorization: authorization,
