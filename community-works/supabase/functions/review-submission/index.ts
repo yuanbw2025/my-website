@@ -160,10 +160,21 @@ Deno.serve(async request => {
         `/storage/v1/object/sign/community-intake/${String(row.object_path)}`, {
           method: 'POST', body: JSON.stringify({ expiresIn: 60 }),
         }) as Record<string, unknown>
-      if (typeof signed.signedURL !== 'string' || !signed.signedURL.startsWith('/object/sign/community-intake/')) {
+      if (typeof signed.signedURL !== 'string') {
         throw new Error('signed_review_url_unavailable')
       }
-      const snapshotUrl = new URL(`/storage/v1${signed.signedURL}`, config.base)
+      const returned = new URL(signed.signedURL, 'https://storage.invalid')
+      const expectedPath = `/object/sign/community-intake/${String(row.object_path)}`
+      const tokens = returned.searchParams.getAll('token')
+      let extraParameter = false
+      returned.searchParams.forEach((_, key) => { if (key !== 'token') extraParameter = true })
+      if (returned.origin !== 'https://storage.invalid' || returned.pathname !== expectedPath ||
+          returned.hash || extraParameter ||
+          tokens.length !== 1 || !tokens[0] || tokens[0].length > 4096) {
+        throw new Error('signed_review_url_unavailable')
+      }
+      const snapshotUrl = new URL(`/storage/v1${expectedPath}`, config.base)
+      snapshotUrl.searchParams.set('token', tokens[0])
       return answer(200, { submission: {
         id: row.id, kind: row.kind, status: row.status, sha256: row.sha256,
         createdAt: row.created_at, publicPenName: row.public_pen_name,
