@@ -8,7 +8,7 @@ create table if not exists public.community_publications (
   description text not null default '' check (char_length(description) <= 4000),
   author_name text not null check (char_length(author_name) between 1 and 120),
   language text not null default 'zh-CN' check (char_length(language) <= 30),
-  object_path text not null check (object_path ~ '^published/[0-9a-f-]{36}/[0-9a-f]{64}/snapshot[.]json$'),
+  object_path text not null check (object_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/snapshot[.]json$'),
   status text not null default 'taken_down' check (status in ('published', 'taken_down')),
   approved_revision_sha256 text not null check (approved_revision_sha256 ~ '^[0-9a-f]{64}$'),
   published_at timestamptz,

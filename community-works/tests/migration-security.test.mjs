@@ -43,16 +43,16 @@ async function database({ existingPublicBucket = false } = {}) {
   await db.query(`insert into public.community_upload_sessions
     (id, owner_uid, idempotency_key, kind, object_path, sha256, byte_length, expires_at)
     values ($1, $2, $3, 'novel', $4, $5, 100, now() + interval '1 hour')`,
-    [upload, owner, upload, `${owner}/${upload}/${submission}/snapshot.json`, hash])
+    [upload, owner, upload, `${owner}/${upload}/snapshot.json`, hash])
   await db.query(`insert into public.community_submissions
     (id, owner_uid, upload_session_id, kind, object_path, sha256, byte_length,
      public_pen_name, license, rights_statement_version)
     values ($1, $2, $3, 'novel', $4, $5, 100, '笔名', 'all-rights-reserved', 1)`,
-    [submission, owner, upload, `${owner}/${upload}/${submission}/snapshot.json`, hash])
+    [submission, owner, upload, `${owner}/${upload}/snapshot.json`, hash])
   return db
 }
 
-test('migration locks down an old Storage bucket and does not create one for R2 intake', async () => {
+test('migration creates a private Storage bucket and locks down an older public bucket', async () => {
   const db = await database({ existingPublicBucket: true })
   try {
     const { rows } = await db.query(`select public, file_size_limit, allowed_mime_types
@@ -66,7 +66,8 @@ test('migration locks down an old Storage bucket and does not create one for R2 
   const fresh = await database()
   try {
     const { rows } = await fresh.query(`select id from storage.buckets where id = 'community-intake'`)
-    assert.equal(rows.length, 0)
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0].id, 'community-intake')
   } finally { await fresh.close() }
 })
 
@@ -82,23 +83,9 @@ test('orphan cleanup migration records purged objects without deleting submissio
   } finally { await db.close() }
 })
 
-test('publication copy receipts reject a key for a different revision', async () => {
-  const db = await database()
-  try {
-    await assert.rejects(db.query(`insert into public.community_publication_copies
-      (object_path, submission_id, sha256, status) values ($1, $2, $3, 'pending')`,
-    [`published/${submission}/${'b'.repeat(64)}/snapshot.json`, submission, hash]), /publication_copy_path/)
-    await db.query(`insert into public.community_publication_copies
-      (object_path, submission_id, sha256, status) values ($1, $2, $3, 'pending')`,
-    [`published/${submission}/${hash}/snapshot.json`, submission, hash])
-    await db.exec('set role anon')
-    await assert.rejects(db.query('select * from public.community_publication_copies'), /permission denied/)
-  } finally { await db.close() }
-})
-
 async function transition(db, action, publication = null, actor = reviewer, revision = hash) {
   const publicProjection = publication && {
-    ...publication, objectPath: `published/${submission}/${hash}/snapshot.json`,
+    ...publication, objectPath: `${owner}/${upload}/snapshot.json`,
   }
   if (publicProjection) delete publicProjection.body
   return db.query(`select public.community_review_transition(
@@ -120,7 +107,7 @@ test('migrations enforce revision-bound review, bounded public reading, and atom
       $1::uuid, $2::uuid, $3::text, 'publish', 'reviewed_content', '', $4::jsonb)`,
     [reviewer, submission, hash, JSON.stringify({ kind: 'novel', title: '伪造',
       description: '', language: 'zh-CN', toc: { chapters: [{ title: '第一章' }] },
-      objectPath: `published/${submission}/${'b'.repeat(64)}/snapshot.json` })]), /invalid_publication/)
+      objectPath: `${owner}/${submission}/snapshot.json` })]), /invalid_publication/)
 
     const publication = { kind: 'novel', title: '公开小说', description: '简介', language: 'zh-CN',
       toc: { chapters: [{ title: '第一章' }] },
@@ -129,7 +116,7 @@ test('migrations enforce revision-bound review, bounded public reading, and atom
     await db.exec('set role anon')
     assert.equal((await db.query('select count(*)::integer as total from public.community_publications')).rows[0].total, 1)
     const first = (await db.query('select public.community_read_part($1, 0, 0, 0) as part', [slug])).rows[0].part
-    assert.deepEqual(first, { objectPath: `published/${submission}/${hash}/snapshot.json`, sha256: hash, kind: 'novel' })
+    assert.deepEqual(first, { objectPath: `${owner}/${upload}/snapshot.json`, sha256: hash, kind: 'novel' })
     assert.equal((await db.query(`select count(*)::integer as total from information_schema.columns
       where table_schema = 'public' and table_name = 'community_publications' and column_name = 'body'`)).rows[0].total, 0)
     const toc = (await db.query('select public.community_read_toc_page($1, -1, 0, 100) as page', [slug])).rows[0].page
@@ -196,6 +183,29 @@ test('upload allocation enforces owner idempotency and the daily cap inside one 
     const eleventh = (await allocate('00000000-0000-4000-8000-000000000010')).rows[0].result
     assert.equal(eleventh.error, 'daily_upload_limit')
     assert.equal((await db.query('select count(*)::integer as total from public.community_upload_sessions')).rows[0].total, 10)
+  } finally { await db.close() }
+})
+
+test('storage reservation pauses intake before the free-tier ceiling and resumes after exact cleanup', async () => {
+  const db = await database()
+  try {
+    await db.query(`insert into public.community_upload_sessions
+      (owner_uid, idempotency_key, kind, object_path, sha256, byte_length,
+       status, created_at, expires_at)
+      select $1::uuid, gen_random_uuid(), 'novel',
+        $1::text || '/' || gen_random_uuid()::text || '/snapshot.json',
+        $2, 33554432, 'expired', now() - interval '2 days', now() - interval '1 day'
+      from generate_series(1, 23)`, [owner, hash])
+    const key = '00000000-0000-4000-8000-000000000030'
+    const allocate = () => db.query(`select public.community_allocate_upload_session(
+      $1::uuid, $2::uuid, 'novel', $3, 15728640) as result`, [owner, key, hash])
+    assert.equal((await allocate()).rows[0].result.error, 'storage_capacity_paused')
+    await db.query(`update public.community_upload_sessions set purged_at = now()
+      where id = (select id from public.community_upload_sessions
+        where status = 'expired' and purged_at is null limit 1)`)
+    const resumed = (await allocate()).rows[0].result
+    assert.equal(resumed.byte_length, 15728640)
+    assert.equal(resumed.object_path, `${owner}/${resumed.id}/snapshot.json`)
   } finally { await db.close() }
 })
 

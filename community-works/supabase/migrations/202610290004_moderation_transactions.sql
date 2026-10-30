@@ -75,8 +75,7 @@ begin
        nullif(trim(p_publication ->> 'title'), '') is null or
        char_length(p_publication ->> 'title') > 300 or
        char_length(coalesce(p_publication ->> 'description', '')) > 4000 or
-       p_publication ->> 'objectPath' is distinct from
-         'published/' || submission.id::text || '/' || submission.sha256 || '/snapshot.json' or
+       p_publication ->> 'objectPath' is distinct from submission.object_path or
        jsonb_typeof(p_publication -> 'toc') <> 'object' or
        char_length(coalesce(p_publication ->> 'language', '')) > 30 then
       raise exception 'invalid_publication' using errcode = '22023';
@@ -121,7 +120,7 @@ revoke all on function public.community_review_transition(uuid, uuid, text, text
 grant execute on function public.community_review_transition(uuid, uuid, text, text, text, text, jsonb)
   to service_role;
 
--- The public API resolves a private R2 object only after this invoker-RLS check.
+-- The public API resolves a private Storage object only after this invoker-RLS check.
 -- No manuscript body is stored in Postgres or returned by this function.
 create or replace function public.community_read_part(
   p_slug text,

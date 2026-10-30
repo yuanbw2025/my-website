@@ -1,6 +1,5 @@
 import { validPublicSnapshotV1 } from '../_shared/snapshot.ts'
 import { secondFactorVerified } from '../_shared/reviewer-session.ts'
-import { privateR2, publishingR2, publishedR2ObjectUrl, r2ObjectUrl, signedR2Get } from '../_shared/r2.ts'
 
 const maxSnapshotBytes = 32 * 1024 * 1024
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -16,12 +15,11 @@ function settings() {
   const url = Deno.env.get('SUPABASE_URL')
   const publishable = Deno.env.get('COMMUNITY_PUBLISHABLE_KEY')
   const secret = Deno.env.get('COMMUNITY_SECRET_KEY')
-  const r2 = privateR2()
-  if (!url || !publishable || !secret || !r2) return null
+  if (!url || !publishable || !secret) return null
   try {
     const base = new URL(url)
     if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) return null
-    return { base, publishable, secret, r2 }
+    return { base, publishable, secret }
   } catch { return null }
 }
 
@@ -70,7 +68,7 @@ async function readBounded(response: Response, maximum: number): Promise<Uint8Ar
   return result
 }
 
-async function readVerifiedSnapshot(r2: NonNullable<ReturnType<typeof privateR2>>, row: Record<string, unknown>) {
+async function readVerifiedSnapshot(base: URL, secret: string, row: Record<string, unknown>) {
   const path = String(row.object_path ?? '')
   const owner = String(row.owner_uid ?? '')
   const expectedLength = Number(row.byte_length)
@@ -78,7 +76,9 @@ async function readVerifiedSnapshot(r2: NonNullable<ReturnType<typeof privateR2>
       !Number.isSafeInteger(expectedLength) || expectedLength < 1 || expectedLength > maxSnapshotBytes) {
     throw new Error('invalid_submission_record')
   }
-  const storage = await r2.client.fetch(r2ObjectUrl(r2, path), { signal: AbortSignal.timeout(45000) })
+  const storage = await fetch(new URL(`/storage/v1/object/authenticated/community-intake/${path}`, base), {
+    headers: { apikey: secret }, signal: AbortSignal.timeout(45000),
+  })
   if (!storage.ok) throw new Error('snapshot_unavailable')
   const bytes = await readBounded(storage, maxSnapshotBytes)
   if (bytes.byteLength !== expectedLength) throw new Error('snapshot_length_mismatch')
@@ -89,7 +89,7 @@ async function readVerifiedSnapshot(r2: NonNullable<ReturnType<typeof privateR2>
   if (!validPublicSnapshotV1(snapshot) || (snapshot as { kind: string }).kind !== row.kind) {
     throw new Error('invalid_public_snapshot')
   }
-  return { snapshot: snapshot as Record<string, unknown>, bytes }
+  return snapshot as Record<string, unknown>
 }
 
 const labels: Record<string, string> = {
@@ -155,12 +155,19 @@ Deno.serve(async request => {
     const row = Array.isArray(rows) ? rows[0] : null
     if (!row) return answer(404, { error: 'submission_not_found' })
     if (request.method === 'GET') {
-      await readVerifiedSnapshot(config.r2, row)
-      const snapshotUrl = await signedR2Get(config.r2, String(row.object_path))
+      await readVerifiedSnapshot(config.base, config.secret, row)
+      const signed = await json(config.base, config.secret,
+        `/storage/v1/object/sign/community-intake/${String(row.object_path)}`, {
+          method: 'POST', body: JSON.stringify({ expiresIn: 60 }),
+        }) as Record<string, unknown>
+      if (typeof signed.signedURL !== 'string' || !signed.signedURL.startsWith('/object/sign/community-intake/')) {
+        throw new Error('signed_review_url_unavailable')
+      }
+      const snapshotUrl = new URL(`/storage/v1${signed.signedURL}`, config.base)
       return answer(200, { submission: {
         id: row.id, kind: row.kind, status: row.status, sha256: row.sha256,
         createdAt: row.created_at, publicPenName: row.public_pen_name,
-      }, snapshotUrl, expiresIn: 60 })
+      }, snapshotUrl: snapshotUrl.toString(), expiresIn: 60 })
     }
     if (Number(request.headers.get('content-length') ?? 0) > 8192) return answer(413, { error: 'request_too_large' })
     const raw = await readBounded(new Response(request.body), 8192)
@@ -180,26 +187,8 @@ Deno.serve(async request => {
     }
     let publicProjection = null
     if (input.decision === 'publish') {
-      if (row.status !== 'approved') return answer(409, { error: 'invalid_moderation_transition' })
-      const publisher = publishingR2()
-      if (!publisher) return answer(503, { error: 'publishing_unavailable' })
-      const verified = await readVerifiedSnapshot(config.r2, row)
-      const objectPath = `published/${submissionId}/${row.sha256}/snapshot.json`
-      const copies = await json(config.base, config.secret,
-        '/rest/v1/community_publication_copies?on_conflict=object_path', {
-          method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-          body: JSON.stringify({ object_path: objectPath, submission_id: submissionId,
-            sha256: row.sha256, status: 'pending', purged_at: null }),
-        }) as Record<string, unknown>[]
-      if (!Array.isArray(copies) || copies.length !== 1 || copies[0].object_path !== objectPath) {
-        throw new Error('publication_copy_receipt_missing')
-      }
-      const copy = await publisher.client.fetch(publishedR2ObjectUrl(publisher, objectPath), {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: verified.bytes, signal: AbortSignal.timeout(45000),
-      })
-      if (!copy.ok) throw new Error('published_copy_failed')
-      publicProjection = publication(verified.snapshot, objectPath)
+      const snapshot = await readVerifiedSnapshot(config.base, config.secret, row)
+      publicProjection = publication(snapshot, String(row.object_path))
     }
     const next = await json(config.base, config.secret, '/rest/v1/rpc/community_review_transition', {
       method: 'POST',
@@ -210,14 +199,6 @@ Deno.serve(async request => {
         p_publication: publicProjection,
       }),
     })
-    if (input.decision === 'publish') {
-      const receipt = await json(config.base, config.secret,
-        `/rest/v1/community_publication_copies?object_path=eq.${encodeURIComponent(String(publicProjection?.objectPath))}`, {
-          method: 'PATCH', headers: { Prefer: 'return=representation' },
-          body: JSON.stringify({ status: 'published' }),
-        }) as Record<string, unknown>[]
-      if (!Array.isArray(receipt) || receipt.length !== 1) throw new Error('publication_copy_receipt_missing')
-    }
     return answer(200, { submissionId, status: next })
   } catch {
     // Failed reads, hash checks, and DB transactions never change visibility here.

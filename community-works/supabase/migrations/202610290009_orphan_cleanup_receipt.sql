@@ -1,4 +1,4 @@
--- A daily operator job deletes abandoned private R2 objects after the
+-- A daily operator job deletes abandoned private Storage objects after the
 -- upload session's 25-hour verification window has closed. Keep a receipt.
 alter table public.community_upload_sessions
   add column if not exists purged_at timestamptz;

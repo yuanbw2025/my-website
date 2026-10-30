@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto'
-import { publishedR2ObjectUrl, r2ReadConfig } from './r2.js'
 
 const outputHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -58,7 +57,7 @@ export async function readTocPage({ slug, section, offset, limit }, fetcher = fe
   }, fetcher)
 }
 
-export async function readPart({ slug, section, entry, part }, fetcher = fetch, r2 = r2ReadConfig()) {
+export async function readPart({ slug, section, entry, part }, fetcher = fetch) {
   if (!/^[a-z0-9-]{1,100}$/.test(slug ?? '')) return response(400, { error: 'invalid_slug' })
   const sectionIndex = boundedInteger(section, 10000000)
   const entryIndex = boundedInteger(entry, 10000000)
@@ -75,13 +74,15 @@ export async function readPart({ slug, section, entry, part }, fetcher = fetch, 
   try { manifest = await result.json() } catch { return response(502, { error: 'invalid_part_data' }) }
   if (!manifest || !['novel', 'book-analysis'].includes(manifest.kind) ||
       !/^[0-9a-f]{64}$/.test(manifest.sha256 ?? '') ||
-      !/^published\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{64}\/snapshot\.json$/.test(manifest.objectPath ?? '') ||
-      !manifest.objectPath.endsWith(`/${manifest.sha256}/snapshot.json`)) {
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/snapshot\.json$/.test(manifest.objectPath ?? '')) {
     return response(502, { error: 'invalid_part_data' })
   }
-  if (!r2) return response(503, { error: 'catalog_unavailable' })
+  const settings = config()
+  const secret = process.env.COMMUNITY_SUPABASE_SECRET_KEY
+  if (!settings || !secret) return response(503, { error: 'catalog_unavailable' })
   try {
-    const object = await r2.client.fetch(publishedR2ObjectUrl(r2, manifest.objectPath), {
+    const object = await fetcher(new URL(`/storage/v1/object/authenticated/community-intake/${manifest.objectPath}`, settings.base), {
+      headers: { apikey: secret },
       signal: AbortSignal.timeout(45000),
     })
     if (!object.ok || !object.body) throw new Error('published_object_unavailable')

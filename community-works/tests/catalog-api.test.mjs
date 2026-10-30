@@ -80,46 +80,51 @@ test('detail cannot let body override approved catalog identity or leak extras',
   assert.equal('rawPrompt' in detail, false)
 })
 
-test('public text is read only after the published RLS lookup and R2 hash check', async () => {
+test('public text is read only after the published RLS lookup and private Storage hash check', async () => {
+  process.env.COMMUNITY_SUPABASE_SECRET_KEY = 'sb_secret_test'
   const content = `${'甲'.repeat(250000)}第二段`
   const bytes = Buffer.from(JSON.stringify({ kind: 'novel', chapters: [{ content }] }))
   const sha256 = createHash('sha256').update(bytes).digest('hex')
   const id = '11111111-1111-4111-8111-111111111111'
-  const objectPath = `published/${id}/${sha256}/snapshot.json`
+  const objectPath = `${id}/22222222-2222-4222-8222-222222222222/snapshot.json`
   const calls = []
   const result = await readPart({ slug: 'approved-story', section: '0', entry: '0', part: '1' },
     async (url, options) => {
-      calls.push('rls')
-      assert.equal(url.pathname, '/rest/v1/rpc/community_read_part')
-      assert.equal(options.headers.Authorization, undefined)
-      assert.equal(JSON.parse(options.body).p_part_index, 1)
-      return Response.json({ objectPath, sha256, kind: 'novel' })
-    }, { origin: `https://${'a'.repeat(32)}.r2.cloudflarestorage.com`, bucket: 'storyforge-intake',
-      client: { fetch: async (url) => {
-        calls.push('r2')
-        assert.equal(url.pathname, `/storyforge-intake/${objectPath}`)
-        return new Response(bytes)
-      } } })
+      if (url.pathname === '/rest/v1/rpc/community_read_part') {
+        calls.push('rls')
+        assert.equal(options.headers.Authorization, undefined)
+        assert.equal(JSON.parse(options.body).p_part_index, 1)
+        return Response.json({ objectPath, sha256, kind: 'novel' })
+      }
+      calls.push('storage')
+      assert.equal(url.pathname, `/storage/v1/object/authenticated/community-intake/${objectPath}`)
+      assert.equal(options.headers.apikey, 'sb_secret_test')
+      return new Response(bytes)
+    })
   assert.equal(result.status, 200)
   assert.equal((await result.json()).text, '第二段')
-  assert.deepEqual(calls, ['rls', 'r2'])
+  assert.deepEqual(calls, ['rls', 'storage'])
   assert.equal((await readPart({ slug: 'approved-story', section: '0', entry: '0', part: '1001' })).status, 400)
   assert.equal((await readTocPage({ slug: 'approved-story', section: '-1', offset: '0', limit: '101' })).status, 400)
 })
 
-test('taken-down RLS result never reaches R2', async () => {
+test('taken-down RLS result never reaches private Storage', async () => {
   const result = await readPart({ slug: 'taken-down', section: '0', entry: '0', part: '0' },
-    async () => Response.json(null), { client: { fetch: () => { throw new Error('must not read') } } })
+    async url => {
+      assert.equal(url.pathname, '/rest/v1/rpc/community_read_part')
+      return Response.json(null)
+    })
   assert.equal(result.status, 404)
 })
 
 test('a changed published object is never served as approved text', async () => {
+  process.env.COMMUNITY_SUPABASE_SECRET_KEY = 'sb_secret_test'
   const hash = 'a'.repeat(64)
-  const objectPath = `published/11111111-1111-4111-8111-111111111111/${hash}/snapshot.json`
+  const objectPath = '11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222/snapshot.json'
   const result = await readPart({ slug: 'approved-story', section: '0', entry: '0', part: '0' },
-    async () => Response.json({ objectPath, sha256: hash, kind: 'novel' }),
-    { origin: `https://${'a'.repeat(32)}.r2.cloudflarestorage.com`, bucket: 'storyforge-intake',
-      client: { fetch: async () => new Response(JSON.stringify({ kind: 'novel', chapters: [{ content: 'altered' }] })) } })
+    async url => url.pathname === '/rest/v1/rpc/community_read_part'
+      ? Response.json({ objectPath, sha256: hash, kind: 'novel' })
+      : new Response(JSON.stringify({ kind: 'novel', chapters: [{ content: 'altered' }] })))
   assert.equal(result.status, 503)
   assert.equal((await result.json()).error, 'catalog_unavailable')
 })

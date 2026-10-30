@@ -1,9 +1,11 @@
--- Intake metadata is private. Existing prototype Storage buckets must not stay public.
--- New manuscripts use a separate private R2 bucket; this migration creates no Storage bucket.
-update storage.buckets
-set public = false, file_size_limit = 33554432,
-    allowed_mime_types = array['application/json', 'application/vnd.storyforge.community-snapshot+json']
-where id = 'community-intake';
+-- Intake metadata is private. A signed Storage upload alone never publishes a work.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('community-intake', 'community-intake', false, 33554432,
+  array['application/json', 'application/vnd.storyforge.community-snapshot+json'])
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 create table if not exists public.community_upload_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -30,4 +32,5 @@ create policy community_upload_sessions_owner_read
   on public.community_upload_sessions for select to authenticated
   using (owner_uid = (select auth.uid()));
 
--- R2 credentials are server-only; the authenticated Vercel endpoint signs one object PUT.
+-- No public read or broad authenticated write policy on the private bucket.
+-- Signed targets are created only by the authenticated server endpoint.

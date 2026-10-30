@@ -1,5 +1,4 @@
 import { validPublicSnapshotV1 } from '../_shared/snapshot.ts'
-import { privateR2, r2ObjectUrl } from '../_shared/r2.ts'
 
 const maxBytes = 32 * 1024 * 1024
 const jsonHeaders = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
@@ -13,12 +12,11 @@ function credentials() {
   const url = Deno.env.get('SUPABASE_URL')
   const publishable = Deno.env.get('COMMUNITY_PUBLISHABLE_KEY')
   const secret = Deno.env.get('COMMUNITY_SECRET_KEY')
-  const r2 = privateR2()
-  if (!url || !publishable || !secret || !r2) return null
+  if (!url || !publishable || !secret) return null
   try {
     const base = new URL(url)
     if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) return null
-    return { base, publishable, secret, r2 }
+    return { base, publishable, secret }
   } catch { return null }
 }
 
@@ -102,8 +100,8 @@ Deno.serve(async request => {
     if (!objectPath.startsWith(`${ownerUid}/`) || !/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/snapshot\.json$/.test(objectPath)) {
       return answer(409, { error: 'session_not_usable' })
     }
-    const storage = await config.r2.client.fetch(r2ObjectUrl(config.r2, objectPath), {
-      signal: AbortSignal.timeout(30000),
+    const storage = await fetch(new URL(`/storage/v1/object/authenticated/community-intake/${objectPath}`, config.base), {
+      headers: { apikey: config.secret }, signal: AbortSignal.timeout(30000),
     })
     if (storage.status === 404) return answer(409, { error: 'upload_not_complete' })
     if (!storage.ok) throw new Error('storage_unavailable')
