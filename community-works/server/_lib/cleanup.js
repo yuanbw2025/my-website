@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto'
 import { response } from './catalog.js'
-import { deleteR2Object, r2Config } from './r2.js'
+import { deletePublishedR2Object, deleteR2Object, r2Config } from './r2.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -34,7 +34,7 @@ async function dbJson(config, path, fetcher, options = {}) {
   return result.json()
 }
 
-/** Delete only unsubmitted objects older than 48 hours, then record the purge. */
+/** Delete abandoned drafts and failed publication copies after 48 hours. */
 export async function cleanupExpiredIntake(request, { fetcher = fetch, r2 = null } = {}) {
   if (request.method !== 'GET') return response(405, { error: 'method_not_allowed' })
   if (!authorized(request)) return response(401, { error: 'authentication_required' })
@@ -66,7 +66,30 @@ export async function cleanupExpiredIntake(request, { fetcher = fetch, r2 = null
       }
       purged++
     }
-    return response(200, { scanned: sessions.length, purged })
+    const copies = await dbJson(config,
+      `/rest/v1/community_publication_copies?select=object_path,submission_id,sha256&status=eq.pending&purged_at=is.null&created_at=lt.${encodeURIComponent(cutoff)}&order=created_at.asc&limit=25`, fetcher)
+    if (!Array.isArray(copies)) throw new Error('invalid_copy_rows')
+    let copiesPurged = 0
+    for (const row of copies) {
+      if (!UUID.test(row?.submission_id ?? '') || !/^[0-9a-f]{64}$/.test(row?.sha256 ?? '') ||
+          row.object_path !== `published/${row.submission_id}/${row.sha256}/snapshot.json`) {
+        throw new Error('invalid_copy_row')
+      }
+      const publications = await dbJson(config,
+        `/rest/v1/community_publications?select=id&object_path=eq.${encodeURIComponent(row.object_path)}&limit=1`, fetcher)
+      if (!Array.isArray(publications)) throw new Error('invalid_publication_rows')
+      if (publications.length) continue
+      await deletePublishedR2Object(config.r2, row.object_path)
+      const updated = await dbJson(config,
+        `/rest/v1/community_publication_copies?object_path=eq.${encodeURIComponent(row.object_path)}&status=eq.pending`,
+        fetcher, { method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ status: 'purged', purged_at: new Date().toISOString() }) })
+      if (!Array.isArray(updated) || updated.length !== 1 || updated[0].object_path !== row.object_path) {
+        throw new Error('cleanup_receipt_missing')
+      }
+      copiesPurged++
+    }
+    return response(200, { scanned: sessions.length, purged, copiesScanned: copies.length, copiesPurged })
   } catch {
     return response(503, { error: 'cleanup_unavailable' })
   }

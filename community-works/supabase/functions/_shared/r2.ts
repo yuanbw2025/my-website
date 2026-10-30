@@ -8,8 +8,24 @@ export function privateR2() {
   if (!/^[0-9a-f]{32}$/.test(accountId ?? '') ||
       !/^[a-z0-9][a-z0-9-]{1,62}$/.test(bucket ?? '') ||
       !accessKeyId || !secretAccessKey) return null
-  return { origin: `https://${accountId}.r2.cloudflarestorage.com`, bucket,
+  return { origin: `https://${accountId}.r2.cloudflarestorage.com`, bucket: bucket as string,
     client: new AwsClient({ service: 's3', region: 'auto', accessKeyId, secretAccessKey }) }
+}
+
+export function publishingR2() {
+  const config = privateR2()
+  const accessKeyId = Deno.env.get('COMMUNITY_R2_PUBLISH_ACCESS_KEY_ID')
+  const secretAccessKey = Deno.env.get('COMMUNITY_R2_PUBLISH_SECRET_ACCESS_KEY')
+  if (!config || !accessKeyId || !secretAccessKey) return null
+  return { origin: config.origin, bucket: config.bucket,
+    client: new AwsClient({ service: 's3', region: 'auto', accessKeyId, secretAccessKey }) }
+}
+
+export function publishedR2ObjectUrl(config: { origin: string; bucket: string }, path: string): URL {
+  if (!/^published\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{64}\/snapshot\.json$/.test(path)) {
+    throw new Error('invalid_published_object_path')
+  }
+  return new URL(`/${config.bucket}/${path}`, config.origin)
 }
 
 export function r2ObjectUrl(config: NonNullable<ReturnType<typeof privateR2>>, path: string): URL {

@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto'
+import { publishedR2ObjectUrl, r2ReadConfig } from './r2.js'
+
 const outputHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
@@ -55,7 +58,7 @@ export async function readTocPage({ slug, section, offset, limit }, fetcher = fe
   }, fetcher)
 }
 
-export async function readPart({ slug, section, entry, part }, fetcher = fetch) {
+export async function readPart({ slug, section, entry, part }, fetcher = fetch, r2 = r2ReadConfig()) {
   if (!/^[a-z0-9-]{1,100}$/.test(slug ?? '')) return response(400, { error: 'invalid_slug' })
   const sectionIndex = boundedInteger(section, 10000000)
   const entryIndex = boundedInteger(entry, 10000000)
@@ -68,11 +71,54 @@ export async function readPart({ slug, section, entry, part }, fetcher = fetch) 
     p_entry_index: entryIndex, p_part_index: partIndex,
   }, fetcher)
   if (result.status !== 200) return result
-  let body
-  try { body = await result.json() } catch { return response(502, { error: 'invalid_part_data' }) }
-  if (!body || typeof body.text !== 'string' || body.text.length > 1000000 ||
-      typeof body.hasMore !== 'boolean') return response(502, { error: 'invalid_part_data' })
-  return response(200, body)
+  let manifest
+  try { manifest = await result.json() } catch { return response(502, { error: 'invalid_part_data' }) }
+  if (!manifest || !['novel', 'book-analysis'].includes(manifest.kind) ||
+      !/^[0-9a-f]{64}$/.test(manifest.sha256 ?? '') ||
+      !/^published\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{64}\/snapshot\.json$/.test(manifest.objectPath ?? '') ||
+      !manifest.objectPath.endsWith(`/${manifest.sha256}/snapshot.json`)) {
+    return response(502, { error: 'invalid_part_data' })
+  }
+  if (!r2) return response(503, { error: 'catalog_unavailable' })
+  try {
+    const object = await r2.client.fetch(publishedR2ObjectUrl(r2, manifest.objectPath), {
+      signal: AbortSignal.timeout(45000),
+    })
+    if (!object.ok || !object.body) throw new Error('published_object_unavailable')
+    const declared = Number(object.headers.get('content-length'))
+    if (Number.isFinite(declared) && declared > 32 * 1024 * 1024) throw new Error('published_object_too_large')
+    const chunks = []
+    let total = 0
+    const reader = object.body.getReader()
+    try {
+      while (true) {
+        const next = await reader.read()
+        if (next.done) break
+        total += next.value.byteLength
+        if (total > 32 * 1024 * 1024) throw new Error('published_object_too_large')
+        chunks.push(next.value)
+      }
+    } finally { await reader.cancel().catch(() => {}) }
+    const bytes = Buffer.concat(chunks, total)
+    if (createHash('sha256').update(bytes).digest('hex') !== manifest.sha256) {
+      throw new Error('published_object_hash_mismatch')
+    }
+    const snapshot = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+    if (snapshot?.kind !== manifest.kind) throw new Error('published_object_kind_mismatch')
+    let content
+    if (snapshot.kind === 'novel' && entryIndex === 0) {
+      content = snapshot.chapters?.[sectionIndex]?.content
+    } else if (snapshot.kind === 'book-analysis' && sectionIndex === 13 && entryIndex === 0) {
+      content = snapshot.authorCommentary
+    } else if (snapshot.kind === 'book-analysis' && sectionIndex < 13) {
+      content = snapshot.dimensions?.[sectionIndex]?.entries?.[entryIndex]?.text
+    }
+    if (typeof content !== 'string') return response(502, { error: 'invalid_part_data' })
+    const characters = Array.from(content)
+    const start = partIndex * 250000
+    return response(200, { text: characters.slice(start, start + 250000).join(''),
+      hasMore: characters.length > start + 250000 })
+  } catch { return response(503, { error: 'catalog_unavailable' }) }
 }
 
 function safeText(value, limit) {

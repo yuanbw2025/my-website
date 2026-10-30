@@ -75,7 +75,8 @@ begin
        nullif(trim(p_publication ->> 'title'), '') is null or
        char_length(p_publication ->> 'title') > 300 or
        char_length(coalesce(p_publication ->> 'description', '')) > 4000 or
-       jsonb_typeof(p_publication -> 'body') <> 'object' or
+       p_publication ->> 'objectPath' is distinct from
+         'published/' || submission.id::text || '/' || submission.sha256 || '/snapshot.json' or
        jsonb_typeof(p_publication -> 'toc') <> 'object' or
        char_length(coalesce(p_publication ->> 'language', '')) > 30 then
       raise exception 'invalid_publication' using errcode = '22023';
@@ -83,12 +84,12 @@ begin
     public_slug := 'work-' || replace(submission.id::text, '-', '');
     insert into public.community_publications (
       submission_id, slug, kind, title, description, author_name, language,
-      body, toc, status, approved_revision_sha256, published_at, updated_at
+      object_path, toc, status, approved_revision_sha256, published_at, updated_at
     ) values (
       submission.id, public_slug, submission.kind, p_publication ->> 'title',
       coalesce(p_publication ->> 'description', ''), submission.public_pen_name,
       coalesce(nullif(p_publication ->> 'language', ''), 'zh-CN'),
-      p_publication -> 'body', p_publication -> 'toc',
+      p_publication ->> 'objectPath', p_publication -> 'toc',
       'published', submission.sha256, now(), now()
     );
   elsif p_publication is not null then
@@ -120,8 +121,8 @@ revoke all on function public.community_review_transition(uuid, uuid, text, text
 grant execute on function public.community_review_transition(uuid, uuid, text, text, text, text, jsonb)
   to service_role;
 
--- The browser receives only a bounded text slice, even for a 32 MiB chapter.
--- This function runs with the caller's RLS and refuses taken-down records.
+-- The public API resolves a private R2 object only after this invoker-RLS check.
+-- No manuscript body is stored in Postgres or returned by this function.
 create or replace function public.community_read_part(
   p_slug text,
   p_section_index integer,
@@ -135,9 +136,7 @@ set search_path = public, pg_temp
 as $$
 declare
   publication public.community_publications%rowtype;
-  content text;
-  first_character integer;
-  part_size integer := 250000;
+  section jsonb;
 begin
   if p_slug is null or p_section_index is null or p_entry_index is null or p_part_index is null or
      p_slug !~ '^[a-z0-9-]{1,100}$' or
@@ -150,18 +149,16 @@ begin
     where slug = p_slug and status = 'published' and published_at is not null;
   if not found then return null; end if;
   if publication.kind = 'novel' and p_entry_index = 0 then
-    content := publication.body -> 'chapters' -> p_section_index ->> 'content';
-  elsif publication.kind = 'book-analysis' and p_section_index = 13 and p_entry_index = 0 then
-    content := publication.body ->> 'authorCommentary';
+    section := publication.toc -> 'chapters' -> p_section_index;
+  elsif publication.kind = 'book-analysis' and p_section_index = 13 and p_entry_index = 0 and
+      publication.toc ->> 'hasAuthorCommentary' = 'true' then
+    section := publication.toc;
   elsif publication.kind = 'book-analysis' and p_section_index between 0 and 12 then
-    content := publication.body -> 'dimensions' -> p_section_index -> 'entries' -> p_entry_index ->> 'text';
+    section := publication.toc -> 'dimensions' -> p_section_index -> 'entries' -> p_entry_index;
   end if;
-  if content is null then return null; end if;
-  first_character := p_part_index * part_size + 1;
-  return jsonb_build_object(
-    'text', substring(content from first_character for part_size),
-    'hasMore', char_length(content) >= first_character + part_size
-  );
+  if section is null then return null; end if;
+  return jsonb_build_object('objectPath', publication.object_path,
+    'sha256', publication.approved_revision_sha256, 'kind', publication.kind);
 end;
 $$;
 

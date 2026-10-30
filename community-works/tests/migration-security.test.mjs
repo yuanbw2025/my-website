@@ -82,10 +82,28 @@ test('orphan cleanup migration records purged objects without deleting submissio
   } finally { await db.close() }
 })
 
+test('publication copy receipts reject a key for a different revision', async () => {
+  const db = await database()
+  try {
+    await assert.rejects(db.query(`insert into public.community_publication_copies
+      (object_path, submission_id, sha256, status) values ($1, $2, $3, 'pending')`,
+    [`published/${submission}/${'b'.repeat(64)}/snapshot.json`, submission, hash]), /publication_copy_path/)
+    await db.query(`insert into public.community_publication_copies
+      (object_path, submission_id, sha256, status) values ($1, $2, $3, 'pending')`,
+    [`published/${submission}/${hash}/snapshot.json`, submission, hash])
+    await db.exec('set role anon')
+    await assert.rejects(db.query('select * from public.community_publication_copies'), /permission denied/)
+  } finally { await db.close() }
+})
+
 async function transition(db, action, publication = null, actor = reviewer, revision = hash) {
+  const publicProjection = publication && {
+    ...publication, objectPath: `published/${submission}/${hash}/snapshot.json`,
+  }
+  if (publicProjection) delete publicProjection.body
   return db.query(`select public.community_review_transition(
     $1::uuid, $2::uuid, $3::text, $4::text, 'reviewed_content', '', $5::jsonb) as status`,
-  [actor, submission, revision, action, publication && JSON.stringify(publication)])
+  [actor, submission, revision, action, publicProjection && JSON.stringify(publicProjection)])
 }
 
 test('migrations enforce revision-bound review, bounded public reading, and atomic takedown', async () => {
@@ -98,21 +116,22 @@ test('migrations enforce revision-bound review, bounded public reading, and atom
     await assert.rejects(transition(db, 'begin_review', null, reviewer, 'b'.repeat(64)), /revision_mismatch/)
     assert.equal((await transition(db, 'begin_review')).rows[0].status, 'human_review')
     assert.equal((await transition(db, 'approve')).rows[0].status, 'approved')
+    await assert.rejects(db.query(`select public.community_review_transition(
+      $1::uuid, $2::uuid, $3::text, 'publish', 'reviewed_content', '', $4::jsonb)`,
+    [reviewer, submission, hash, JSON.stringify({ kind: 'novel', title: '伪造',
+      description: '', language: 'zh-CN', toc: { chapters: [{ title: '第一章' }] },
+      objectPath: `published/${submission}/${'b'.repeat(64)}/snapshot.json` })]), /invalid_publication/)
 
-    const content = '甲'.repeat(250001)
     const publication = { kind: 'novel', title: '公开小说', description: '简介', language: 'zh-CN',
-      body: { chapters: [{ title: '第一章', content }] },
       toc: { chapters: [{ title: '第一章' }] },
     }
     assert.equal((await transition(db, 'publish', publication)).rows[0].status, 'published')
     await db.exec('set role anon')
     assert.equal((await db.query('select count(*)::integer as total from public.community_publications')).rows[0].total, 1)
     const first = (await db.query('select public.community_read_part($1, 0, 0, 0) as part', [slug])).rows[0].part
-    assert.equal(first.text.length, 250000)
-    assert.equal(first.hasMore, true)
-    const final = (await db.query('select public.community_read_part($1, 0, 0, 1) as part', [slug])).rows[0].part
-    assert.equal(final.text, '甲')
-    assert.equal(final.hasMore, false)
+    assert.deepEqual(first, { objectPath: `published/${submission}/${hash}/snapshot.json`, sha256: hash, kind: 'novel' })
+    assert.equal((await db.query(`select count(*)::integer as total from information_schema.columns
+      where table_schema = 'public' and table_name = 'community_publications' and column_name = 'body'`)).rows[0].total, 0)
     const toc = (await db.query('select public.community_read_toc_page($1, -1, 0, 100) as page', [slug])).rows[0].page
     assert.equal(toc.items[0].title, '第一章')
     await assert.rejects(db.query(`select public.community_review_transition(

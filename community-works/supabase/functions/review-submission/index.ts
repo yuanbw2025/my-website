@@ -1,6 +1,6 @@
 import { validPublicSnapshotV1 } from '../_shared/snapshot.ts'
 import { secondFactorVerified } from '../_shared/reviewer-session.ts'
-import { privateR2, r2ObjectUrl, signedR2Get } from '../_shared/r2.ts'
+import { privateR2, publishingR2, publishedR2ObjectUrl, r2ObjectUrl, signedR2Get } from '../_shared/r2.ts'
 
 const maxSnapshotBytes = 32 * 1024 * 1024
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -89,7 +89,7 @@ async function readVerifiedSnapshot(r2: NonNullable<ReturnType<typeof privateR2>
   if (!validPublicSnapshotV1(snapshot) || (snapshot as { kind: string }).kind !== row.kind) {
     throw new Error('invalid_public_snapshot')
   }
-  return snapshot as Record<string, unknown>
+  return { snapshot: snapshot as Record<string, unknown>, bytes }
 }
 
 const labels: Record<string, string> = {
@@ -101,12 +101,12 @@ const labels: Record<string, string> = {
 }
 
 /** Build a public projection from verified bytes; client-supplied publication fields are ignored. */
-function publication(snapshot: Record<string, unknown>) {
+function publication(snapshot: Record<string, unknown>, objectPath: string) {
   if (snapshot.kind === 'novel') {
     const chapters = snapshot.chapters as Array<{ title: string; content: string }>
     return {
       kind: 'novel', title: snapshot.title, description: snapshot.description,
-      language: 'zh-CN', body: { chapters },
+      language: 'zh-CN', objectPath,
       toc: { chapters: chapters.map(chapter => ({ title: chapter.title })) },
     }
   }
@@ -117,7 +117,7 @@ function publication(snapshot: Record<string, unknown>) {
   return {
     kind: 'book-analysis', title: `${String(book.title)} · 拆书分析`,
     description: `作者分享的《${String(book.title)}》拆书分析`, language: 'zh-CN',
-    body: { dimensions, authorCommentary: snapshot.authorCommentary },
+    objectPath,
     toc: { dimensions: dimensions.map(item => ({
       key: item.key, label: item.label, selected: item.selected,
       entries: (item.entries as Array<{ label: string }>).map(entry => ({ label: entry.label })),
@@ -180,8 +180,26 @@ Deno.serve(async request => {
     }
     let publicProjection = null
     if (input.decision === 'publish') {
-      const snapshot = await readVerifiedSnapshot(config.r2, row)
-      publicProjection = publication(snapshot)
+      if (row.status !== 'approved') return answer(409, { error: 'invalid_moderation_transition' })
+      const publisher = publishingR2()
+      if (!publisher) return answer(503, { error: 'publishing_unavailable' })
+      const verified = await readVerifiedSnapshot(config.r2, row)
+      const objectPath = `published/${submissionId}/${row.sha256}/snapshot.json`
+      const copies = await json(config.base, config.secret,
+        '/rest/v1/community_publication_copies?on_conflict=object_path', {
+          method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+          body: JSON.stringify({ object_path: objectPath, submission_id: submissionId,
+            sha256: row.sha256, status: 'pending', purged_at: null }),
+        }) as Record<string, unknown>[]
+      if (!Array.isArray(copies) || copies.length !== 1 || copies[0].object_path !== objectPath) {
+        throw new Error('publication_copy_receipt_missing')
+      }
+      const copy = await publisher.client.fetch(publishedR2ObjectUrl(publisher, objectPath), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: verified.bytes, signal: AbortSignal.timeout(45000),
+      })
+      if (!copy.ok) throw new Error('published_copy_failed')
+      publicProjection = publication(verified.snapshot, objectPath)
     }
     const next = await json(config.base, config.secret, '/rest/v1/rpc/community_review_transition', {
       method: 'POST',
@@ -192,6 +210,14 @@ Deno.serve(async request => {
         p_publication: publicProjection,
       }),
     })
+    if (input.decision === 'publish') {
+      const receipt = await json(config.base, config.secret,
+        `/rest/v1/community_publication_copies?object_path=eq.${encodeURIComponent(String(publicProjection?.objectPath))}`, {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ status: 'published' }),
+        }) as Record<string, unknown>[]
+      if (!Array.isArray(receipt) || receipt.length !== 1) throw new Error('publication_copy_receipt_missing')
+    }
     return answer(200, { submissionId, status: next })
   } catch {
     // Failed reads, hash checks, and DB transactions never change visibility here.

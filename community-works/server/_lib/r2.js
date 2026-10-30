@@ -14,6 +14,18 @@ export function r2Config() {
     client: new AwsClient({ service: 's3', region: 'auto', accessKeyId, secretAccessKey }) }
 }
 
+export function r2ReadConfig() {
+  const accountId = process.env.COMMUNITY_R2_ACCOUNT_ID
+  const bucket = process.env.COMMUNITY_R2_BUCKET
+  const accessKeyId = process.env.COMMUNITY_R2_READ_ACCESS_KEY_ID
+  const secretAccessKey = process.env.COMMUNITY_R2_READ_SECRET_ACCESS_KEY
+  if (!/^[0-9a-f]{32}$/.test(accountId ?? '') ||
+      !/^[a-z0-9][a-z0-9-]{1,62}$/.test(bucket ?? '') ||
+      !accessKeyId || !secretAccessKey) return null
+  return { origin: `https://${accountId}.r2.cloudflarestorage.com`, bucket,
+    client: new AwsClient({ service: 's3', region: 'auto', accessKeyId, secretAccessKey }) }
+}
+
 export function r2ObjectUrl(config, path) {
   if (!objectPath.test(path)) throw new Error('invalid_object_path')
   return new URL(`/${config.bucket}/${path}`, config.origin)
@@ -37,6 +49,20 @@ export async function signR2Put(config, path) {
 
 export async function deleteR2Object(config, path) {
   const result = await config.client.fetch(r2ObjectUrl(config, path), {
+    method: 'DELETE', signal: AbortSignal.timeout(10000),
+  })
+  if (!result.ok && result.status !== 404) throw new Error('r2_delete_failed')
+}
+
+export function publishedR2ObjectUrl(config, path) {
+  if (!/^published\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{64}\/snapshot\.json$/.test(path)) {
+    throw new Error('invalid_published_object_path')
+  }
+  return new URL(`/${config.bucket}/${path}`, config.origin)
+}
+
+export async function deletePublishedR2Object(config, path) {
+  const result = await config.client.fetch(publishedR2ObjectUrl(config, path), {
     method: 'DELETE', signal: AbortSignal.timeout(10000),
   })
   if (!result.ok && result.status !== 404) throw new Error('r2_delete_failed')
