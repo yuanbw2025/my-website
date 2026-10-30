@@ -79,8 +79,14 @@ function ReviewWorkspace({ session }: { session: Session }) {
       }
       if (detail.submission?.sha256 !== item.sha256 || typeof detail.snapshotUrl !== 'string') throw new Error('修订已变化')
       const signed = new URL(detail.snapshotUrl)
-      const storageOrigin = new URL(import.meta.env.VITE_COMMUNITY_SUPABASE_URL).origin
-      if (signed.origin !== storageOrigin || !signed.pathname.startsWith('/storage/v1/object/sign/community-intake/')) {
+      const storageOrigin = new URL(import.meta.env.VITE_COMMUNITY_R2_ORIGIN).origin
+      const storageBucket = import.meta.env.VITE_COMMUNITY_R2_BUCKET
+      if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(storageBucket ?? '') ||
+          signed.origin !== storageOrigin ||
+          !signed.pathname.startsWith(`/${storageBucket}/`) ||
+          !/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/){2}snapshot\.json$/.test(
+            signed.pathname.slice(storageBucket.length + 2)) ||
+          !signed.searchParams.has('X-Amz-Signature')) {
         throw new Error('审核文件地址无效')
       }
       const file = await fetch(signed, { cache: 'no-store' })

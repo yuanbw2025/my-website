@@ -1,5 +1,6 @@
 import { validPublicSnapshotV1 } from '../_shared/snapshot.ts'
 import { secondFactorVerified } from '../_shared/reviewer-session.ts'
+import { privateR2, r2ObjectUrl, signedR2Get } from '../_shared/r2.ts'
 
 const maxSnapshotBytes = 32 * 1024 * 1024
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -15,11 +16,12 @@ function settings() {
   const url = Deno.env.get('SUPABASE_URL')
   const publishable = Deno.env.get('COMMUNITY_PUBLISHABLE_KEY')
   const secret = Deno.env.get('COMMUNITY_SECRET_KEY')
-  if (!url || !publishable || !secret) return null
+  const r2 = privateR2()
+  if (!url || !publishable || !secret || !r2) return null
   try {
     const base = new URL(url)
     if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) return null
-    return { base, publishable, secret }
+    return { base, publishable, secret, r2 }
   } catch { return null }
 }
 
@@ -68,7 +70,7 @@ async function readBounded(response: Response, maximum: number): Promise<Uint8Ar
   return result
 }
 
-async function readVerifiedSnapshot(base: URL, secret: string, row: Record<string, unknown>) {
+async function readVerifiedSnapshot(r2: NonNullable<ReturnType<typeof privateR2>>, row: Record<string, unknown>) {
   const path = String(row.object_path ?? '')
   const owner = String(row.owner_uid ?? '')
   const expectedLength = Number(row.byte_length)
@@ -76,9 +78,7 @@ async function readVerifiedSnapshot(base: URL, secret: string, row: Record<strin
       !Number.isSafeInteger(expectedLength) || expectedLength < 1 || expectedLength > maxSnapshotBytes) {
     throw new Error('invalid_submission_record')
   }
-  const storage = await fetch(new URL(`/storage/v1/object/authenticated/community-intake/${path}`, base), {
-    headers: { apikey: secret }, signal: AbortSignal.timeout(45000),
-  })
+  const storage = await r2.client.fetch(r2ObjectUrl(r2, path), { signal: AbortSignal.timeout(45000) })
   if (!storage.ok) throw new Error('snapshot_unavailable')
   const bytes = await readBounded(storage, maxSnapshotBytes)
   if (bytes.byteLength !== expectedLength) throw new Error('snapshot_length_mismatch')
@@ -155,19 +155,12 @@ Deno.serve(async request => {
     const row = Array.isArray(rows) ? rows[0] : null
     if (!row) return answer(404, { error: 'submission_not_found' })
     if (request.method === 'GET') {
-      await readVerifiedSnapshot(config.base, config.secret, row)
-      const signed = await json(config.base, config.secret,
-        `/storage/v1/object/sign/community-intake/${String(row.object_path)}`, {
-          method: 'POST', body: JSON.stringify({ expiresIn: 60 }),
-        }) as Record<string, unknown>
-      if (typeof signed.signedURL !== 'string' || !signed.signedURL.startsWith('/object/sign/community-intake/')) {
-        throw new Error('signed_review_url_unavailable')
-      }
-      const snapshotUrl = new URL(`/storage/v1${signed.signedURL}`, config.base)
+      await readVerifiedSnapshot(config.r2, row)
+      const snapshotUrl = await signedR2Get(config.r2, String(row.object_path))
       return answer(200, { submission: {
         id: row.id, kind: row.kind, status: row.status, sha256: row.sha256,
         createdAt: row.created_at, publicPenName: row.public_pen_name,
-      }, snapshotUrl: snapshotUrl.toString(), expiresIn: 60 })
+      }, snapshotUrl, expiresIn: 60 })
     }
     if (Number(request.headers.get('content-length') ?? 0) > 8192) return answer(413, { error: 'request_too_large' })
     const raw = await readBounded(new Response(request.body), 8192)
@@ -187,7 +180,7 @@ Deno.serve(async request => {
     }
     let publicProjection = null
     if (input.decision === 'publish') {
-      const snapshot = await readVerifiedSnapshot(config.base, config.secret, row)
+      const snapshot = await readVerifiedSnapshot(config.r2, row)
       publicProjection = publication(snapshot)
     }
     const next = await json(config.base, config.secret, '/rest/v1/rpc/community_review_transition', {

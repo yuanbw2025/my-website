@@ -20,6 +20,10 @@ function setup() {
   process.env.COMMUNITY_SUPABASE_URL = 'https://example.supabase.co'
   process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test'
   process.env.COMMUNITY_SUPABASE_SECRET_KEY = 'sb_secret_test'
+  process.env.COMMUNITY_R2_ACCOUNT_ID = 'a'.repeat(32)
+  process.env.COMMUNITY_R2_BUCKET = 'storyforge-intake'
+  process.env.COMMUNITY_R2_ACCESS_KEY_ID = 'test-access-key'
+  process.env.COMMUNITY_R2_SECRET_ACCESS_KEY = 'test-secret-key'
 }
 
 test('intake stays closed without server-only configuration', async () => {
@@ -28,6 +32,10 @@ test('intake stays closed without server-only configuration', async () => {
   delete process.env.COMMUNITY_SUPABASE_SECRET_KEY
   assert.equal((await createUploadSession(request())).status, 503)
   if (previous !== undefined) process.env.COMMUNITY_SUPABASE_SECRET_KEY = previous
+  const r2Secret = process.env.COMMUNITY_R2_SECRET_ACCESS_KEY
+  delete process.env.COMMUNITY_R2_SECRET_ACCESS_KEY
+  assert.equal((await createUploadSession(request())).status, 503)
+  if (r2Secret !== undefined) process.env.COMMUNITY_R2_SECRET_ACCESS_KEY = r2Secret
 })
 
 test('intake remains paused until the operator explicitly opens it', async () => {
@@ -71,10 +79,6 @@ test('one authenticated manifest gets a private signed target without manuscript
         object_path: `${ownerId}/${uploadId}/snapshot.json`, sha256: manifest.sha256,
         byte_length: manifest.byteLength, status: 'created', expires_at: new Date(Date.now() + 3600000).toISOString() })
     }
-    if (url.pathname.startsWith('/storage/v1/object/upload/sign/community-intake/')) {
-      assert.equal(options.body, '{}')
-      return Response.json({ url: `${url.pathname.slice('/storage/v1'.length)}?token=signed-token` })
-    }
     throw new Error(`unexpected request ${url}`)
   })
   assert.equal(result.status, 201)
@@ -84,22 +88,22 @@ test('one authenticated manifest gets a private signed target without manuscript
   assert.equal(inserted.p_sha256, manifest.sha256)
   assert.equal(data.sha256, manifest.sha256)
   assert.equal(data.byteLength, manifest.byteLength)
-  assert.equal(data.signedUrl.startsWith('https://example.supabase.co/storage/v1/object/upload/sign/community-intake/'), true)
-  assert.equal(new URL(data.signedUrl).searchParams.get('token'), data.token)
+  assert.equal(data.signedUrl.startsWith(`https://${'a'.repeat(32)}.r2.cloudflarestorage.com/storyforge-intake/${ownerId}/${uploadId}/snapshot.json?`), true)
+  assert.equal(new URL(data.signedUrl).searchParams.get('X-Amz-SignedHeaders'), 'content-type;host')
+  assert.equal(new URL(data.signedUrl).searchParams.get('X-Amz-Expires'), '900')
+  assert.equal(data.uploadMethod, 'PUT')
+  assert.equal(data.contentType, 'application/json')
   assert.equal(JSON.stringify(data).includes('sb_secret_test'), false)
 })
 
-test('signed target must be the exact allocated object even if Storage returns an unexpected path', async () => {
+test('R2 target is never signed for an object path different from the database allocation', async () => {
   setup()
   const result = await createUploadSession(request(), async url => {
     if (url.pathname === '/auth/v1/user') return Response.json({ id: ownerId })
     if (url.pathname === '/rest/v1/rpc/community_allocate_upload_session') {
       return Response.json({ id: uploadId, owner_uid: ownerId, kind: manifest.kind,
-        object_path: `${ownerId}/${uploadId}/snapshot.json`, sha256: manifest.sha256,
+        object_path: `${ownerId}/${uploadId}/other.json`, sha256: manifest.sha256,
         byte_length: manifest.byteLength, status: 'created', expires_at: new Date(Date.now() + 3600000).toISOString() })
-    }
-    if (url.pathname.startsWith('/storage/v1/object/upload/sign/')) {
-      return Response.json({ url: `/object/upload/sign/community-intake/${ownerId}/${uploadId}/other.json?token=signed-token` })
     }
     throw new Error(`unexpected request ${url}`)
   })

@@ -1,7 +1,7 @@
 import { response } from './catalog.js'
+import { r2Config, signR2Put } from './r2.js'
 
 const MAX_BYTES = 32 * 1024 * 1024
-const BUCKET = 'community-intake'
 
 function settings() {
   const url = process.env.COMMUNITY_SUPABASE_URL
@@ -11,7 +11,8 @@ function settings() {
   try {
     const base = new URL(url)
     if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) return null
-    return { base, publishable, secret }
+    const r2 = r2Config()
+    return r2 ? { base, publishable, secret, r2 } : null
   } catch { return null }
 }
 
@@ -36,33 +37,6 @@ async function allocate(config, ownerUid, input, fetcher) {
   })
   if (!result.ok) throw new Error('private_database_unavailable')
   return result.json()
-}
-
-async function signTarget(config, path, fetcher) {
-  const url = new URL(`/storage/v1/object/upload/sign/${BUCKET}/${path}`, config.base)
-  const result = await fetcher(url, {
-    method: 'POST',
-    headers: { apikey: config.secret, 'Content-Type': 'application/json' },
-    body: '{}',
-    signal: AbortSignal.timeout(8000),
-  })
-  if (!result.ok) throw new Error('storage_unavailable')
-  const body = await result.json()
-  // Storage returns a path relative to its /storage/v1 base, as in storage-js.
-  // Reconstruct from the exact allocated object path, never from an upstream URL.
-  if (typeof body?.url !== 'string') throw new Error('storage_unavailable')
-  const returned = new URL(body.url, 'https://storage.invalid')
-  const expectedPath = `/object/upload/sign/${BUCKET}/${path}`
-  const tokens = returned.searchParams.getAll('token')
-  if (returned.origin !== 'https://storage.invalid' || returned.pathname !== expectedPath ||
-      returned.hash || [...returned.searchParams.keys()].some(key => key !== 'token') ||
-      tokens.length !== 1 || !tokens[0] || tokens[0].length > 4096) {
-    throw new Error('storage_unavailable')
-  }
-  const token = tokens[0]
-  const signedUrl = new URL(`/storage/v1${expectedPath}`, config.base)
-  signedUrl.searchParams.set('token', token)
-  return { signedUrl: signedUrl.toString(), token }
 }
 
 async function smallJsonBody(request) {
@@ -123,10 +97,9 @@ export async function createUploadSession(request, fetcher = fetch) {
         row.status !== 'created' || Date.parse(row.expires_at) <= Date.now()) {
       throw new Error('private_database_unavailable')
     }
-    const target = await signTarget(config, row.object_path, fetcher)
+    const signedUrl = await signR2Put(config.r2, row.object_path)
     return response(201, {
-      sessionId: row.id, signedUrl: target.signedUrl, token: target.token,
-      tusEndpoint: new URL('/storage/v1/upload/resumable', config.base).toString(),
+      sessionId: row.id, signedUrl, uploadMethod: 'PUT', contentType: 'application/json',
       objectPath: row.object_path, expiresAt: row.expires_at,
       byteLength: row.byte_length, sha256: row.sha256,
     })

@@ -52,7 +52,7 @@ async function database({ existingPublicBucket = false } = {}) {
   return db
 }
 
-test('migration forces a pre-existing community intake bucket private and bounded', async () => {
+test('migration locks down an old Storage bucket and does not create one for R2 intake', async () => {
   const db = await database({ existingPublicBucket: true })
   try {
     const { rows } = await db.query(`select public, file_size_limit, allowed_mime_types
@@ -63,6 +63,11 @@ test('migration forces a pre-existing community intake bucket private and bounde
     assert.deepEqual(rows[0].allowed_mime_types,
       ['application/json', 'application/vnd.storyforge.community-snapshot+json'])
   } finally { await db.close() }
+  const fresh = await database()
+  try {
+    const { rows } = await fresh.query(`select id from storage.buckets where id = 'community-intake'`)
+    assert.equal(rows.length, 0)
+  } finally { await fresh.close() }
 })
 
 async function transition(db, action, publication = null, actor = reviewer, revision = hash) {
