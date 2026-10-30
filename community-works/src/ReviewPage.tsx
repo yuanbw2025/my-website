@@ -279,7 +279,7 @@ function ReviewWorkspace({ session }: { session: Session }) {
 }
 
 export function ReviewPage() {
-  return <AuthGate>{session => <ReviewerGate session={session}>
+  return <AuthGate>{session => <ReviewerGate key={session.user.id} session={session}>
     {verified => <ReviewWorkspace session={verified} />}
   </ReviewerGate>}</AuthGate>
 }

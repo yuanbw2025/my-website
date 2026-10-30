@@ -71,7 +71,9 @@ export function ReviewerGate({ session, children }: {
     finally { setBusy(false) }
   }
 
-  if (state === 'ready' && readySession) return <>{children(readySession)}</>
+  if (state === 'ready' && readySession && readySession.user.id === session.user.id &&
+      readySession.access_token === session.access_token) return <>{children(readySession)}</>
+  if (state === 'ready') return <p className="auth-box" role="status">正在同步审核会话…</p>
   if (state === 'loading') return <p className="auth-box" role="status">正在检查审核权限…</p>
   if (state === 'denied') return <p className="auth-box" role="status">此账号没有审核权限。</p>
   if (state === 'unavailable') return <section className="auth-box" role="status">
