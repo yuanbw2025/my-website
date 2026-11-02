@@ -9,6 +9,9 @@ async function ownerRequest(request, methods, run, fetcher) {
   const cors = privateCors(request, methods)
   if (cors.early) return cors.early
   const reply = (status, body) => cors.apply(response(status, body))
+  if (!methods.split(',').map(method => method.trim()).includes(request.method)) {
+    return reply(405, { error: 'method_not_allowed' })
+  }
   const config = settings()
   if (!config) return reply(503, { error: 'owner_service_unavailable' })
   let uid
@@ -19,7 +22,6 @@ async function ownerRequest(request, methods, run, fetcher) {
 }
 
 export async function handleMySubmissions(request, fetcher = fetch) {
-  if (request.method !== 'GET') return response(405, { error: 'method_not_allowed' })
   return ownerRequest(request, 'GET', async (config, _uid, reply) => {
     try {
       const url = new URL('/rest/v1/community_submissions', config.base)
@@ -40,7 +42,6 @@ export async function handleMySubmissions(request, fetcher = fetch) {
 }
 
 export async function handleSubmissionAction(request, fetcher = fetch) {
-  if (request.method !== 'POST') return response(405, { error: 'method_not_allowed' })
   return ownerRequest(request, 'POST', async (config, uid, reply) => {
     const body = await smallJson(request, 4096)
     if (!body || typeof body !== 'object' || Array.isArray(body) ||
@@ -73,7 +74,6 @@ export async function handleSubmissionAction(request, fetcher = fetch) {
 }
 
 export async function handleAppeals(request, fetcher = fetch) {
-  if (request.method !== 'GET') return response(405, { error: 'method_not_allowed' })
   return ownerRequest(request, 'GET', async (config, uid, reply) => {
     try {
       const queue = new URL(request.url).searchParams.get('scope') === 'queue'
@@ -100,7 +100,6 @@ export async function handleAppeals(request, fetcher = fetch) {
 }
 
 export async function handleAppealDecision(request, fetcher = fetch) {
-  if (request.method !== 'POST') return response(405, { error: 'method_not_allowed' })
   return ownerRequest(request, 'POST', async (config, uid, reply) => {
     const body = await smallJson(request, 4096)
     if (!body || typeof body !== 'object' || Array.isArray(body) ||

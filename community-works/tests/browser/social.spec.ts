@@ -123,10 +123,26 @@ test('reviewer sees a private doubt count and MFA-gated queue; ordinary readers 
   await page.route('https://community-fixture.invalid/auth/v1/user',route=>route.fulfill({json:{id:reviewer,aud:'authenticated',role:'authenticated',factors:[{id:'fixture-factor',factor_type:'totp',status:'verified'}]}}))
   await page.reload()
   await expect(page.getByRole('link',{name:'审核后台，1 项需要复核'})).toBeVisible()
+  // The model inbox can finish before the paginated manual queue. Keep that queue
+  // pending until the separately fetched 51st comment has had time to render.
+  let releaseQueue!: () => void
+  const queueGate = new Promise<void>(resolve => { releaseQueue = resolve })
+  await page.route('**/api/community/v1/comments?scope=queue', async route => {
+    const response = await route.fetch()
+    await queueGate
+    await route.fulfill({ response })
+  })
   await page.getByRole('link',{name:'审核后台，1 项需要复核'}).click()
   await expect(page.getByRole('heading',{name:'模型审核与疑难待办'})).toBeVisible()
   await expect(page.getByText('评论 · 需要你复核',{exact:true})).toBeVisible()
+  const locatedResponse = page.waitForResponse(response => {
+    const url = new URL(response.url())
+    return url.pathname.endsWith('/comments') && url.searchParams.has('id')
+  })
   await page.getByRole('article').filter({hasText:'评论 · 需要你复核'}).getByRole('button',{name:'定位待审评论'}).click()
+  await (await locatedResponse).finished()
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  releaseQueue()
   await expect(page.locator('[id^="review-comment-"]').filter({hasText:'这里需要结合上下文判断。'})).toBeFocused()
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth)).toBe(false)
   await page.evaluate(()=>window.scrollTo(0,0))

@@ -34,6 +34,8 @@ function ReviewWorkspace({ session }: { session: Session }) {
   const [queue, setQueue] = useState<ReviewItem[]>([])
   const [reports, setReports] = useState<ReportItem[]>([])
   const [comments, setComments] = useState<CommentItem[]>([])
+  const [locatedComment, setLocatedComment] = useState<CommentItem | null>(null)
+  const [commentFocusId, setCommentFocusId] = useState<string | null>(null)
   const [commentReports, setCommentReports] = useState<CommentReportItem[]>([])
   const [appeals, setAppeals] = useState<AppealItem[]>([])
   const [selected, setSelected] = useState<ReviewItem | null>(null)
@@ -50,6 +52,7 @@ function ReviewWorkspace({ session }: { session: Session }) {
   const [appealDecision, setAppealDecision] = useState('')
 
   const refresh = async () => {
+    setLocatedComment(null); setCommentFocusId(null)
     setState('loading')
     try {
       const [workResponse, reportResponse, commentResponse, commentReportResponse, appealResponse] = await Promise.all([
@@ -72,6 +75,18 @@ function ReviewWorkspace({ session }: { session: Session }) {
     } catch { setState('error') }
   }
   useEffect(() => { void refresh() }, [session.access_token])
+  // A targeted comment may be outside the first queue page or arrive while that
+  // page is still loading. Focus after React commits both, not on a timed frame.
+  useEffect(() => {
+    if (state !== 'ready' || !commentFocusId) return
+    const element = document.getElementById(`review-comment-${commentFocusId}`)
+    if (!element) return
+    element.scrollIntoView({ block: 'center' }); element.focus()
+    setCommentFocusId(null)
+  }, [state, comments, locatedComment, commentFocusId])
+  const visibleComments = locatedComment && !comments.some(item => item.id === locatedComment.id)
+    ? [locatedComment, ...comments] : comments
+
 
   const open = async (item: ReviewItem) => {
     setSelected(item); setSnapshot(null); setMessage(''); setChapterIndex(0); setBusy(true)
@@ -192,8 +207,8 @@ function ReviewWorkspace({ session }: { session: Session }) {
       else void privateJson(`/api/community/v1/comments?scope=queue&id=${id}`,session.access_token).then(raw=>{
         const item=(raw as {items?:CommentItem[]}).items?.find(item=>item.id===id)
         if(!item)throw new Error('already_processed')
-        setComments(items=>items.some(item=>item.id===id)?items:[item,...items])
-        requestAnimationFrame(()=>{const element=document.getElementById(`review-comment-${id}`);element?.scrollIntoView({block:'center'});element?.focus()})
+        setLocatedComment(item)
+        setCommentFocusId(id)
       }).catch(()=>setMessage('这条评论可能已经处理，或暂时无法读取，请刷新待办核对。'))
     }} />
     <label className="review-note">内部审核备注（适用于下面的处理动作）
@@ -220,9 +235,9 @@ function ReviewWorkspace({ session }: { session: Session }) {
           </div></article>)}
         {reportDecision && <p role="status">{reportDecision}</p>}
       </section>
-      <section><h2>评论待审（{comments.length}）</h2>
-        {comments.length === 0 && <p>当前没有待审评论。</p>}
-        {comments.map(comment => <article className="review-list-item" key={comment.id} id={`review-comment-${comment.id}`} tabIndex={-1}>
+      <section><h2>评论待审（{visibleComments.length}）</h2>
+        {visibleComments.length === 0 && <p>当前没有待审评论。</p>}
+        {visibleComments.map(comment => <article className="review-list-item" key={comment.id} id={`review-comment-${comment.id}`} tabIndex={-1}>
           <strong>{comment.display_name}</strong>
           {comment.parent_id && <p>回复评论：<code>{comment.parent_id}</code></p>}
           {comment.anchor && <p>第 {comment.anchor.section + 1} 章 / 维度 · 条目 {comment.anchor.entry + 1} · 绑定公开版本 {comment.anchor.revisionId}<br />引用：{comment.anchor.quote ?? "整章 / 整条分析"}</p>}<p className="review-manuscript">{comment.body}</p>
