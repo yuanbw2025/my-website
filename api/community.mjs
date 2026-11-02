@@ -18,7 +18,7 @@ import submissionStatus from '../community-works/server/v1/submission-status.js'
 import submissions from '../community-works/server/v1/submissions.js'
 import uploadSessions from '../community-works/server/v1/upload-sessions.js'
 
-/** One Vercel Function for the community BFF; each handler retains its own auth and CORS guard. */
+/** Native ESM entry; each handler retains its own auth and CORS guard. */
 const routes = Object.freeze({
   'appeal-decision': appealDecision,
   appeals,

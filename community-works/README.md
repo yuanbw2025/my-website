@@ -11,7 +11,7 @@ npm test
 npm run build
 ```
 
-根目录 `build.mjs` 负责将本子应用的构建输出复制到 `public/community-works/`，Vercel 的定向 rewrite 覆盖作品详情、投稿状态及其余版本化 API 路径。仓库根目录只有 `api/community.js` 一个 Vercel Function 入口，处理代码留在本目录的 `server/`；以单入口路由避免把每个辅助模块都计算为独立 Functions。
+根目录 `build.mjs` 负责将本子应用的构建输出复制到 `public/community-works/`，Vercel 的定向 rewrite 覆盖作品详情、投稿状态及其余版本化 API 路径。社区使用 `api/community.mjs` 一个 Vercel Function 入口，处理代码留在本目录的 `server/`；以单入口路由避免把每个辅助模块都计算为独立 Functions。`.mjs` 明确使用原生 ESM，避免无根级 `package.json` 时 Vercel 将入口编译为 CommonJS，再以 `require()` 加载 ESM 子模块导致运行时启动失败。
 
 ## 数据与权限
 
