@@ -7,9 +7,13 @@ import { handleSocial, handleConversation } from '../../server/_lib/social.js'
 import { handleComments } from '../../server/_lib/comments.js'
 import automoderation from '../../server/v1/automoderation.js'
 import operations from '../../server/v1/operations.js'
+import { managementIdentity } from '../../shared/management-auth.js'
 import { reviewerSessionAal2 } from '../../server/_lib/reports.js'
 import { readCatalog, readPart, readTocPage } from '../../server/_lib/catalog.js'
 
+process.env.COMMUNITY_MANAGEMENT_VERIFIER='fixture-'+'v'.repeat(43)
+let managementActive=true
+const managementToken='sfmgmt_'+'f'.repeat(43)
 process.env.COMMUNITY_SUPABASE_URL='https://community-fixture.invalid'
 process.env.COMMUNITY_SUPABASE_PUBLISHABLE_KEY='sb_publishable_fixture'
 process.env.COMMUNITY_SUPABASE_SECRET_KEY='sb_secret_fixture'
@@ -28,6 +32,7 @@ for(const decision of ['begin_review','approve','publish']) await transition(db,
 const user=id=>({id,aud:'authenticated',role:'authenticated',email:'fixture@example.invalid',created_at:new Date().toISOString()})
 const fetcher=async(raw,options={})=>{
   const url=new URL(raw)
+  if(url.href==='https://storyforge-lab.com/v1/management/community/verify')return Response.json(managementActive&&JSON.parse(options.body).token===managementToken?{active:true,subject:reviewer,audience:'storyforge-community-review',backendOrigin:process.env.COMMUNITY_SUPABASE_URL,expiresAt:Date.now()+120000}:{active:false})
   if(url.pathname==='/auth/v1/user') {
     try { const token=options.headers.Authorization.split(' ')[1];const id=JSON.parse(Buffer.from(token.split('.')[1],'base64url')).sub
       return [owner,reporter,reviewer].includes(id)?Response.json(user(id)):Response.json({}, {status:401})
@@ -49,7 +54,9 @@ const fetcher=async(raw,options={})=>{
 const server=http.createServer(async(req,res)=>{
   try {
     const url=new URL(req.url,'http://127.0.0.1:4187')
+    if(url.pathname==='/__fixture/management-revoke'){managementActive=false;res.end('{}');return}
     if(url.pathname==='/__fixture/reset') {
+      managementActive=true
       await db.exec('delete from public.community_moderator_alerts;delete from public.community_automod_attempts;delete from public.community_comment_events;delete from public.community_automod_jobs where comment_id is not null;delete from public.community_notifications;delete from public.community_comments;delete from public.community_likes;delete from public.community_bookshelf;delete from public.community_reading_progress;delete from public.community_blocks;alter table public.community_flower_ledger disable trigger community_flower_immutable;delete from public.community_flower_ledger;alter table public.community_flower_ledger enable trigger community_flower_immutable;delete from public.community_flower_wallets;')
       res.end('{}');return
     }
@@ -75,10 +82,12 @@ const server=http.createServer(async(req,res)=>{
     else if(['/review','/reports','/comments','/comment-reports','/appeals'].some(path=>url.pathname.endsWith(path))) {
       // Fixture-only transport for the pre-existing manual review API, never hosted Auth.
       const auth=request.headers.get('authorization');let actor
-      try {actor=JSON.parse(Buffer.from(auth.split(' ')[1].split('.')[1],'base64url')).sub}catch{}
+      const managed=auth==='Bearer '+managementToken
+      if(managed) actor=await managementIdentity(auth,process.env.COMMUNITY_MANAGEMENT_VERIFIER,process.env.COMMUNITY_SUPABASE_URL,fetcher)
+      else try {actor=JSON.parse(Buffer.from(auth.split(' ')[1].split('.')[1],'base64url')).sub}catch{}
       if(actor!==reviewer)result=Response.json({error:'reviewer_required'},{status:403})
       else if(url.searchParams.get('scope')==='eligibility')result=Response.json({reviewer:true})
-      else if(!reviewerSessionAal2(auth,reviewer))result=Response.json({error:'second_factor_required'},{status:403})
+      else if(!managed&&!reviewerSessionAal2(auth,reviewer))result=Response.json({error:'second_factor_required'},{status:403})
       else result=Response.json({items:url.pathname.endsWith('/comments')?(await db.query("select * from community_comments where status='pending'")).rows:[]})
     }
     else if(url.pathname.endsWith('/social'))result=await handleSocial(request,fetcher)

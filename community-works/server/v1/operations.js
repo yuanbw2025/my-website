@@ -36,7 +36,7 @@ export default { async fetch(request, fetcher = fetch) {
   if (!config) return reply(503, { error: 'operations_unavailable' })
   try {
     const authorization = request.headers.get('authorization')
-    const uid = await uidFromToken(config, authorization, fetcher)
+    const uid = await uidFromToken(config, authorization, fetcher, true)
     if (!uid) return reply(401, { error: 'authentication_required' })
     if (!await reviewer(config, uid, authorization, fetcher)) return reply(403, { error: 'reviewer_second_factor_required' })
     const data = await adminJson(config, '/rest/v1/rpc/community_operations_snapshot', {

@@ -12,7 +12,7 @@ type Operations = {
 }
 const size = (bytes: number | null) => bytes === null ? '未知' : `${(bytes / 1048576).toFixed(2)} MiB`
 
-export function OperationsPanel({ session }: { session: Session }) {
+export function OperationsPanel({ session }: { session: Pick<Session, 'access_token'> }) {
   const [data, setData] = useState<Operations | null>(null)
   const [error, setError] = useState(false)
   const [version, setVersion] = useState(0)

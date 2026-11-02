@@ -8,7 +8,7 @@ const labels:Record<string,string>={queued:'排队中',processing:'正在审核'
 const reasons:Record<string,string>={model_needs_review:'模型无法明确放行，需要结合上下文判断。',coverage_budget:'内容超出本轮自动审核预算，原稿完整保留，转人工审核。',daily_model_budget:'今日模型调用额度已用完，请人工处理或调整后续审核安排。',worker_interrupted:'上次处理被中断，结果不明，系统没有重复调用。',processing_unknown:'处理未能确认完成，内容保持私有待审。',invalid_model_response:'模型返回格式不符合审核要求。',model_auth_failed:'模型服务鉴权失败，自动审核已暂停。',model_rate_limited:'模型服务限流，自动审核已暂停。',model_unavailable:'模型服务暂不可用。',model_config:'模型配置不一致，自动审核已暂停。'}
 const categoryLabels:Record<string,string>={child_safety:'未成年人安全',explicit_sexual:'露骨性内容',sexual_violence:'性暴力',graphic_harm:'血腥伤害',threats:'现实威胁',hate:'仇恨煽动',privacy:'隐私',harassment:'骚扰',illegal_trade:'违法交易',copyright:'版权疑点',manipulation:'规避审核',uncertain:'上下文不确定'}
 
-async function read<T>(session:Session,scope:string,signal?:AbortSignal):Promise<T>{
+async function read<T>(session:Pick<Session, 'access_token'>,scope:string,signal?:AbortSignal):Promise<T>{
  const response=await fetch(`/api/community/v1/automoderation?scope=${scope}`,{headers:{Authorization:`Bearer ${session.access_token}`},cache:'no-store',signal})
  if(!response.ok)throw new Error('review_unavailable')
  return response.json() as Promise<T>
@@ -27,7 +27,7 @@ export function ReviewerNotice(){
  return value?.reviewer?<a href="/community-works/review" className="reviewer-notice" aria-label={`审核后台，${value.pending} 项需要复核`}>审核后台{value.pending>0?` · 待复核 ${value.pending}`:''}</a>:null
 }
 
-export function AutomaticReview({session,onSubmission,onComment}:{session:Session;onSubmission:(id:string)=>void;onComment:(id:string)=>void}){
+export function AutomaticReview({session,onSubmission,onComment}:{session:Pick<Session, 'access_token'>;onSubmission:(id:string)=>void;onComment:(id:string)=>void}){
  const [data,setData]=useState<Inbox|null>(null),[error,setError]=useState(false),[version,setVersion]=useState(0)
  useEffect(()=>{
   const controller=new AbortController()

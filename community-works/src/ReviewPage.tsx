@@ -31,7 +31,7 @@ async function privateJson(path: string, token: string, options: RequestInit = {
   return response.json() as Promise<unknown>
 }
 
-function ReviewWorkspace({ session }: { session: Session }) {
+export function ReviewWorkspace({ session }: { session: Pick<Session, 'access_token'> }) {
   const [queue, setQueue] = useState<ReviewItem[]>([])
   const [reports, setReports] = useState<ReportItem[]>([])
   const [comments, setComments] = useState<CommentItem[]>([])

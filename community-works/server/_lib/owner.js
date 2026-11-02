@@ -5,7 +5,7 @@ import { settings, uidFromToken, adminJson, smallJson, reviewer } from './report
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const digest = /^[0-9a-f]{64}$/
 
-async function ownerRequest(request, methods, run, fetcher) {
+async function ownerRequest(request, methods, run, fetcher, allowManagement = false) {
   const cors = privateCors(request, methods)
   if (cors.early) return cors.early
   const reply = (status, body) => cors.apply(response(status, body))
@@ -15,7 +15,7 @@ async function ownerRequest(request, methods, run, fetcher) {
   const config = settings()
   if (!config) return reply(503, { error: 'owner_service_unavailable' })
   let uid
-  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher) }
+  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher, allowManagement) }
   catch { return reply(503, { error: 'auth_unavailable' }) }
   if (!uid) return reply(401, { error: 'authentication_required' })
   return run(config, uid, reply)
@@ -96,7 +96,7 @@ export async function handleAppeals(request, fetcher = fetch) {
       if (!Array.isArray(items) || items.length > 50) throw new Error('invalid_data')
       return reply(200, { items })
     } catch { return reply(503, { error: 'appeals_unavailable' }) }
-  }, fetcher)
+  }, fetcher, new URL(request.url).searchParams.get('scope') === 'queue')
 }
 
 export async function handleAppealDecision(request, fetcher = fetch) {
@@ -120,5 +120,5 @@ export async function handleAppealDecision(request, fetcher = fetch) {
       if (!['upheld', 'denied'].includes(status)) throw new Error('invalid_status')
       return reply(200, { appealId: body.appealId, status })
     } catch { return reply(503, { error: 'appeal_review_unavailable' }) }
-  }, fetcher)
+  }, fetcher, true)
 }

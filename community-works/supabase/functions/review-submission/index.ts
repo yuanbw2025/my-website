@@ -1,5 +1,6 @@
 import { readBounded, readVerifiedSnapshot, publication } from '../_shared/review-snapshot.ts'
 import { secondFactorVerified } from '../_shared/reviewer-session.ts'
+import { isManagementAuthorization, managementIdentity } from '../../../shared/management-auth.js'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const hash = /^[0-9a-f]{64}$/
@@ -34,15 +35,21 @@ async function json(base: URL, secret: string, path: string, options: RequestIni
 
 async function activeReviewerUid(base: URL, publishable: string, secret: string, authorization: string): Promise<string | null> {
   if (!/^Bearer [A-Za-z0-9._-]{40,}$/.test(authorization)) return null
-  const response = await fetch(new URL('/auth/v1/user', base), {
-    headers: { apikey: publishable, Authorization: authorization }, signal: AbortSignal.timeout(8000),
-  })
-  if (!response.ok) return null
-  const user = await response.json()
-  if (typeof user?.id !== 'string' || !uuid.test(user.id)) return null
+  let uid: string | null
+  if (isManagementAuthorization(authorization)) {
+    uid = await managementIdentity(authorization, Deno.env.get('COMMUNITY_MANAGEMENT_VERIFIER'), base.origin)
+  } else {
+    const response = await fetch(new URL('/auth/v1/user', base), {
+      headers: { apikey: publishable, Authorization: authorization }, signal: AbortSignal.timeout(8000),
+    })
+    if (!response.ok) return null
+    const user = await response.json()
+    uid = typeof user?.id === 'string' && uuid.test(user.id) ? user.id : null
+  }
+  if (!uid) return null
   const membership = await json(base, secret,
-    `/rest/v1/community_reviewers?select=uid,role&uid=eq.${user.id}&active=eq.true&limit=1`) as unknown[]
-  return Array.isArray(membership) && membership.length === 1 ? user.id : null
+    `/rest/v1/community_reviewers?select=uid,role&uid=eq.${uid}&active=eq.true&limit=1`) as unknown[]
+  return Array.isArray(membership) && membership.length === 1 ? uid : null
 }
 
 
@@ -59,7 +66,10 @@ Deno.serve(async request => {
   if (request.method === 'GET' && new URL(request.url).searchParams.get('scope') === 'eligibility') {
     return answer(200, { reviewer: true })
   }
-  if (!secondFactorVerified(request.headers.get('authorization') ?? '', actor)) {
+  // The management path was verified online above; it is a distinct authority,
+  // not an invented aal2 claim. Ordinary community JWTs still require MFA.
+  if (!isManagementAuthorization(request.headers.get('authorization')) &&
+      !secondFactorVerified(request.headers.get('authorization') ?? '', actor)) {
     return answer(403, { error: 'second_factor_required' })
   }
 
