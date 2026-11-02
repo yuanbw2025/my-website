@@ -17,6 +17,8 @@ import submissionAction from '../community-works/server/v1/submission-action.js'
 import submissionStatus from '../community-works/server/v1/submission-status.js'
 import submissions from '../community-works/server/v1/submissions.js'
 import uploadSessions from '../community-works/server/v1/upload-sessions.js'
+import social from '../community-works/server/v1/social.js'
+import conversation from '../community-works/server/v1/conversation.js'
 
 /** Native ESM entry; each handler retains its own auth and CORS guard. */
 const routes = Object.freeze({
@@ -39,6 +41,8 @@ const routes = Object.freeze({
   'submission-status': submissionStatus,
   submissions,
   'upload-sessions': uploadSessions,
+  social,
+  conversation,
 })
 
 export default {

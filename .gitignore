@@ -23,3 +23,5 @@ _reference/
 .idea/
 .vercel
 .env*
+community-works/test-results/
+community-works/playwright-report/

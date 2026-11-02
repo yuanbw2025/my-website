@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { apiRoot, loadJson, loadTextParts, parseChapterPage, parseDetail, parseEntryPage, parseListPage, type PublicDimension, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
-import { ReviewPage } from './ReviewPage'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { apiRoot, loadJson, parseChapterPage, parseDetail, parseEntryPage, parseListPage, type PublicDimension, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
+const ReviewPage = lazy(()=>import('./ReviewPage').then(module=>({default:module.ReviewPage})))
 import { Comments } from './Comments'
-import { MySubmissions } from './MySubmissions'
+const MySubmissions = lazy(()=>import('./MySubmissions').then(module=>({default:module.MySubmissions})))
 import { PolicyPage } from './PolicyPage'
+import { ReadingText } from './ReadingText'
+import { WorkSocial, ReadingSpace } from './ReaderSocial'
 
 function Header() {
   return <header className="site-header">
     <a className="brand" href="/community-works/" aria-label="社区作品集首页"><span className="brand-mark">S</span><span>StoryForge <strong>社区作品集</strong></span></a>
-    <nav aria-label="主要导航"><a href="/community-works/me">我的投稿</a> · <a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
+    <nav aria-label="主要导航"><a href="/community-works/library">阅读空间</a> · <a href="/community-works/me">我的投稿</a> · <a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
   </header>
 }
 
@@ -92,33 +94,13 @@ function Home() {
   </>
 }
 
-function TextParts({ slug, section, entry }: { slug: string; section: number; entry: number }) {
-  const [text, setText] = useState('')
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
-  useEffect(() => {
-    const controller = new AbortController()
-    setText('')
-    setState('loading')
-    loadTextParts(slug, section, entry, controller.signal).then(value => {
-      setText(value)
-      setState('ready')
-    }).catch(error => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      setState('error')
-    })
-    return () => controller.abort()
-  }, [slug, section, entry])
-  if (state === 'loading') return <p role="status">正在读取正文…</p>
-  if (state === 'error') return <p role="alert">正文暂时无法读取，请稍后重试。</p>
-  return <>{text.split(/\n+/).map((paragraph, line) => <p key={line}>{paragraph}</p>)}</>
-}
-
 function NovelReader({ slug, initialChapters, chapterCount }: {
   slug: string; initialChapters: PublicWorkDetail['chapters']; chapterCount: number
 }) {
   const chapterFromHash = () => {
     const match = window.location.hash.match(/^#chapter-(\d+)$/)
-    const index = match ? Number(match[1]) - 1 : 0
+    const saved = new URLSearchParams(window.location.search).get('section')
+    const index = match ? Number(match[1]) - 1 : saved !== null ? Number(saved) : 0
     return Number.isSafeInteger(index) && index >= 0 && index < chapterCount ? index : 0
   }
   const [index, setIndex] = useState(chapterFromHash)
@@ -168,7 +150,7 @@ function NovelReader({ slug, initialChapters, chapterCount }: {
     {directoryError && <p role="alert">目录暂时无法读取。</p>}
     <section className="reading-section">
       <h2 id="chapter-heading">{chapter?.title ?? `第 ${index + 1} 章`}</h2>
-      <TextParts slug={slug} section={index} entry={0} />
+      <ReadingText slug={slug} section={index} entry={0} />
     </section>
     <nav className="reader-pager" aria-label="章节导航">
       <button type="button" disabled={index === 0} onClick={() => choose(index - 1)}>← 上一章</button>
@@ -178,28 +160,48 @@ function NovelReader({ slug, initialChapters, chapterCount }: {
 }
 
 function AnalysisEntry({ slug, dimensionIndex, index, label }: { slug: string; dimensionIndex: number; index: number; label: string }) {
-  const [open, setOpen] = useState(false)
-  return <details onToggle={event => setOpen(event.currentTarget.open)}>
+  const q=new URLSearchParams(window.location.search)
+  const [open, setOpen] = useState(q.get('section')===String(dimensionIndex)&&q.get('entry')===String(index))
+  return <details open={open} onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>{label}</summary>
-    {open && <TextParts slug={slug} section={dimensionIndex} entry={index} />}
+    {open && <ReadingText slug={slug} section={dimensionIndex} entry={index} />}
   </details>
 }
 
 function AnalysisDimension({ slug, dimension }: { slug: string; dimension: PublicDimension }) {
-  const [open, setOpen] = useState(false)
+  const q=new URLSearchParams(window.location.search)
+  const resume=q.get('section')===String(dimension.index)
+  const [open, setOpen] = useState(resume)
   const [entries, setEntries] = useState<Array<{ index: number; label: string }>>([])
   const [state, setState] = useState<'ready' | 'loading' | 'error'>('ready')
   const loadMore = () => {
-    if (state === 'loading' || entries.length >= dimension.entryCount) return
+    if (state === 'loading' || (entries.at(-1)?.index ?? -1)+1 >= dimension.entryCount) return
     setState('loading')
-    loadJson(`${apiRoot}/${slug}/toc?section=${dimension.index}&offset=${entries.length}&limit=100`, new AbortController().signal)
+    loadJson(`${apiRoot}/${slug}/toc?section=${dimension.index}&offset=${(entries.at(-1)?.index ?? -1)+1}&limit=100`, new AbortController().signal)
       .then(value => {
-        const page = parseEntryPage(value, entries.length, dimension.entryCount)
+        const page = parseEntryPage(value, (entries.at(-1)?.index ?? -1)+1, dimension.entryCount)
         if (!page) throw new Error('分析目录无效')
         setEntries(current => [...current, ...page])
         setState('ready')
       }).catch(() => setState('error'))
   }
+  const loadPrevious = () => {
+    const first = entries[0]?.index ?? 0
+    if (state === 'loading' || first === 0) return
+    const offset = Math.max(0, first - 100)
+    setState('loading')
+    loadJson(`${apiRoot}/${slug}/toc?section=${dimension.index}&offset=${offset}&limit=${first-offset}`, new AbortController().signal)
+      .then(value => {
+        const page = parseEntryPage(value, offset, dimension.entryCount)
+        if (!page) throw new Error('分析目录无效')
+        setEntries(current => [...page, ...current]); setState('ready')
+      }).catch(() => setState('error'))
+  }
+  useEffect(()=> { if(resume && dimension.selected && dimension.entryCount>0) {
+    const target=Number(q.get('entry')??0); const offset=Number.isSafeInteger(target)&&target>=0&&target<dimension.entryCount?Math.floor(target/100)*100:0
+    setState('loading'); const controller=new AbortController()
+    loadJson(`${apiRoot}/${slug}/toc?section=${dimension.index}&offset=${offset}&limit=100`,controller.signal).then(value=>{const page=parseEntryPage(value,offset,dimension.entryCount);if(!page)throw Error('invalid');setEntries(page);setState('ready')}).catch(()=>{if(!controller.signal.aborted)setState('error')});return()=>controller.abort()
+  } },[slug,dimension.index])
   return <section className="reading-section" id={`dimension-${dimension.key}`}>
     <h2>{dimension.label}</h2>
     {!dimension.selected && <p className="muted">作者未选择公开此维度。</p>}
@@ -209,8 +211,9 @@ function AnalysisDimension({ slug, dimension }: { slug: string; dimension: Publi
         {open ? '收起分析' : `展开分析（${dimension.entryCount} 条）`}
       </button>
       {open && <>
+        {(entries[0]?.index ?? 0) > 0 && <button type="button" disabled={state === 'loading'} onClick={loadPrevious}>加载前面的条目</button>}
         {entries.map(entry => <AnalysisEntry key={entry.index} slug={slug} dimensionIndex={dimension.index} {...entry} />)}
-        {entries.length < dimension.entryCount && state !== 'loading' && <button type="button" onClick={loadMore}>加载更多条目</button>}
+        {(entries.at(-1)?.index ?? -1)+1 < dimension.entryCount && state !== 'loading' && <button type="button" onClick={loadMore}>加载更多条目</button>}
         {state === 'loading' && <p role="status">正在读取分析目录…</p>}
         {state === 'error' && <p role="alert">分析目录暂时无法读取。</p>}
       </>}
@@ -224,11 +227,13 @@ function AnalysisReader({ slug, detail }: { slug: string; detail: PublicWorkDeta
       {detail.dimensions.map(dimension => <a key={dimension.key} href={`#dimension-${dimension.key}`}>{dimension.label}</a>)}
     </nav>
     {detail.dimensions.map(dimension => <AnalysisDimension key={dimension.key} slug={slug} dimension={dimension} />)}
-    {detail.hasAuthorCommentary && <section className="reading-section"><h2>作者点评</h2><TextParts slug={slug} section={13} entry={0} /></section>}
+    {detail.hasAuthorCommentary && <section className="reading-section"><h2>作者点评</h2><ReadingText slug={slug} section={13} entry={0} /></section>}
   </>
 }
 
 function Detail({ slug }: { slug: string }) {
+  const comment = new URLSearchParams(window.location.search).get('comment')
+  const focusId = comment && /^[0-9a-f-]{36}$/.test(comment) ? comment : undefined
   const [detail, setDetail] = useState<PublicWorkDetail | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   useEffect(() => {
@@ -250,6 +255,8 @@ function Detail({ slug }: { slug: string }) {
       <h1>{detail.title}</h1>
       <p className="byline">{detail.authorName} · {detail.language}</p>
       <p className="lead">{detail.description}</p>
+      <WorkSocial slug={slug} />
+      {focusId && <Comments slug={slug} focusId={focusId} />}
       {detail.kind === 'novel'
         ? <NovelReader slug={slug} initialChapters={detail.chapters} chapterCount={detail.chapterCount} />
         : <AnalysisReader slug={slug} detail={detail} />}
@@ -261,7 +268,8 @@ function Detail({ slug }: { slug: string }) {
 export function App() {
   const match = window.location.pathname.match(/^\/community-works\/work\/([a-z0-9-]{1,100})\/?$/)
   const review = /^\/community-works\/review\/?$/.test(window.location.pathname)
+  const library = /^\/community-works\/library\/?$/.test(window.location.pathname)
   const mine = /^\/community-works\/me\/?$/.test(window.location.pathname)
   const policy = /^\/community-works\/policy\/?$/.test(window.location.pathname)
-  return <><a className="skip-link" href="#main-content">跳到正文</a><Header />{review ? <ReviewPage /> : mine ? <MySubmissions /> : policy ? <PolicyPage /> : match ? <Detail slug={match[1]} /> : <Home />}<footer><span>StoryForge 社区作品集</span><a href="/community-works/policy">内容与审核规则</a><span>只展示作者主动投稿且审核通过的版本</span></footer></>
+  return <><a className="skip-link" href="#main-content">跳到正文</a><Header /><Suspense fallback={<p role="status">正在打开页面…</p>}>{review ? <ReviewPage /> : library ? <ReadingSpace /> : mine ? <MySubmissions /> : policy ? <PolicyPage /> : match ? <Detail slug={match[1]} /> : <Home />}</Suspense><footer><span>StoryForge 社区作品集</span><a href="/community-works/policy">内容与审核规则</a><span>只展示作者主动投稿且审核通过的版本</span></footer></>
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AuthGate } from './auth'
+import type { ReadingAnchor } from '../shared/anchors.js'
 import { ReviewerGate } from './ReviewerGate'
 import { validPublicSnapshotV1 } from '../supabase/functions/_shared/snapshot'
 
@@ -9,7 +10,7 @@ type ReviewItem = { id: string; kind: 'novel' | 'book-analysis'; status: string;
 type ReportItem = { id: string; publication_id: string; reason_code: string;
   details: string; status: string; created_at: string }
 type CommentItem = { id: string; publication_id: string; author_uid: string;
-  display_name: string; body: string; status: string; created_at: string }
+  display_name: string; body: string; status: string; created_at: string; anchor?: ReadingAnchor | null; parent_id?: string | null }
 type CommentReportItem = { id: string; comment_id: string; reason_code: string;
   details: string; status: string; created_at: string }
 type AppealItem = { id: string; submission_id: string; owner_uid: string;
@@ -203,7 +204,9 @@ function ReviewWorkspace({ session }: { session: Session }) {
       <section><h2>评论待审（{comments.length}）</h2>
         {comments.length === 0 && <p>当前没有待审评论。</p>}
         {comments.map(comment => <article className="review-list-item" key={comment.id}>
-          <strong>{comment.display_name}</strong><p className="review-manuscript">{comment.body}</p>
+          <strong>{comment.display_name}</strong>
+          {comment.parent_id && <p>回复评论：<code>{comment.parent_id}</code></p>}
+          {comment.anchor && <p>第 {comment.anchor.section + 1} 章 / 维度 · 条目 {comment.anchor.entry + 1} · 绑定公开版本 {comment.anchor.revisionId}<br />引用：{comment.anchor.quote ?? "整章 / 整条分析"}</p>}<p className="review-manuscript">{comment.body}</p>
           <small>作品 {comment.publication_id} · 评论 {comment.id}</small>
           <div className="review-actions">
             <button type="button" disabled={busy} onClick={() => void decideComment(comment.id, 'approve')}>批准评论</button>

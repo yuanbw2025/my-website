@@ -1,56 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { PGlite } from '@electric-sql/pglite'
-
-const migrationDirectory = fileURLToPath(new URL('../supabase/migrations/', import.meta.url))
-const owner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-const reviewer = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
-const reporter = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
-const submission = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
-const upload = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
-const hash = 'a'.repeat(64)
-const slug = `work-${submission.replaceAll('-', '')}`
-
-async function database({ existingPublicBucket = false } = {}) {
-  const db = new PGlite()
-  await db.exec(`
-    create role anon;
-    create role authenticated;
-    create role service_role;
-    create schema auth;
-    create schema storage;
-    create table auth.users(id uuid primary key);
-    create table storage.buckets(id text primary key, name text, public boolean,
-      file_size_limit bigint, allowed_mime_types text[]);
-    create function auth.uid() returns uuid language sql stable as $$
-      select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-    $$;
-    grant usage on schema public to anon, authenticated, service_role;
-  `)
-  if (existingPublicBucket) {
-    await db.query(`insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)
-      values ('community-intake', 'community-intake', true, 100000000,
-        array['text/plain'])`)
-  }
-  for (const name of readdirSync(migrationDirectory).filter(name => name.endsWith('.sql')).sort()) {
-    await db.exec(readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8'))
-  }
-  await db.query('insert into auth.users(id) values ($1), ($2), ($3)', [owner, reviewer, reporter])
-  await db.query(`insert into public.community_reviewers(uid, role, active)
-    values ($1, 'reviewer', true)`, [reviewer])
-  await db.query(`insert into public.community_upload_sessions
-    (id, owner_uid, idempotency_key, kind, object_path, sha256, byte_length, expires_at)
-    values ($1, $2, $3, 'novel', $4, $5, 100, now() + interval '1 hour')`,
-    [upload, owner, upload, `${owner}/${upload}/snapshot.json`, hash])
-  await db.query(`insert into public.community_submissions
-    (id, owner_uid, upload_session_id, kind, object_path, sha256, byte_length,
-     public_pen_name, license, rights_statement_version)
-    values ($1, $2, $3, 'novel', $4, $5, 100, '笔名', 'all-rights-reserved', 1)`,
-    [submission, owner, upload, `${owner}/${upload}/snapshot.json`, hash])
-  return db
-}
+import { database, transition, owner, reviewer, reporter, submission, upload, hash, slug } from './database-fixture.mjs'
 
 test('migration creates a private Storage bucket and locks down an older public bucket', async () => {
   const db = await database({ existingPublicBucket: true })
@@ -103,16 +53,6 @@ test('orphan cleanup migration records purged objects without deleting submissio
   } finally { await db.close() }
 })
 
-async function transition(db, action, publication = null, actor = reviewer, revision = hash) {
-  const publicProjection = publication && {
-    ...publication, objectPath: `${owner}/${upload}/snapshot.json`,
-  }
-  if (publicProjection) delete publicProjection.body
-  return db.query(`select public.community_review_transition(
-    $1::uuid, $2::uuid, $3::text, $4::text, 'reviewed_content', '', $5::jsonb) as status`,
-  [actor, submission, revision, action, publicProjection && JSON.stringify(publicProjection)])
-}
-
 test('migrations enforce revision-bound review, bounded public reading, and atomic takedown', async () => {
   const db = await database()
   try {
@@ -136,7 +76,7 @@ test('migrations enforce revision-bound review, bounded public reading, and atom
     await db.exec('set role anon')
     assert.equal((await db.query('select count(*)::integer as total from public.community_publications')).rows[0].total, 1)
     const first = (await db.query('select public.community_read_part($1, 0, 0, 0) as part', [slug])).rows[0].part
-    assert.deepEqual(first, { objectPath: `${owner}/${upload}/snapshot.json`, sha256: hash, kind: 'novel' })
+    assert.deepEqual(first, { objectPath: `${owner}/${upload}/snapshot.json`, sha256: hash, kind: 'novel', revisionId: (await db.query('select id from public.community_publications where slug = $1',[slug])).rows[0].id })
     assert.equal((await db.query(`select count(*)::integer as total from information_schema.columns
       where table_schema = 'public' and table_name = 'community_publications' and column_name = 'body'`)).rows[0].total, 0)
     const toc = (await db.query('select public.community_read_toc_page($1, -1, 0, 100) as page', [slug])).rows[0].page

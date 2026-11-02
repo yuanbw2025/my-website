@@ -57,7 +57,7 @@ export async function readTocPage({ slug, section, offset, limit }, fetcher = fe
   }, fetcher)
 }
 
-export async function readPart({ slug, section, entry, part }, fetcher = fetch) {
+export async function readPart({ slug, section, entry, part }, fetcher = fetch, wholeSection = false) {
   if (!/^[a-z0-9-]{1,100}$/.test(slug ?? '')) return response(400, { error: 'invalid_slug' })
   const sectionIndex = boundedInteger(section, 10000000)
   const entryIndex = boundedInteger(entry, 10000000)
@@ -117,8 +117,9 @@ export async function readPart({ slug, section, entry, part }, fetcher = fetch) 
     if (typeof content !== 'string') return response(502, { error: 'invalid_part_data' })
     const characters = Array.from(content)
     const start = partIndex * 250000
-    return response(200, { text: characters.slice(start, start + 250000).join(''),
-      hasMore: characters.length > start + 250000 })
+    return response(200, { text: wholeSection ? content : characters.slice(start, start + 250000).join(''),
+      hasMore: !wholeSection && characters.length > start + 250000,
+      revisionId: manifest.revisionId, revisionHash: manifest.sha256 })
   } catch { return response(503, { error: 'catalog_unavailable' }) }
 }
 
@@ -160,6 +161,7 @@ export async function readCatalog({ slug, kind, q, offset = '0' } = {}, fetcher 
   if (q?.trim()) url.searchParams.set('or', `(title.ilike.*${q.trim().replace(/[*,.()\\]/g, '')}*,author_name.ilike.*${q.trim().replace(/[*,.()\\]/g, '')}*)`)
   url.searchParams.set('limit', slug ? '1' : '51')
   if (!slug) {
+    url.searchParams.set('is_current', 'eq.true')
     url.searchParams.set('offset', String(start))
     url.searchParams.set('order', 'published_at.desc,id.desc')
   }

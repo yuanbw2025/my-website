@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AuthGate } from './auth'
+import { SubmissionSeries } from './SubmissionSeries'
 
 type Submission = { id: string; kind: 'novel' | 'book-analysis'; status: string;
   sha256: string; created_at: string; updated_at: string }
@@ -74,6 +75,7 @@ function Workspace({ session }: { session: Session }) {
         <h2>{item.kind === 'novel' ? '原创小说' : '拆书分析'} · {item.status}</h2>
         <p>编号：<code>{item.id}</code></p>
         <p>提交时间：{new Date(item.created_at).toLocaleString('zh-CN')}</p>
+        {item.status === 'submitted' && <SubmissionSeries session={session} submissionId={item.id} kind={item.kind} />}
         <div className="review-actions">
           {active.has(item.status) && <button type="button" disabled={busy}
             onClick={() => void action(item, 'withdraw')}>撤回投稿</button>}

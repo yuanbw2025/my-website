@@ -1,8 +1,17 @@
 {
   "buildCommand": "node build.mjs",
   "outputDirectory": "public",
-  "crons": [{ "path": "/api/community/v1/cleanup", "schedule": "0 3 * * *" }],
+  "crons": [
+    {
+      "path": "/api/community/v1/cleanup",
+      "schedule": "0 3 * * *"
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/community-works/library",
+      "destination": "/community-works/index.html"
+    },
     {
       "source": "/api/community/v1/publications/:slug",
       "destination": "/api/community?route=publication&slug=:slug"

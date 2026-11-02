@@ -3,6 +3,19 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 let shared: SupabaseClient | null | undefined
 
+export function useCommunitySession() {
+  const [session, setSession] = useState<Session | null>(null)
+  useEffect(() => {
+    const client = communityAuthClient()
+    if (!client) return
+    let active = true
+    void client.auth.getSession().then(({ data }) => { if (active) setSession(data.session) }).catch(() => {})
+    const { data } = client.auth.onAuthStateChange((_event, value) => { if (active) setSession(value) })
+    return () => { active = false; data.subscription.unsubscribe() }
+  }, [])
+  return session
+}
+
 export function communityAuthClient(): SupabaseClient | null {
   if (shared !== undefined) return shared
   const raw = import.meta.env.VITE_COMMUNITY_SUPABASE_URL

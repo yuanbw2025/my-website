@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && tsc --noEmit --strict --target ES2022 --lib ES2022,DOM --module ESNext --moduleResolution bundler --allowImportingTsExtensions supabase/functions/_shared/deno-types.d.ts supabase/functions/_shared/snapshot.ts supabase/functions/verify-submission/index.ts supabase/functions/review-submission/index.ts && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.13",
+    "@playwright/test": "1.62.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.4",
