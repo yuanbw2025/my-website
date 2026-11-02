@@ -17,5 +17,12 @@
 
 /* Reviewer notices contain counts only until second-factor verification. */
 .reviewer-notice { font-weight: 650; }
+.operations-panel { padding: 24px; margin-block: 24px; border: 1px solid #b4c1b7; border-radius: 14px; background: #f4f7f1; overflow-wrap: anywhere; }
+.operations-panel [role="alert"] { border-left: 4px solid #8e431b; padding-left: 12px; color: #793912; }
+.operations-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 16px; }
+.operations-metrics dt { font-size: .9rem; color: #4e6255; }
+.operations-metrics dd { margin: 6px 0 0; font-weight: 650; }
+.embedded-review .review-shell { margin: 0 auto; padding: 24px 16px; }
+.embedded-review .back-link { display: none; }
 .automod-panel { margin: 2rem 0; padding: clamp(1rem, 3vw, 2rem); border: 1px solid #a9bcad; border-radius: 1rem; background: #edf3ec; overflow-wrap: anywhere; }
 .automod-panel .review-list-item { margin-block: 1rem; padding: 1rem; background: #fffdf7; border-radius: .5rem; }

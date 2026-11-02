@@ -12,6 +12,27 @@ async function login(page: import('@playwright/test').Page,id=uid,aal='aal1') {
 }
 test.beforeEach(async({request})=>{await request.get('/__fixture/reset')})
 
+test('reviewer sees capacity and queue totals; failed refresh removes stale health figures', async ({ page }, testInfo) => {
+  const reviewer = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  await login(page, reviewer, 'aal2')
+  await page.route('https://community-fixture.invalid/auth/v1/user', route => route.fulfill({ json: {
+    id: reviewer, aud: 'authenticated', role: 'authenticated', factors: [{ id: 'fixture-factor', factor_type: 'totp', status: 'verified' }],
+  } }))
+  await page.goto('/community-works/review')
+  const panel = page.getByRole('region', { name: '社区运行概览' })
+  await expect(panel.getByText('32.00 MiB / 750.00 MiB', { exact: true })).toBeVisible()
+  await expect(panel.getByText('投稿入口：暂停收稿；互动写入：开放。', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  await page.screenshot({ path: testInfo.outputPath('reviewer-operations.png'), fullPage: false })
+  await page.route('**/api/community/v1/operations', route => route.fulfill({ status: 503, body: '{}' }))
+  await panel.getByRole('button', { name: '刷新运行状态' }).click()
+  await expect(panel.getByRole('alert')).toContainText('当前容量和队列状态未知')
+  await expect(panel.getByText('32.00 MiB / 750.00 MiB', { exact: true })).toHaveCount(0)
+  await page.unroute('**/api/community/v1/operations')
+  await panel.getByRole('button', { name: '刷新运行状态' }).click()
+  await expect(panel.getByText('32.00 MiB / 750.00 MiB', { exact: true })).toBeVisible()
+})
+
 test('guest reads freely; likes, private bookshelf and exact resume position work after login',async({page})=>{
   await page.goto(`/community-works/work/${slug}`)
   await expect(page.getByText('风穿过旧书店的窗户。',{exact:true})).toBeVisible()

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { apiRoot, loadJson, parseChapterPage, parseDetail, parseEntryPage, parseListPage, type PublicDimension, type PublicWorkCard, type PublicWorkDetail, type WorkKind } from './publications'
 const ReviewPage = lazy(()=>import('./ReviewPage').then(module=>({default:module.ReviewPage})))
+const EmbeddedReview = lazy(()=>import('./EmbeddedReview').then(module=>({default:module.EmbeddedReview})))
 import { Comments } from './Comments'
 const MySubmissions = lazy(()=>import('./MySubmissions').then(module=>({default:module.MySubmissions})))
 import { PolicyPage } from './PolicyPage'
@@ -267,6 +268,9 @@ function Detail({ slug }: { slug: string }) {
 }
 
 export function App() {
+  if (window.location.pathname === '/community-works/review/embed') {
+    return <Suspense fallback={<p role="status">正在打开审核区…</p>}><EmbeddedReview /></Suspense>
+  }
   const match = window.location.pathname.match(/^\/community-works\/work\/([a-z0-9-]{1,100})\/?$/)
   const review = /^\/community-works\/review\/?$/.test(window.location.pathname)
   const library = /^\/community-works\/library\/?$/.test(window.location.pathname)

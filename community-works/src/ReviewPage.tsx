@@ -4,6 +4,7 @@ import { AuthGate } from './auth'
 import type { ReadingAnchor } from '../shared/anchors.js'
 import { ReviewerGate } from './ReviewerGate'
 import { AutomaticReview } from './AutomaticReview'
+import { OperationsPanel } from './OperationsPanel'
 import { validPublicSnapshotV1 } from '../supabase/functions/_shared/snapshot'
 
 type ReviewItem = { id: string; kind: 'novel' | 'book-analysis'; status: string;
@@ -193,6 +194,7 @@ function ReviewWorkspace({ session }: { session: Session }) {
     <p className="eyebrow">PRIVATE REVIEW / STORYFORGE</p><h1>作品审核</h1>
     <p>此处仅供获授权的审核员使用。每个决定绑定当前修订的 SHA-256，发布需要单独启用服务端开关。</p>
     <button type="button" onClick={() => void refresh()}>刷新待办</button>
+    <OperationsPanel session={session} />
     <AutomaticReview session={session} onSubmission={id=>{
       const item=queue.find(item=>item.id===id)
       if(item){void open(item);return}

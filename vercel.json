@@ -9,6 +9,10 @@
   ],
   "rewrites": [
     {
+      "source": "/community-works/review/embed",
+      "destination": "/community-works/index.html"
+    },
+    {
       "source": "/community-works/library",
       "destination": "/community-works/index.html"
     },
@@ -83,6 +87,21 @@
     {
       "source": "/wechat-plugin/(.*)",
       "destination": "/wechat-plugin/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/community-works/:path*",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors https://storyforge-lab.com; object-src 'none'; base-uri 'self'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
     }
   ]
 }

@@ -6,6 +6,7 @@ import { database, transition, owner, reviewer, reporter, slug, submission, uplo
 import { handleSocial, handleConversation } from '../../server/_lib/social.js'
 import { handleComments } from '../../server/_lib/comments.js'
 import automoderation from '../../server/v1/automoderation.js'
+import operations from '../../server/v1/operations.js'
 import { reviewerSessionAal2 } from '../../server/_lib/reports.js'
 import { readCatalog, readPart, readTocPage } from '../../server/_lib/catalog.js'
 
@@ -69,6 +70,7 @@ const server=http.createServer(async(req,res)=>{
     const request=new Request(url,{method:req.method,headers:req.headers,...(req.method==='POST'?{body:Buffer.concat(chunks)}:{})})
     let result
     if(url.pathname.endsWith('/automoderation'))result=await automoderation.fetch(request,fetcher)
+    else if(url.pathname.endsWith('/operations'))result=await operations.fetch(request,fetcher)
     else if(url.pathname.endsWith('/comments'))result=await handleComments(request,fetcher)
     else if(['/review','/reports','/comments','/comment-reports','/appeals'].some(path=>url.pathname.endsWith(path))) {
       // Fixture-only transport for the pre-existing manual review API, never hosted Auth.

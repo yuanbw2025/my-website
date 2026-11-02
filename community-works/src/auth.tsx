@@ -26,6 +26,9 @@ export function communityAuthClient(): SupabaseClient | null {
         typeof key !== 'string' || !key.startsWith('sb_publishable_')) return shared = null
     shared = createClient(url.toString(), key, {
       auth: { flowType: 'pkce', detectSessionInUrl: false,
+        // Embedded review does not depend on third-party cookies/storage. Closing
+        // the management page destroys this in-memory session; no parent tokens.
+        persistSession: window.location.pathname !== '/community-works/review/embed',
         storageKey: 'storyforge-community-works-auth-v1' },
     })
     return shared
