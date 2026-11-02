@@ -155,7 +155,7 @@ test('storage reservation pauses intake before the free-tier ceiling and resumes
       select $1::uuid, gen_random_uuid(), 'novel',
         $1::text || '/' || gen_random_uuid()::text || '/snapshot.json',
         $2, 33554432, 'expired', now() - interval '2 days', now() - interval '1 day'
-      from generate_series(1, 23)`, [owner, hash])
+      from generate_series(1, 22)`, [owner, hash])
     const key = '00000000-0000-4000-8000-000000000030'
     const allocate = () => db.query(`select public.community_allocate_upload_session(
       $1::uuid, $2::uuid, 'novel', $3, 15728640) as result`, [owner, key, hash])
