@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { AuthGate } from './auth'
 import type { ReadingAnchor } from '../shared/anchors.js'
 import { ReviewerGate } from './ReviewerGate'
+import { AutomaticReview } from './AutomaticReview'
 import { validPublicSnapshotV1 } from '../supabase/functions/_shared/snapshot'
 
 type ReviewItem = { id: string; kind: 'novel' | 'book-analysis'; status: string;
@@ -177,6 +178,24 @@ function ReviewWorkspace({ session }: { session: Session }) {
     <p className="eyebrow">PRIVATE REVIEW / STORYFORGE</p><h1>作品审核</h1>
     <p>此处仅供获授权的审核员使用。每个决定绑定当前修订的 SHA-256，发布需要单独启用服务端开关。</p>
     <button type="button" onClick={() => void refresh()}>刷新待办</button>
+    <AutomaticReview session={session} onSubmission={id=>{
+      const item=queue.find(item=>item.id===id)
+      if(item){void open(item);return}
+      void privateJson(`/api/community/v1/review?id=${id}`,session.access_token).then(raw=>{
+        const item=(raw as {submission?:{id:string;kind:'novel'|'book-analysis';status:string;sha256:string;createdAt:string;publicPenName:string}}).submission
+        if(!item||!uuid.test(item.id))throw new Error('missing')
+        return open({...item,created_at:item.createdAt,public_pen_name:item.publicPenName})
+      }).catch(()=>setMessage('无法打开该待审稿，请刷新待办后重试。'))
+    }} onComment={id=>{
+      const element=document.getElementById(`review-comment-${id}`)
+      if(element){element.scrollIntoView({behavior:'smooth',block:'center'});element.focus()}
+      else void privateJson(`/api/community/v1/comments?scope=queue&id=${id}`,session.access_token).then(raw=>{
+        const item=(raw as {items?:CommentItem[]}).items?.find(item=>item.id===id)
+        if(!item)throw new Error('already_processed')
+        setComments(items=>items.some(item=>item.id===id)?items:[item,...items])
+        requestAnimationFrame(()=>{const element=document.getElementById(`review-comment-${id}`);element?.scrollIntoView({block:'center'});element?.focus()})
+      }).catch(()=>setMessage('这条评论可能已经处理，或暂时无法读取，请刷新待办核对。'))
+    }} />
     <label className="review-note">内部审核备注（适用于下面的处理动作）
       <textarea value={privateNote} onChange={event => setPrivateNote(event.target.value)} maxLength={2000} />
     </label>
@@ -203,7 +222,7 @@ function ReviewWorkspace({ session }: { session: Session }) {
       </section>
       <section><h2>评论待审（{comments.length}）</h2>
         {comments.length === 0 && <p>当前没有待审评论。</p>}
-        {comments.map(comment => <article className="review-list-item" key={comment.id}>
+        {comments.map(comment => <article className="review-list-item" key={comment.id} id={`review-comment-${comment.id}`} tabIndex={-1}>
           <strong>{comment.display_name}</strong>
           {comment.parent_id && <p>回复评论：<code>{comment.parent_id}</code></p>}
           {comment.anchor && <p>第 {comment.anchor.section + 1} 章 / 维度 · 条目 {comment.anchor.entry + 1} · 绑定公开版本 {comment.anchor.revisionId}<br />引用：{comment.anchor.quote ?? "整章 / 整条分析"}</p>}<p className="review-manuscript">{comment.body}</p>

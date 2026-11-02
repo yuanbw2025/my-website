@@ -18,11 +18,11 @@ export function PolicyPage() {
       <p>对虐待、犯罪或危险题材的非露骨文学讨论可以提交人工判断；词语命中不会单独决定是否违规。涉及高风险材料时不要通过评论、举报或申诉再次复制传播原文。</p>
     </section>
     <section><h2>投稿、评论与处置</h2>
-      <p>作品和评论均先进入私有待审，审核员批准后才公开。审核员可要求修改、拒绝或下架；投稿人可查看状态、撤回作品并申诉。申诉被支持不会自动恢复公开，仍需提交待审版本。读者可举报作品或评论，举报内容只供授权人员处理。</p>
+      <p>作品和评论均先进入私有待审。启用自动审核后，所选投稿文字、公开笔名和必要评论上下文会交给 Agnes 模型服务进行内容分类；每段内容经过两次检查，只有全部明确通过且发布开关已开启才会公开。有疑点、内容超出自动审核预算或处理失败时转人工复核，不会自动删除原稿或封禁账号。模型可能误判，不能证明作品版权或保证所有地区的法律合规。举报和申诉由人工处理。审核员可要求修改、拒绝或下架；投稿人可查看状态、撤回作品并申诉。申诉被支持不会自动恢复公开，仍需提交待审版本。读者可举报作品或评论，举报内容只供授权人员处理。</p>
       <p>本规则不因用户年龄一概拒绝使用；账号年龄与隐私要求仍须按实际服务地区核定。任何涉及未成年人的性化或剥削内容一律禁止。上线前会依据平台条款和专业审查确定更细的举报与紧急处置流程。</p>
     </section>
     <section lang="en"><h2>English summary</h2>
-      <p>Only author-selected original fiction and the author’s own book analysis may be submitted. Works and comments remain private until human approval. Sexual exploitation or sexualization of minors, non-consensual sexual content, explicit pornography, targeted threats, hate incitement, doxxing, illegal trade, piracy, and plagiarism are prohibited. Ordinary minor characters and young users are not excluded merely for their age. Literary discussion of difficult topics requires human context review. Authors can withdraw and appeal; readers can report. An upheld appeal never republishes a work automatically. This draft does not claim compliance with every jurisdiction; production intake remains closed pending operational and legal review.</p>
+      <p>Only author-selected original fiction and the author’s own book analysis may be submitted. Works and comments remain private pending review. When enabled, Agnes receives submitted text, public pen names and necessary comment context for two classification passes per segment. Only fully cleared submissions can be published when publication is enabled. Uncertain, oversized or failed checks require human review; the model does not delete manuscripts or ban accounts. Model decisions can be wrong and do not establish copyright or legal compliance. Reports and appeals are handled by human reviewers. Sexual exploitation or sexualization of minors, non-consensual sexual content, explicit pornography, targeted threats, hate incitement, doxxing, illegal trade, piracy, and plagiarism are prohibited. Ordinary minor characters and young users are not excluded merely for their age. Literary discussion of difficult topics requires human context review. Authors can withdraw and appeal; readers can report. An upheld appeal never republishes a work automatically. This draft does not claim compliance with every jurisdiction; production intake remains closed pending operational and legal review.</p>
     </section>
   </main>
 }

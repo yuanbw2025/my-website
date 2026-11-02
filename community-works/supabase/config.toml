@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.review-submission]
 verify_jwt = false
+
+[functions.auto-moderate]
+verify_jwt = false

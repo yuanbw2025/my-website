@@ -44,8 +44,10 @@ export async function handleComments(request, fetcher = fetch) {
   try {
     if (request.method === 'GET') {
       if (!await reviewer(config, uid, request.headers.get('authorization'), fetcher)) return reply(403, { error: 'reviewer_required' })
+      const targetId = url.searchParams.get('id')
+      if (targetId !== null && !uuid.test(targetId)) return reply(400, { error: 'invalid_comment_id' })
       const items = await adminJson(config,
-        '/rest/v1/community_comments?select=id,publication_id,author_uid,display_name,body,status,created_at,anchor,parent_id&status=eq.pending&order=created_at.asc&limit=50', {}, fetcher)
+        '/rest/v1/community_comments?select=id,publication_id,author_uid,display_name,body,status,created_at,anchor,parent_id&status=eq.pending&order=created_at.asc&limit=50' + (targetId ? `&id=eq.${targetId}` : ''), {}, fetcher)
       if (!Array.isArray(items) || items.length > 50) throw new Error('invalid_queue')
       return reply(200, { items })
     }

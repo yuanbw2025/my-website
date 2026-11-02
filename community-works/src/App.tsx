@@ -6,11 +6,12 @@ const MySubmissions = lazy(()=>import('./MySubmissions').then(module=>({default:
 import { PolicyPage } from './PolicyPage'
 import { ReadingText } from './ReadingText'
 import { WorkSocial, ReadingSpace } from './ReaderSocial'
+import { ReviewerNotice } from './AutomaticReview'
 
 function Header() {
   return <header className="site-header">
     <a className="brand" href="/community-works/" aria-label="社区作品集首页"><span className="brand-mark">S</span><span>StoryForge <strong>社区作品集</strong></span></a>
-    <nav aria-label="主要导航"><a href="/community-works/library">阅读空间</a> · <a href="/community-works/me">我的投稿</a> · <a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
+    <nav aria-label="主要导航"><ReviewerNotice /><a href="/community-works/library">阅读空间</a> · <a href="/community-works/me">我的投稿</a> · <a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
   </header>
 }
 

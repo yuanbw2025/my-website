@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test'
 const slug='work-dddddddddddd4ddd8ddddddddddddddd'
 const uid='cccccccc-cccc-4ccc-8ccc-cccccccccccc'
 const owner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-async function login(page: import('@playwright/test').Page,id=uid) {
-  const payload={sub:id,aud:'authenticated',role:'authenticated',aal:'aal1',exp:Math.floor(Date.now()/1000)+3600}
-  const token=[Buffer.from('{"alg":"HS256"}').toString('base64url'),Buffer.from(JSON.stringify(payload)).toString('base64url'),'fixture-signature'].join('.')
+async function login(page: import('@playwright/test').Page,id=uid,aal='aal1') {
+  const payload={sub:id,aud:'authenticated',role:'authenticated',aal,exp:Math.floor(Date.now()/1000)+3600}
+  const token=[Buffer.from('{"alg":"HS256"}').toString('base64url'),Buffer.from(JSON.stringify(payload)).toString('base64url'),Buffer.from('fixture-signature').toString('base64url')].join('.')
   await page.addInitScript(session=>localStorage.setItem('storyforge-community-works-auth-v1',JSON.stringify(session)),{
     access_token:token,refresh_token:'fixture-refresh',expires_at:payload.exp,expires_in:3600,token_type:'bearer',
     user:{id,aud:'authenticated',role:'authenticated',email:'fixture@example.invalid',created_at:new Date().toISOString()},
@@ -111,4 +111,24 @@ test('selected Unicode text submits pending, becomes visible after review, and r
   await panel.getByRole('button',{name:'查看 1 条回复'}).click()
   await expect(panel.locator('.comment-replies').getByText('作者',{exact:true})).toBeVisible()
   await expect(panel.getByText('谢谢，我会在下一章揭晓。',{exact:true})).toBeVisible()
+})
+
+
+test('reviewer sees a private doubt count and MFA-gated queue; ordinary readers do not',async({page,request},testInfo)=>{
+  await request.get('/__fixture/doubt')
+  await login(page);await page.goto('/community-works/library')
+  await expect(page.getByRole('link',{name:/审核后台/})).toHaveCount(0)
+  const reviewer='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  await login(page,reviewer,'aal2')
+  await page.route('https://community-fixture.invalid/auth/v1/user',route=>route.fulfill({json:{id:reviewer,aud:'authenticated',role:'authenticated',factors:[{id:'fixture-factor',factor_type:'totp',status:'verified'}]}}))
+  await page.reload()
+  await expect(page.getByRole('link',{name:'审核后台，1 项需要复核'})).toBeVisible()
+  await page.getByRole('link',{name:'审核后台，1 项需要复核'}).click()
+  await expect(page.getByRole('heading',{name:'模型审核与疑难待办'})).toBeVisible()
+  await expect(page.getByText('评论 · 需要你复核',{exact:true})).toBeVisible()
+  await page.getByRole('article').filter({hasText:'评论 · 需要你复核'}).getByRole('button',{name:'定位待审评论'}).click()
+  await expect(page.locator('[id^="review-comment-"]').filter({hasText:'这里需要结合上下文判断。'})).toBeFocused()
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth)).toBe(false)
+  await page.evaluate(()=>window.scrollTo(0,0))
+  await page.screenshot({path:testInfo.outputPath('reviewer-doubt.png'),fullPage:false})
 })
