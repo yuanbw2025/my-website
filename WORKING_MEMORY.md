@@ -6,6 +6,8 @@
 
 ## 📅 开发节点台账 (Development Logs)
 
+- **[01:14:48] (2026-11-03)**: 社区私有审核正式部署状态更新：PR #2 合并并上线，熔炉后台内入口已部署；预览/正式 Supabase 已隔离，保留原账号与 TOTP。README 记录实际 HTTP 校验、关闭的公开开关与尚未完成的运营验收。仅修改文档，原首页、build.mjs 和 telemetry-sync 代理保持不变。
+
 *这是用于精细回溯的操作日志。严禁以覆盖的方式修改过去的节点。必须**从最上方插入最新一条记录***。
 
 - **[13:25:00] (2026-05-22)**: [novel-game Monobuild 集成完成] 将 novel-game 子项目完整集成到主仓库的 Monobuild 体系：① 修改 `build.mjs` 新增 Step 5 构建 novel-game 并聚合产物；② `vercel.json` 新增 SPA rewrite `/novel-game/(.*)`；③ `index.html` 游戏面板新增 novel-game 专属卡片及中英多语言字典；④ 更新 PROJECT_PLAN.md v6.0（补充完善 storyforge 和 novel-game 的架构记录）；⑤ 更新 WORKING_MEMORY.md 记录节点。为安全起见且未确定用户关于远程仓库的具体操作偏好，暂不主动向 `novel-game-mirror` 执行 git push，确保不破坏主库结构。
