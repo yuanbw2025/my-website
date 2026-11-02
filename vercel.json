@@ -1,7 +1,41 @@
 {
   "buildCommand": "node build.mjs",
   "outputDirectory": "public",
+  "crons": [
+    {
+      "path": "/api/community/v1/cleanup",
+      "schedule": "0 3 * * *"
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/community-works/review/embed",
+      "destination": "/community-works/index.html"
+    },
+    {
+      "source": "/community-works/library",
+      "destination": "/community-works/index.html"
+    },
+    {
+      "source": "/api/community/v1/publications/:slug",
+      "destination": "/api/community?route=publication&slug=:slug"
+    },
+    {
+      "source": "/api/community/v1/publications/:slug/toc",
+      "destination": "/api/community?route=publication-toc&slug=:slug"
+    },
+    {
+      "source": "/api/community/v1/publications/:slug/part",
+      "destination": "/api/community?route=publication-part&slug=:slug"
+    },
+    {
+      "source": "/api/community/v1/submissions/:id/status",
+      "destination": "/api/community?route=submission-status&id=:id"
+    },
+    {
+      "source": "/api/community/v1/:route",
+      "destination": "/api/community?route=:route"
+    },
     {
       "source": "/infiniteskill/(.*)",
       "destination": "/infiniteskill/index.html"
@@ -27,6 +61,22 @@
       "destination": "/storyforge/index.html"
     },
     {
+      "source": "/community-works/work/(.*)",
+      "destination": "/community-works/index.html"
+    },
+    {
+      "source": "/community-works/review",
+      "destination": "/community-works/index.html"
+    },
+    {
+      "source": "/community-works/me",
+      "destination": "/community-works/index.html"
+    },
+    {
+      "source": "/community-works/policy",
+      "destination": "/community-works/index.html"
+    },
+    {
       "source": "/novel-game/(.*)",
       "destination": "/novel-game/index.html"
     },
@@ -37,6 +87,21 @@
     {
       "source": "/wechat-plugin/(.*)",
       "destination": "/wechat-plugin/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/community-works/:path*",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors https://storyforge-lab.com; object-src 'none'; base-uri 'self'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
     }
   ]
 }
