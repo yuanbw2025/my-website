@@ -38,7 +38,7 @@ export async function handleComments(request, fetcher = fetch) {
     } catch { return reply(503, { error: 'comments_unavailable' }) }
   }
   let uid
-  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher) }
+  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher, request.method === 'GET' && new URL(request.url).searchParams.get('scope') === 'queue') }
   catch { return reply(503, { error: 'auth_unavailable' }) }
   if (!uid) return reply(401, { error: 'authentication_required' })
   try {
@@ -80,7 +80,7 @@ export async function handleCommentDecision(request, fetcher = fetch) {
   const config = settings()
   if (!config) return reply(503, { error: 'moderation_unavailable' })
   let uid
-  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher) }
+  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher, true) }
   catch { return reply(503, { error: 'auth_unavailable' }) }
   if (!uid) return reply(401, { error: 'authentication_required' })
   const body = await smallJson(request, 4096)
@@ -112,7 +112,7 @@ export async function handleCommentReports(request, fetcher = fetch) {
   const config = settings()
   if (!config) return reply(503, { error: 'reports_unavailable' })
   let uid
-  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher) }
+  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher, request.method === 'GET' && new URL(request.url).searchParams.get('scope') === 'queue') }
   catch { return reply(503, { error: 'auth_unavailable' }) }
   if (!uid) return reply(401, { error: 'authentication_required' })
   try {
@@ -148,7 +148,7 @@ export async function handleCommentReportDecision(request, fetcher = fetch) {
   const config = settings()
   if (!config) return reply(503, { error: 'moderation_unavailable' })
   let uid
-  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher) }
+  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher, true) }
   catch { return reply(503, { error: 'auth_unavailable' }) }
   if (!uid) return reply(401, { error: 'authentication_required' })
   const body = await smallJson(request, 4096)

@@ -1,5 +1,6 @@
 import { response } from './catalog.js'
 import { privateCors } from './cors.js'
+import { isManagementAuthorization, managementIdentity } from '../../shared/management-auth.js'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const slug = /^[a-z0-9-]{1,100}$/
@@ -17,7 +18,9 @@ export function settings() {
   } catch { return null }
 }
 
-export async function uidFromToken(config, authorization, fetcher) {
+export async function uidFromToken(config, authorization, fetcher, allowManagement = false) {
+  if (isManagementAuthorization(authorization)) return allowManagement
+    ? managementIdentity(authorization, process.env.COMMUNITY_MANAGEMENT_VERIFIER, config.base.origin, fetcher) : null
   if (!/^Bearer [A-Za-z0-9._-]{40,}$/.test(authorization ?? '')) return null
   const user = await fetcher(new URL('/auth/v1/user', config.base), {
     headers: { apikey: config.publishable, Authorization: authorization },
@@ -51,7 +54,9 @@ export function reviewerSessionAal2(authorization, uid) {
 }
 
 export async function reviewer(config, uid, authorization, fetcher) {
-  if (!reviewerSessionAal2(authorization, uid)) return false
+  if (isManagementAuthorization(authorization)) {
+    if (await managementIdentity(authorization, process.env.COMMUNITY_MANAGEMENT_VERIFIER, config.base.origin, fetcher) !== uid) return false
+  } else if (!reviewerSessionAal2(authorization, uid)) return false
   const members = await adminJson(config,
     `/rest/v1/community_reviewers?select=uid&uid=eq.${uid}&active=eq.true&limit=1`, {}, fetcher)
   return Array.isArray(members) && members.length === 1
@@ -86,7 +91,7 @@ export async function handleReports(request, fetcher = fetch) {
   const config = settings()
   if (!config) return reply(503, { error: 'reports_unavailable' })
   let uid
-  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher) }
+  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher, request.method === 'GET' && new URL(request.url).searchParams.get('scope') === 'queue') }
   catch { return reply(503, { error: 'auth_unavailable' }) }
   if (!uid) return reply(401, { error: 'authentication_required' })
 
@@ -135,7 +140,7 @@ export async function handleReportDecision(request, fetcher = fetch) {
   const config = settings()
   if (!config) return reply(503, { error: 'moderation_unavailable' })
   let uid
-  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher) }
+  try { uid = await uidFromToken(config, request.headers.get('authorization'), fetcher, true) }
   catch { return reply(503, { error: 'auth_unavailable' }) }
   if (!uid) return reply(401, { error: 'authentication_required' })
   const body = await smallJson(request, 4096)
