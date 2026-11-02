@@ -1,3 +1,4 @@
+import { isMissingUploadObject } from '../_shared/storage-errors.ts'
 import { validPublicSnapshotV1 } from '../_shared/snapshot.ts'
 
 const maxBytes = 32 * 1024 * 1024
@@ -103,8 +104,14 @@ Deno.serve(async request => {
     const storage = await fetch(new URL(`/storage/v1/object/authenticated/community-intake/${objectPath}`, config.base), {
       headers: { apikey: config.secret }, signal: AbortSignal.timeout(30000),
     })
-    if (storage.status === 404) return answer(409, { error: 'upload_not_complete' })
-    if (!storage.ok) throw new Error('storage_unavailable')
+    if (!storage.ok) {
+      let error: unknown = null
+      if (storage.status === 400) {
+        try { error = JSON.parse(new TextDecoder().decode(await readBounded(storage.body, 4096))) } catch { /* fail closed below */ }
+      }
+      if (isMissingUploadObject(storage.status, error)) return answer(409, { error: 'upload_not_complete' })
+      throw new Error('storage_unavailable')
+    }
     const bytes = await readBounded(storage.body, maxBytes)
     if (bytes.byteLength !== session.byte_length || bytes.byteLength > maxBytes) {
       return answer(422, { error: 'snapshot_length_mismatch' })

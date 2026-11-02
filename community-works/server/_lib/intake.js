@@ -127,7 +127,7 @@ export async function createUploadSession(request, fetcher = fetch) {
     const target = await signTarget(config, row.object_path, fetcher)
     return response(201, {
       sessionId: row.id, signedUrl: target.signedUrl, token: target.token,
-      tusEndpoint: new URL('/storage/v1/upload/resumable', config.base).toString(),
+      tusEndpoint: new URL('/storage/v1/upload/resumable/sign', config.base).toString(),
       objectPath: row.object_path, expiresAt: row.expires_at,
       byteLength: row.byte_length, sha256: row.sha256,
     })

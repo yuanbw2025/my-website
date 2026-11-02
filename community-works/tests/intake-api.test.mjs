@@ -86,6 +86,7 @@ test('one authenticated manifest gets a private signed target without manuscript
   assert.equal(data.byteLength, manifest.byteLength)
   assert.equal(data.signedUrl.startsWith('https://example.supabase.co/storage/v1/object/upload/sign/community-intake/'), true)
   assert.equal(new URL(data.signedUrl).searchParams.get('token'), data.token)
+  assert.equal(data.tusEndpoint, 'https://example.supabase.co/storage/v1/upload/resumable/sign')
   assert.equal(JSON.stringify(data).includes('sb_secret_test'), false)
 })
 

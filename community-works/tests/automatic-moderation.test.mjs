@@ -174,3 +174,39 @@ test('automatic comment approval preserves a model actor and refuses hidden pare
   assert.equal((await db.query("select count(*)::int n from community_comments where status='pending'")).rows[0].n,1)
  }finally{await db.close()}
 })
+
+
+test('real comment RPC queues the final selection and reply revision after its transaction commits',async()=>{
+ const db=await database();try{
+  await transition(db,'begin_review');await transition(db,'approve');await transition(db,'publish',projection);await enable(db)
+  const pub=(await db.query('select id,slug,approved_revision_sha256 from community_publications')).rows[0]
+  const anchor={version:1,kind:'section',revisionId:pub.id,revisionHash:pub.approved_revision_sha256,section:0,entry:0}
+  const args={p_author_uid:owner,p_slug:pub.slug,p_idempotency_key:crypto.randomUUID(),p_display_name:'合成读者',p_body:'清晨的书店很安静。',p_anchor:anchor,p_parent:null}
+  await db.exec('begin')
+  const first=await rpc(db,'community_file_comment_v2',args)
+  await db.exec('commit')
+  let j=await claim(db);assert.equal(j.comment_id,first.commentId)
+  const payload=await rpc(db,'community_automod_payload',{p_job:j.id,p_lease:j.lease})
+  assert.deepEqual(payload.comment.anchor,anchor)
+  await step(db,j);j=await claim(db);await step(db,j);j=await claim(db)
+  assert.equal(await rpc(db,'community_automod_publish',{p_job:j.id,p_lease:j.lease,p_publish_enabled:true}),'published')
+  const reply=await rpc(db,'community_file_comment_v2',{...args,p_idempotency_key:crypto.randomUUID(),p_body:'谢谢阅读。',p_parent:first.commentId})
+  j=await claim(db);assert.equal(j.comment_id,reply.commentId)
+  assert.equal((await rpc(db,'community_automod_payload',{p_job:j.id,p_lease:j.lease})).comment.parentBody,args.p_body)
+  const replay=await rpc(db,'community_file_comment_v2',args);assert.equal(replay.replayed,true)
+  assert.equal((await db.query('select count(*)::int n from community_automod_jobs where comment_id is not null')).rows[0].n,2)
+ }finally{await db.close()}
+})
+test('comment rollback creates no job and later revisions never inherit an earlier approval',async()=>{
+ const db=await database();try{
+  await transition(db,'begin_review');await transition(db,'approve');await transition(db,'publish',projection);await enable(db)
+  const pub=(await db.query('select id,slug from community_publications')).rows[0]
+  const args={p_author_uid:owner,p_slug:pub.slug,p_idempotency_key:crypto.randomUUID(),p_display_name:'读者',p_body:'合成评论',p_anchor:null,p_parent:null}
+  await db.exec('begin');await rpc(db,'community_file_comment_v2',args);await db.exec('rollback')
+  assert.equal((await db.query('select count(*)::int n from community_automod_jobs where comment_id is not null')).rows[0].n,0)
+  const item=await rpc(db,'community_file_comment_v2',args)
+  await db.query('update community_comments set body=$1 where id=$2',['内容已变更',item.commentId])
+  assert.equal((await claim(db)).idle,true)
+  assert.equal((await db.query('select state from community_automod_jobs where comment_id=$1',[item.commentId])).rows[0].state,'stale')
+ }finally{await db.close()}
+})
