@@ -74,3 +74,12 @@ test('orphan cleanup deletes only its exact private Storage path and records a r
   assert.deepEqual(await result.json(), { scanned: 1, purged: 1 })
   assert.deepEqual(calls, ['sessions', 'submissions', 'storage', 'receipt'])
 })
+
+// Equal JavaScript string length is not equal UTF-8 byte length.
+test('non-ASCII cleanup credentials fail closed without throwing', async () => {
+  setup()
+  const result = await cleanupExpiredIntake(request('é'.repeat(process.env.CRON_SECRET.length)), {
+    fetcher: () => { throw new Error('must not query database') },
+  })
+  assert.equal(result.status, 401)
+})

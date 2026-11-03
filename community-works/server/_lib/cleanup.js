@@ -7,8 +7,10 @@ function authorized(request) {
   const secret = process.env.CRON_SECRET ?? ''
   const candidate = request.headers.get('authorization') ?? ''
   const expected = `Bearer ${secret}`
-  return secret.length >= 16 && candidate.length === expected.length &&
-    timingSafeEqual(Buffer.from(candidate), Buffer.from(expected))
+  const actualBytes = Buffer.from(candidate)
+  const expectedBytes = Buffer.from(expected)
+  return secret.length >= 16 && actualBytes.length === expectedBytes.length &&
+    timingSafeEqual(actualBytes, expectedBytes)
 }
 
 function settings() {
