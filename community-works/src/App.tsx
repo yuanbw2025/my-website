@@ -136,7 +136,8 @@ function NovelReader({ slug, initialChapters, chapterCount }: {
     document.getElementById('chapter-heading')?.scrollIntoView({ block: 'start' })
   }
   const chapter = chapters.find(item => item.index === index)
-  return <>
+  return <div className="reader-layout">
+    <nav className="reader-directory" aria-label="章节目录">
     <div className="reader-tools">
       <label htmlFor="chapter-select">章节目录</label>
       <select id="chapter-select" value={index} onChange={event => choose(Number(event.target.value))}>
@@ -149,7 +150,10 @@ function NovelReader({ slug, initialChapters, chapterCount }: {
         readPage(nextOffset).then(page => setNextOffset(nextOffset + page.length)).catch(() => setDirectoryError(true))
       }}>加载更多目录</button>}
     </div>
+    <div className="chapter-links">{chapters.map(item => <button key={item.index} type="button" aria-current={item.index === index ? 'location' : undefined} onClick={() => choose(item.index)}>{item.index + 1}. {item.title}</button>)}</div>
     {directoryError && <p role="alert">目录暂时无法读取。</p>}
+    </nav>
+    <div className="reader-main">
     <section className="reading-section">
       <h2 id="chapter-heading">{chapter?.title ?? `第 ${index + 1} 章`}</h2>
       <ReadingText slug={slug} section={index} entry={0} />
@@ -158,12 +162,13 @@ function NovelReader({ slug, initialChapters, chapterCount }: {
       <button type="button" disabled={index === 0} onClick={() => choose(index - 1)}>← 上一章</button>
       <button type="button" disabled={index === chapterCount - 1} onClick={() => choose(index + 1)}>下一章 →</button>
     </nav>
-  </>
+    </div>
+  </div>
 }
 
-function AnalysisEntry({ slug, dimensionIndex, index, label }: { slug: string; dimensionIndex: number; index: number; label: string }) {
+function AnalysisEntry({ slug, dimensionIndex, index, label, initiallyOpen }: { slug: string; dimensionIndex: number; index: number; label: string; initiallyOpen: boolean }) {
   const q=new URLSearchParams(window.location.search)
-  const [open, setOpen] = useState(q.get('section')===String(dimensionIndex)&&q.get('entry')===String(index))
+  const [open, setOpen] = useState(q.get('section')===String(dimensionIndex) ? q.get('entry')===String(index) : initiallyOpen)
   return <details open={open} onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>{label}</summary>
     {open && <ReadingText slug={slug} section={dimensionIndex} entry={index} />}
@@ -173,7 +178,7 @@ function AnalysisEntry({ slug, dimensionIndex, index, label }: { slug: string; d
 function AnalysisDimension({ slug, dimension }: { slug: string; dimension: PublicDimension }) {
   const q=new URLSearchParams(window.location.search)
   const resume=q.get('section')===String(dimension.index)
-  const [open, setOpen] = useState(resume)
+  const [open, setOpen] = useState(true)
   const [entries, setEntries] = useState<Array<{ index: number; label: string }>>([])
   const [state, setState] = useState<'ready' | 'loading' | 'error'>('ready')
   const loadMore = () => {
@@ -199,8 +204,8 @@ function AnalysisDimension({ slug, dimension }: { slug: string; dimension: Publi
         setEntries(current => [...page, ...current]); setState('ready')
       }).catch(() => setState('error'))
   }
-  useEffect(()=> { if(resume && dimension.selected && dimension.entryCount>0) {
-    const target=Number(q.get('entry')??0); const offset=Number.isSafeInteger(target)&&target>=0&&target<dimension.entryCount?Math.floor(target/100)*100:0
+  useEffect(()=> { if(dimension.selected && dimension.entryCount>0) {
+    const target=resume ? Number(q.get('entry')??0) : 0; const offset=Number.isSafeInteger(target)&&target>=0&&target<dimension.entryCount?Math.floor(target/100)*100:0
     setState('loading'); const controller=new AbortController()
     loadJson(`${apiRoot}/${slug}/toc?section=${dimension.index}&offset=${offset}&limit=100`,controller.signal).then(value=>{const page=parseEntryPage(value,offset,dimension.entryCount);if(!page)throw Error('invalid');setEntries(page);setState('ready')}).catch(()=>{if(!controller.signal.aborted)setState('error')});return()=>controller.abort()
   } },[slug,dimension.index])
@@ -214,7 +219,7 @@ function AnalysisDimension({ slug, dimension }: { slug: string; dimension: Publi
       </button>
       {open && <>
         {(entries[0]?.index ?? 0) > 0 && <button type="button" disabled={state === 'loading'} onClick={loadPrevious}>加载前面的条目</button>}
-        {entries.map(entry => <AnalysisEntry key={entry.index} slug={slug} dimensionIndex={dimension.index} {...entry} />)}
+        {entries.map(entry => <AnalysisEntry key={entry.index} slug={slug} dimensionIndex={dimension.index} initiallyOpen={entry.index === 0} {...entry} />)}
         {(entries.at(-1)?.index ?? -1)+1 < dimension.entryCount && state !== 'loading' && <button type="button" onClick={loadMore}>加载更多条目</button>}
         {state === 'loading' && <p role="status">正在读取分析目录…</p>}
         {state === 'error' && <p role="alert">分析目录暂时无法读取。</p>}
@@ -224,13 +229,41 @@ function AnalysisDimension({ slug, dimension }: { slug: string; dimension: Publi
 }
 
 function AnalysisReader({ slug, detail }: { slug: string; detail: PublicWorkDetail }) {
-  return <>
-    <nav className="toc" aria-label="分析目录"><h2>分析目录</h2>
-      {detail.dimensions.map(dimension => <a key={dimension.key} href={`#dimension-${dimension.key}`}>{dimension.label}</a>)}
+  const initialKey = () => {
+    const hash = window.location.hash.replace(/^#dimension-/, '')
+    if (detail.dimensions.some(item => item.key === hash) || (hash === 'author-commentary' && detail.hasAuthorCommentary)) return hash
+    const saved = new URLSearchParams(window.location.search).get('section')
+    if (saved === '13' && detail.hasAuthorCommentary) return 'author-commentary'
+    return detail.dimensions.find(item => String(item.index) === saved)?.key
+      ?? detail.dimensions.find(item => item.selected && item.entryCount > 0)?.key
+      ?? detail.dimensions[0]?.key
+  }
+  const [active, setActive] = useState(initialKey)
+  useEffect(() => {
+    const changed = () => setActive(initialKey())
+    window.addEventListener('hashchange', changed)
+    return () => window.removeEventListener('hashchange', changed)
+  }, [detail])
+  const dimension = detail.dimensions.find(item => item.key === active)
+  const choose = (key: string) => {
+    setActive(key)
+    window.history.replaceState(null, '', `#dimension-${key}`)
+  }
+  return <div className="reader-layout">
+    <nav className="toc reader-directory" aria-label="分析目录"><h2>分析目录</h2>
+      <select className="mobile-directory" aria-label="选择分析维度" value={active} onChange={event => choose(event.target.value)}>
+        {detail.dimensions.map(item => <option key={item.key} value={item.key}>{item.label} · {item.selected ? `${item.entryCount} 条` : '未公开'}</option>)}
+        {detail.hasAuthorCommentary && <option value="author-commentary">作者点评</option>}
+      </select>
+      <div className="directory-links">{detail.dimensions.map(item => <a key={item.key} href={`#dimension-${item.key}`} aria-current={active === item.key ? 'location' : undefined} onClick={event => { event.preventDefault(); choose(item.key) }}><span>{item.label}</span><small>{item.selected ? `${item.entryCount} 条` : '未公开'}</small></a>)}
+      {detail.hasAuthorCommentary && <a href="#dimension-author-commentary" aria-current={active === 'author-commentary' ? 'location' : undefined} onClick={event => { event.preventDefault(); choose('author-commentary') }}>作者点评</a>}</div>
     </nav>
-    {detail.dimensions.map(dimension => <AnalysisDimension key={dimension.key} slug={slug} dimension={dimension} />)}
-    {detail.hasAuthorCommentary && <section className="reading-section"><h2>作者点评</h2><ReadingText slug={slug} section={13} entry={0} /></section>}
-  </>
+    <div className="reader-main">
+      {dimension && <AnalysisDimension key={dimension.key} slug={slug} dimension={dimension} />}
+      {active === 'author-commentary' && detail.hasAuthorCommentary && <section id="dimension-author-commentary" className="reading-section"><h2>作者点评</h2><ReadingText slug={slug} section={13} entry={0} /></section>}
+      {!dimension && !detail.hasAuthorCommentary && <p className="muted">当前公开范围没有分析内容。</p>}
+    </div>
+  </div>
 }
 
 function Detail({ slug }: { slug: string }) {
@@ -248,16 +281,18 @@ function Detail({ slug }: { slug: string }) {
     }).catch(error => { if (error instanceof DOMException && error.name === 'AbortError') return; setState('error') })
     return () => controller.abort()
   }, [slug])
-  return <main id="main-content" className="detail-shell">
+  return <main id="main-content" className="detail-shell work-detail">
     <a className="back-link" href="/community-works/">← 返回作品集</a>
     {state === 'loading' && <p role="status">正在读取作品…</p>}
     {state === 'error' && <p role="alert">作品暂时不可访问，可能已下架或尚未通过审核。</p>}
     {state === 'ready' && detail && <article>
-      <p className="eyebrow">{detail.kind === 'novel' ? 'ORIGINAL FICTION' : 'BOOK ANALYSIS'}</p>
+      <header className="work-heading">
+      <p className="kind-tag">{detail.kind === 'novel' ? '原创小说' : '拆书分析'}</p>
       <h1>{detail.title}</h1>
       <p className="byline">{detail.authorName} · {detail.language}</p>
       <p className="lead">{detail.description}</p>
       <WorkSocial slug={slug} />
+      </header>
       {focusId && <Comments slug={slug} focusId={focusId} />}
       {detail.kind === 'novel'
         ? <NovelReader slug={slug} initialChapters={detail.chapters} chapterCount={detail.chapterCount} />
