@@ -107,14 +107,14 @@ function ReaderWorkspace({ session }: { session: Session }) {
   }, [tab,session.access_token])
   const mutate = async (body: unknown) => { setBusy(true); try { await action(session,body); await refresh() }
     catch(error) { setMessage(error instanceof Error ? error.message : '操作未完成。') } finally { setBusy(false) } }
-  return <main id="main-content" className="detail-shell"><p className="eyebrow">MY READING SPACE</p><h1>我的阅读空间</h1>
-    <p>书架、阅读位置、消息和花篮只对你可见。</p>
+  return <main id="main-content" className="community-page reading-workspace"><div className="page-heading"><div><h1>我的阅读空间</h1>
+    <p>书架、阅读位置、消息和花篮只对你可见。</p></div><a className="secondary-link" href="/community-works/">发现作品 →</a></div>
     <nav className="reader-tabs" aria-label="阅读空间">{([['shelf','我的书架'],['notifications','站内消息'],['wallet','我的花篮'],['blocks','屏蔽管理']] as const).map(([key,label]) =>
       <button key={key} aria-pressed={tab===key} onClick={() => setTab(key)}>{label}</button>)}</nav>
     {tab === 'wallet' ? <FlowerBasket key={session.user.id} session={session} /> : <>
       {message && <p role="alert">{message} <button onClick={() => void refresh()}>重试</button></p>}
-      {busy && <p role="status">正在读取…</p>}{!busy && !message && !items.length && <p className="empty-state">这里暂时没有记录。</p>}
-      <div className="activity-list">{items.map(raw => {
+      {busy && <p role="status">正在读取…</p>}{!busy && !message && !items.length && <p className="empty-state">{tab === 'shelf' ? '书架还是空的，在作品页点击“收藏到书架”即可加入。' : tab === 'notifications' ? '暂时没有站内消息。回复、追更和投稿状态更新会出现在这里。' : '暂时没有屏蔽记录。'}</p>}
+      <div className={`workspace-list workspace-list--${tab}`}>{items.map(raw => {
         if (tab === 'shelf') { const item = raw as ShelfItem; return <article className="shelf-card" key={item.workId}><h2>{item.title}</h2>
           {item.updated && <span className="kind-tag">有新版本</span>}<div className="community-actions">
             {item.slug && <a href={`/community-works/work/${item.slug}`}>阅读最新版本 →</a>}

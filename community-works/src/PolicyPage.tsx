@@ -1,9 +1,8 @@
 /** Public community rules; runtime controls remain authoritative. */
 export function PolicyPage() {
-  return <main id="main-content" className="detail-shell policy-page">
+  return <main id="main-content" className="community-page policy-page">
     <a className="back-link" href="/community-works/">← 返回作品集</a>
-    <p className="eyebrow">COMMUNITY STANDARD · 2026-11-03</p>
-    <h1>社区内容与审核规则</h1>
+    <div className="page-heading"><h1>社区内容与审核规则</h1></div>
     <p className="lead">生效日期：2026 年 11 月 3 日。社区作品集供作者自愿分享原创小说与拆书分析，作品和评论先审后显。运营方：北京悬象科技有限公司。</p>
     <section><h2>可以分享什么</h2>
       <p>作者可以从 StoryForge 明确选择自己拥有发布权的原创小说章节，以及“文档解析 → 导入项目参考 → 作品分析”中自己的拆书分析。仅所选版本进入私有待审；拆书不得上传原书文件、长篇原文或未经授权的摘录。公开笔名与许可由投稿人确认。</p>
