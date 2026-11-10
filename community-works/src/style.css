@@ -203,3 +203,27 @@ footer { padding-block: 20px; flex-wrap: wrap; font-size: .8rem; }
 }
 .site-header nav .submit-link:hover { background: #193929; }
 .site-header nav .submit-link[aria-current=page] { color: white; }
+
+.review-shell { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.embedded-review .review-shell { padding: 10px; }
+.embedded-review .back-link { display: none; }
+.review-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 10px; }
+.review-heading h1 { margin: 0; font-size: 1.3rem; }
+.review-overview, .review-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.review-overview > section, .review-columns > section, .review-detail {
+  margin: 0; min-width: 0; border: 1px solid #d8e2d9; border-radius: 8px; padding: 12px;
+}
+.review-overview > section, .review-columns > section { max-height: 22rem; overflow: auto; }
+.review-shell h2 { font-size: 1rem; margin: 0 0 6px; }
+.review-shell p { margin-block: 5px; line-height: 1.55; }
+.review-overview .operations-metrics { gap: 6px; margin: 8px 0; }
+.review-overview .operations-metrics div { padding: 6px; }
+.review-note { margin: 10px 0; }
+.review-note textarea { min-height: 36px; height: 42px; resize: vertical; }
+.review-columns { grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); }
+.review-columns .review-list-item { margin: 6px 0; padding: 8px; overflow-wrap: anywhere; }
+.review-detail { margin-top: 12px; }
+@media (max-width: 700px) {
+  .review-overview, .review-columns { grid-template-columns: minmax(0, 1fr); }
+  .review-shell { padding: 10px; }
+}

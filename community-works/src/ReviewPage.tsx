@@ -191,9 +191,9 @@ export function ReviewWorkspace({ session }: { session: Pick<Session, 'access_to
   }> : []
   return <main id="main-content" className="review-shell">
     <a className="back-link" href="/community-works/">← 返回作品集</a>
-    <p className="eyebrow">PRIVATE REVIEW / STORYFORGE</p><h1>作品审核</h1>
-    <p>此处仅供获授权的审核员使用。每个决定绑定当前修订的 SHA-256，发布需要单独启用服务端开关。</p>
-    <button type="button" onClick={() => void refresh()}>刷新待办</button>
+    <header className="review-heading"><h1>作品审核</h1>
+      <button type="button" onClick={() => void refresh()}>刷新待办</button></header>
+    <div className="review-overview">
     <OperationsPanel session={session} />
     <AutomaticReview session={session} onSubmission={id=>{
       const item=queue.find(item=>item.id===id)
@@ -213,6 +213,7 @@ export function ReviewWorkspace({ session }: { session: Pick<Session, 'access_to
         setCommentFocusId(id)
       }).catch(()=>setMessage('这条评论可能已经处理，或暂时无法读取，请刷新待办核对。'))
     }} />
+    </div>
     <label className="review-note">内部审核备注（适用于下面的处理动作）
       <textarea value={privateNote} onChange={event => setPrivateNote(event.target.value)} maxLength={2000} />
     </label>

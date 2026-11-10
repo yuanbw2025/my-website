@@ -40,7 +40,10 @@ export function EmbeddedReview() {
           setGrant({ token: data.token, expiresAt: data.expiresAt }); setMessage('已使用管理后台身份连接审核。')
           expiration = setTimeout(() => { deny('审核授权已到期，正在重新连接…'); requestGrant() }, Math.max(0, data.expiresAt - Date.now()))
           window.parent.postMessage({ type: 'storyforge:review:ready', version: 2 }, managementOrigin)
-        }).catch(() => { if (active && expectedNonce === nonce) deny('暂时无法验证管理后台授权，请重新连接。') })
+        }).catch(() => { if (active && expectedNonce === nonce) {
+          deny('暂时无法验证管理后台授权，请重新连接。')
+          window.parent.postMessage({ type: 'storyforge:review:denied', version: 2 }, managementOrigin)
+        } })
       }
     }
     window.addEventListener('message', receive)
@@ -51,6 +54,6 @@ export function EmbeddedReview() {
   if (!grant) return <main id="main-content" className="review-shell" role="status">
     <p>{message}</p><button type="button" onClick={() => setRetry(value => value + 1)}>重新连接审核</button>
   </main>
-  return <div className="embedded-review"><p className="account-bar">已通过熔炉管理后台授权</p>
+  return <div className="embedded-review">
     <ReviewWorkspace session={{ access_token: grant.token }} /></div>
 }
