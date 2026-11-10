@@ -101,7 +101,7 @@ test('private messages link to approved discussions and a blocked reader can be 
   await page.getByRole('link',{name:'阅读空间',exact:true}).click()
   await page.getByRole('button',{name:'屏蔽管理',exact:true}).click()
   await page.getByRole('button',{name:'解除屏蔽',exact:true}).click()
-  await expect(page.getByText('这里暂时没有记录。')).toBeVisible()
+  await expect(page.getByText('暂时没有屏蔽记录。')).toBeVisible()
 })
 
 test('selected Unicode text submits pending, becomes visible after review, and replies are independently reviewed',async({page,request})=>{

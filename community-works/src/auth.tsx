@@ -66,6 +66,7 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
   </>
 
   return <section className="auth-box" aria-label="社区账号登录">
+    <a className="back-link" href="/community-works/">← 返回作品集</a>
     <h2>登录社区账号</h2>
     <p>投稿、举报和审核需要先验证邮箱。邮箱不会展示在作品页。</p>
     <label>邮箱<input type="email" autoComplete="email" value={email}

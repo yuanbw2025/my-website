@@ -12,7 +12,7 @@ import { ReviewerNotice } from './AutomaticReview'
 function Header() {
   return <header className="site-header">
     <a className="brand" href="/community-works/" aria-label="社区作品集首页"><span className="brand-mark">S</span><span>StoryForge <strong>社区作品集</strong></span></a>
-    <nav aria-label="主要导航"><ReviewerNotice /><a href="/community-works/library">阅读空间</a> · <a href="/community-works/me">我的投稿</a> · <a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
+    <nav aria-label="主要导航"><ReviewerNotice /><a href="/community-works/library" aria-current={window.location.pathname.replace(/\/$/, "") === "/community-works/library" ? "page" : undefined}>阅读空间</a><a href="/community-works/me" aria-current={window.location.pathname.replace(/\/$/, "") === "/community-works/me" ? "page" : undefined}>我的投稿</a><a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
   </header>
 }
 
@@ -81,19 +81,29 @@ function Home() {
     })
   }
 
-  return <>
-    <section className="hero"><p className="eyebrow">STORYFORGE / COMMUNITY WORKS</p><h1>让写下的故事，<br /><em>遇见更多读者。</em></h1><p>这里收录作者自愿分享、经过审核的原创小说和拆书分析。每一篇作品都来自作者明确选择的公开版本。</p></section>
-    <main id="main-content" className="content-shell"><div className="section-head"><div><p className="eyebrow">EXPLORE THE LIBRARY</p><h2>浏览作品</h2></div><span>原创 · 阅读 · 交流</span></div>
+  return <main id="main-content" className="community-page catalog-page">
+      <div className="page-heading"><div><h1>浏览作品</h1><p>作者公开分享的原创小说与拆书分析。</p></div>
+        <a className="secondary-link" href="/community-works/policy">投稿与社区规则</a></div>
       <div className="filters" role="group" aria-label="作品类型">{([['all', '全部作品'], ['novel', '原创小说'], ['book-analysis', '拆书分析']] as const).map(([value, label]) => <button key={value} type="button" className={kind === value ? 'selected' : ''} aria-pressed={kind === value} onClick={() => setKind(value)}>{label}</button>)}
         <label className="search"><span className="sr-only">搜索作品</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索标题或作者" /></label></div>
       {state === 'loading' && <p className="feedback" role="status">正在读取已公开作品…</p>}
-      {state === 'error' && <div className="feedback" role="alert"><strong>暂时无法读取作品集</strong><p>请稍后再试。投稿和审核服务尚未开放时，这里不会显示示例作品。</p></div>}
+      {state === 'error' && <div className="feedback" role="alert"><strong>暂时无法读取作品集</strong><p>请稍后刷新页面重试。</p></div>}
       {state === 'ready' && items.length === 0 && <div className="feedback"><strong>还没有符合条件的公开作品</strong><p>作品经作者确认并审核通过后会出现在这里。</p></div>}
-      {state === 'ready' && items.length > 0 && <div className="work-grid">{items.map(item => <a className="work-card" key={item.slug} href={`/community-works/work/${item.slug}`}><span className="kind-tag">{item.kind === 'novel' ? '原创小说' : '拆书分析'}</span><h3>{item.title}</h3><p>{item.description}</p><div className="card-foot"><span>{item.authorName}</span><span>阅读作品 ↗</span></div></a>)}</div>}
+      {state === 'ready' && items.length > 0 && (
+        <div className="work-grid">
+          {items.map(item => (
+            <a className="work-card" key={item.slug} href={`/community-works/work/${item.slug}`}>
+              <span className="kind-tag">{item.kind === 'novel' ? '原创小说' : '拆书分析'}</span>
+              <h2>{item.title}</h2>
+              <p>{item.description}</p>
+              <div className="card-foot"><span>{item.authorName}</span><span>阅读作品 →</span></div>
+            </a>
+          ))}
+        </div>
+      )}
       {state === 'ready' && moreError && <p className="feedback" role="alert">更多作品暂时无法读取，请重试。</p>}
       {state === 'ready' && nextOffset !== null && <button className="load-more" type="button" disabled={loadingMore} onClick={loadMore}>{loadingMore ? '正在加载…' : '加载更多作品'}</button>}
     </main>
-  </>
 }
 
 function NovelReader({ slug, initialChapters, chapterCount }: {
