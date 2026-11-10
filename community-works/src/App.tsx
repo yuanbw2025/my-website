@@ -9,10 +9,12 @@ import { ReadingText } from './ReadingText'
 import { WorkSocial, ReadingSpace } from './ReaderSocial'
 import { ReviewerNotice } from './AutomaticReview'
 
+const SubmitPage = lazy(() => import('./SubmitPage').then(module => ({ default: module.SubmitPage })))
+
 function Header() {
   return <header className="site-header">
     <a className="brand" href="/community-works/" aria-label="社区作品集首页"><span className="brand-mark">S</span><span>StoryForge <strong>社区作品集</strong></span></a>
-    <nav aria-label="主要导航"><ReviewerNotice /><a href="/community-works/library" aria-current={window.location.pathname.replace(/\/$/, "") === "/community-works/library" ? "page" : undefined}>阅读空间</a><a href="/community-works/me" aria-current={window.location.pathname.replace(/\/$/, "") === "/community-works/me" ? "page" : undefined}>我的投稿</a><a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
+    <nav aria-label="主要导航"><ReviewerNotice /><a className="submit-link" href="/community-works/submit" aria-current={window.location.pathname.replace(/\/$/, "") === "/community-works/submit" ? "page" : undefined}>我要投稿</a><a href="/community-works/library" aria-current={window.location.pathname.replace(/\/$/, "") === "/community-works/library" ? "page" : undefined}>阅读空间</a><a href="/community-works/me" aria-current={window.location.pathname.replace(/\/$/, "") === "/community-works/me" ? "page" : undefined}>我的投稿</a><a href="https://storyforge-lab.com/">返回 StoryForge 官网 ↗</a></nav>
   </header>
 }
 
@@ -319,7 +321,8 @@ export function App() {
   const match = window.location.pathname.match(/^\/community-works\/work\/([a-z0-9-]{1,100})\/?$/)
   const review = /^\/community-works\/review\/?$/.test(window.location.pathname)
   const library = /^\/community-works\/library\/?$/.test(window.location.pathname)
+  const submit = /^\/community-works\/submit\/?$/.test(window.location.pathname)
   const mine = /^\/community-works\/me\/?$/.test(window.location.pathname)
   const policy = /^\/community-works\/policy\/?$/.test(window.location.pathname)
-  return <><a className="skip-link" href="#main-content">跳到正文</a><Header /><Suspense fallback={<p role="status">正在打开页面…</p>}>{review ? <ReviewPage /> : library ? <ReadingSpace /> : mine ? <MySubmissions /> : policy ? <PolicyPage /> : match ? <Detail slug={match[1]} /> : <Home />}</Suspense><footer><span>StoryForge 社区作品集</span><a href="/community-works/policy">内容与审核规则</a><span>只展示作者主动投稿且审核通过的版本</span></footer></>
+  return <><a className="skip-link" href="#main-content">跳到正文</a><Header /><Suspense fallback={<p role="status">正在打开页面…</p>}>{submit ? <SubmitPage /> : review ? <ReviewPage /> : library ? <ReadingSpace /> : mine ? <MySubmissions /> : policy ? <PolicyPage /> : match ? <Detail slug={match[1]} /> : <Home />}</Suspense><footer><span>StoryForge 社区作品集</span><a href="/community-works/policy">内容与审核规则</a><span>只展示作者主动投稿且审核通过的版本</span></footer></>
 }

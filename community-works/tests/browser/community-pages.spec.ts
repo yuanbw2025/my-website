@@ -122,3 +122,64 @@ test('guest login and rules stay readable at 320px without oversized headings or
   await expect(page.getByRole('heading', { name: '可以分享什么' })).toBeInViewport()
   await page.screenshot({ path: info.outputPath('policy-narrow.png') })
 })
+
+test('guest can find the submission form from the catalog and see project sharing instructions', async ({page}) => {
+  await page.goto(base + '/')
+  await page.getByRole('link', {name:'我要投稿', exact:true}).click()
+  await expect(page.getByRole('heading', {name:'登录社区账号'})).toBeVisible()
+  await page.getByText('如何提交项目里的小说或拆书分析？').click()
+  await expect(page.getByText(/从文档解析导入项目参考/)).toBeVisible()
+  await expect(page.getByLabel('章节正文')).toHaveCount(0)
+  await compact(page)
+})
+
+test('web author explicitly confirms private chapter upload and recovers the original receipt', async ({page}) => {
+  const {createHash} = await import('node:crypto')
+  const uid = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+  const sid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  const receipt = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const path = uid + '/' + sid + '/snapshot.json'
+  let allocations = 0, uploads = 0, finishes = 0
+  let manifest: {sha256:string; byteLength:number}
+  await login(page)
+  await page.route('**/api/community/v1/upload-sessions', async route => {
+    allocations++
+    manifest = route.request().postDataJSON()
+    expect(route.request().headers().authorization).toMatch(/^Bearer /)
+    await route.fulfill({status:201,json:{sessionId:sid,objectPath:path,token:'fixture',sha256:manifest.sha256,byteLength:manifest.byteLength}})
+  })
+  await page.route('https://community-fixture.invalid/storage/v1/object/upload/sign/**', async route => {
+    uploads++
+    expect(route.request().method()).toBe('PUT')
+    expect(new URL(route.request().url()).pathname).toBe('/storage/v1/object/upload/sign/community-intake/' + path)
+    const bytes = route.request().postDataBuffer()!
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(manifest.sha256)
+    expect(bytes.length).toBe(manifest.byteLength)
+    expect(JSON.parse(bytes.toString())).toEqual({schemaVersion:1,kind:'novel',title:'灯塔',genres:[],description:'',
+      chapters:[{title:'第一章',content:'风吹过海面。'},{title:'灯光',content:'塔顶的灯亮了。'}]})
+    await route.fulfill({json:{Key:'community-intake/' + path}})
+  })
+  await page.route('**/api/community/v1/submissions', async route => {
+    finishes++
+    expect(route.request().postDataJSON()).toEqual({sessionId:sid,publicPenName:'试稿作者',rightsConfirmed:true,license:'all-rights-reserved'})
+    if (finishes === 1) return route.abort('failed')
+    await route.fulfill({json:{submissionId:receipt,status:'submitted'}})
+  })
+  await page.goto(base + '/submit')
+  await page.getByLabel('公开笔名').fill('试稿作者')
+  await page.getByLabel('作品名称').fill('灯塔')
+  await page.getByLabel('章节正文').fill('风吹过海面。')
+  await page.getByRole('button', {name:'添加章节'}).click()
+  await page.getByLabel('章节标题').last().fill('灯光')
+  await page.getByLabel('章节正文').last().fill('塔顶的灯亮了。')
+  await page.getByRole('button', {name:'预览投稿'}).click()
+  const submit = page.getByRole('button', {name:'确认并提交待审'})
+  await expect(submit).toBeDisabled()
+  expect(allocations).toBe(0)
+  await page.getByRole('checkbox').check()
+  await submit.click()
+  await expect(page.getByRole('alert')).toContainText('连接中断')
+  await submit.click()
+  await expect(page.getByText('编号：' + receipt)).toBeVisible()
+  expect([allocations, uploads, finishes]).toEqual([1,1,2])
+})

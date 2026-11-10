@@ -65,11 +65,11 @@ function Workspace({ session }: { session: Session }) {
   return <main id="main-content" className="community-page submissions-page">
     <div className="page-heading"><div><h1>我的投稿</h1>
     <p>最近 50 份投稿。撤回会隐藏已公开作品；申诉由审核员复核。</p></div>
-    <button type="button" disabled={state === 'loading' || busy} onClick={() => void refresh()}>刷新记录</button></div>
+    <button type="button" disabled={state === 'loading' || busy} onClick={() => void refresh()}>刷新记录</button><a href="/community-works/submit">我要投稿 →</a></div>
     {state === 'loading' && <p role="status">正在读取投稿…</p>}
     {state === 'error' && <p role="alert">投稿记录暂时无法读取。</p>}
     {message && <p role="status">{message}</p>}
-    {state === 'ready' && items.length === 0 && <div className="empty-state"><strong>此账号还没有投稿。</strong><p>在 StoryForge 中选择要分享的小说章节或拆书分析，确认公开范围后上传；投稿状态会显示在这里。</p><a href="/community-works/policy">查看投稿规则 →</a></div>}
+    {state === 'ready' && items.length === 0 && <div className="empty-state"><strong>此账号还没有投稿。</strong><p>从“我要投稿”提交原创小说，或在 StoryForge 中分享选定的章节和拆书分析。</p><a href="/community-works/policy">查看投稿规则 →</a></div>}
     <div className="submission-list">{state === 'ready' && items.map(item => {
       const currentAppeal = appeals.find(value => value.submission_id === item.id)
       return <article className="submission-card" key={item.id}>

@@ -188,3 +188,18 @@ footer { padding-block: 20px; flex-wrap: wrap; font-size: .8rem; }
   .account-bar { padding: 6px 16px; }
   .policy-page .page-heading { margin-top: 12px; }
 }
+.submit-page { max-width: 900px; }
+.web-submission input:not([type=checkbox]), .web-submission textarea { width: 100%; }
+.web-submission fieldset { min-width: 0; border: 1px solid #d8e2d9; border-radius: 8px; margin: 12px 0; }
+.web-submission .submission-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 20rem; overflow-y: auto; }
+.submit-page > details { margin-bottom: 16px; }
+
+.site-header nav .submit-link {
+  background: #254a39;
+  color: white;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+.site-header nav .submit-link:hover { background: #193929; }
+.site-header nav .submit-link[aria-current=page] { color: white; }

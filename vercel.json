@@ -8,6 +8,7 @@
     }
   ],
   "rewrites": [
+    {"source": "/community-works/submit", "destination": "/community-works/index.html"},
     {
       "source": "/community-works/review/embed",
       "destination": "/community-works/index.html"
